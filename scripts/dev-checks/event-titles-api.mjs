@@ -6,7 +6,9 @@ import { createApp } from '../../apps/api/src/app.ts'
 import { createSignIn } from '../../apps/api/src/auth/sign-in.ts'
 import { createEventTitles } from '../../apps/api/src/calendar/event-titles.ts'
 import { CalendarFault } from '../../apps/api/src/calendar/gateway.ts'
+import { checkSentence, gateContext, learnNames, learnWhen } from '../../apps/api/src/chat/publish-gate.ts'
 import { CHAT_TOOL_ENTRIES, runTool } from '../../apps/api/src/chat/tools.ts'
+import { chatBlock } from '../../packages/contracts/src/chat.ts'
 import { createDb, resolveDatabaseUrl } from '../../packages/db/src/index.ts'
 import { ENV_TEST, TEACHER_LOGIN, call, quote, sql, teacherCookie } from './api.mjs'
 
@@ -69,6 +71,29 @@ pages.many = {
 	}),
 }
 
+const NAMES = [
+	['2026-06-02', 'Екатерина'],
+	['2026-06-09', 'Екатерина'],
+	['2026-06-16', 'Yekaterina IELTS 7.5'],
+	['2026-06-23', 'Jekaterina'],
+	['2026-06-30', 'Катя speaking'],
+	['2026-07-07', 'Katya'],
+	['2026-07-14', 'Ekatarina'],
+	['2026-07-21', 'Яна'],
+	['2026-07-28', 'Ангелика'],
+	['2026-08-04', 'Ирина'],
+	['2026-08-11', 'Other'],
+	['2026-08-18', 'Иван'],
+]
+pages.names = {
+	items: NAMES.map(([day, summary]) => ({
+		status: 'confirmed',
+		summary,
+		start: { dateTime: `${day}T10:00:00+07:00` },
+		end: { dateTime: `${day}T11:30:00+07:00` },
+	})),
+}
+
 const eventTitles = createEventTitles({
 	db,
 	credentials: {
@@ -87,6 +112,7 @@ const eventTitles = createEventTitles({
 			if (mode === 'down') throw new CalendarFault('provider_unavailable')
 			if (mode === 'loop') return { nextPageToken: 'same', items: [] }
 			if (mode === 'many') return pages.many
+			if (mode === 'names') return pages.names
 			return pages[query.pageToken ?? 'first']
 		},
 	},
@@ -207,8 +233,12 @@ try {
 	const summer = { from: '2026-06-01', to: '2026-08-31' }
 	const entry = CHAT_TOOL_ENTRIES.find((item) => item.name === 'calendar_events')
 	check(
-		'calendar_events is a read tool with a period step and no student',
-		entry?.effect === 'read' && entry.step?.student === null && entry.step?.period === 'range'
+		'calendar_events is a read-only show tool with a period step, no student and not strict',
+		entry?.effect === 'show' &&
+			entry.strict === false &&
+			entry.optional.join() === 'title,merge' &&
+			entry.step?.student === null &&
+			entry.step?.period === 'range'
 	)
 
 	mode = 'ok'
@@ -220,10 +250,35 @@ try {
 		named.content
 	)
 	check(
-		'records carry date, time, length and title only',
-		namedRecords.every((item) => Object.keys(item).sort().join() === 'date,duration_minutes,time,title') &&
+		'records carry date, start and end time, length and title only',
+		namedRecords.every((item) => Object.keys(item).sort().join() === 'date,duration_minutes,end_time,time,title') &&
 			named.json.more === 0
 	)
+	check(
+		'one spelling with a Latin lookalike stays one group in a valid calendar_events block',
+		entry?.effect === 'show' &&
+			chatBlock.safeParse(named.block).success &&
+			named.block?.type === 'calendar_events' &&
+			named.block.groups.length === 1 &&
+			named.block.groups[0].events.map((item) => item.date).join() === '2026-06-01,2026-07-03,2026-08-31' &&
+			named.json.shown === true,
+		JSON.stringify(named.block)
+	)
+
+	const everything = await tool(summer)
+	check(
+		'no title reads every titled event of the period as one group',
+		!everything.isError &&
+			everything.json.records.length === 4 &&
+			everything.block?.groups.length === 1 &&
+			everything.block.groups[0].title === null &&
+			everything.block.query === null &&
+			everything.block.merged === true &&
+			everything.block.groups[0].events.length === 4,
+		everything.content
+	)
+	const nullTitle = await tool({ ...summer, title: null })
+	check('title null is the same as no title', nullTitle.json.records?.length === 4, nullTitle.content)
 	const alex = await tool({ ...summer, title: 'ALEX example' })
 	check(
 		'timed match has HH:MM and duration_minutes',
@@ -263,6 +318,71 @@ try {
 	check(
 		'records are in date order',
 		manyRecords.every((item, index) => index === 0 || manyRecords[index - 1].date <= item.date)
+	)
+
+	mode = 'names'
+	const fuzzy = await tool({ ...summer, title: 'Екатерина' })
+	const groups = fuzzy.block?.groups ?? []
+	check(
+		'the search finds other spellings and short forms and groups them by spelling',
+		chatBlock.safeParse(fuzzy.block).success &&
+			groups.map((group) => `${group.title}:${group.events.map((item) => item.date).join('+')}`).join() ===
+				'Екатерина:2026-06-02+2026-06-09,Yekaterina:2026-06-16,Jekaterina:2026-06-23,Катя:2026-06-30,Katya:2026-07-07,Ekatarina:2026-07-14',
+		JSON.stringify(groups.map((group) => [group.title, group.events.length]))
+	)
+	check(
+		'group events keep the full title and the start time',
+		groups[1]?.events[0]?.title === 'Yekaterina IELTS 7.5' && groups[1]?.events[0]?.time === '10:00'
+	)
+	const fuzzyTitles = (fuzzy.json.records ?? []).map((item) => item.title).join('|')
+	check(
+		'threshold negatives stay out: Яна, Ангелика, Ирина and Other',
+		!/Яна|Ангелика|Ирина|Other/.test(fuzzyTitles) && fuzzy.json.groups?.length === 6,
+		fuzzyTitles
+	)
+	check(
+		'the model is told about the block and the merge',
+		/block with a copy button/.test(fuzzy.json.note ?? '') && /merge true/.test(fuzzy.json.note ?? '')
+	)
+	const merged = await tool({ ...summer, title: 'Екатерина', merge: true })
+	check(
+		'merge true gives one group of every match labelled by the request',
+		merged.block?.merged === true &&
+			merged.block.groups.length === 1 &&
+			merged.block.groups[0].title === 'Екатерина' &&
+			merged.block.groups[0].events.length === 7,
+		JSON.stringify(merged.block?.groups.map((group) => [group.title, group.events.length]))
+	)
+	const diminutive = await tool({ ...summer, title: 'Ваня' })
+	check(
+		'a short form finds the full name',
+		diminutive.block?.groups.map((group) => group.title).join() === 'Иван',
+		diminutive.content
+	)
+	const anna = await tool({ ...summer, title: 'Анна' })
+	check(
+		'Анна does not find Яна and shows no block',
+		!anna.isError && anna.json.records.length === 0 && anna.block === null && anna.json.shown === false,
+		anna.content
+	)
+
+	const gate = gateContext()
+	learnWhen(gate, fuzzy.content, 'Asia/Ho_Chi_Minh', '2026')
+	learnNames(gate, fuzzy.content)
+	const published = [
+		'Нашла события с Екатериной с 2 июня по 14 июля.',
+		'Yekaterina IELTS 7.5 идёт 16 июня с 10:00 до 11:30.',
+		'Группы: Екатерина, Yekaterina, Jekaterina, Катя, Katya и Ekatarina.',
+	]
+	check(
+		'the gate publishes dates, end times and titles with digits from the result',
+		published.every((sentence) => checkSentence(sentence, gate) === 'publish'),
+		published.map((sentence) => checkSentence(sentence, gate)).join()
+	)
+	check(
+		'the gate still holds a derived count of lessons and a length in minutes',
+		checkSentence('Всего 7 занятий.', gate) === 'withhold' &&
+			checkSentence('16 июня в 10:00 (90 минут).', gate) === 'withhold'
 	)
 
 	for (const [next, code] of [

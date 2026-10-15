@@ -7,6 +7,7 @@ import { parseEnv } from 'node:util'
 import * as core from '../../packages/core/src/index.ts'
 import { BASE, ROOT, api, check, failures, shot, signIn, sql, theme } from './browser-context.ts'
 import { withBrowser } from './browser-journey.ts'
+import { removeStudentCards } from './fixture-cleanup.mjs'
 import { VN, createCard, openStudentsList, setOpening } from './ledger-web/common.mjs'
 import { balanceFacts } from './ledger-web/students.mjs'
 
@@ -35,14 +36,8 @@ const sections = {
 }
 
 function removeFixtures() {
-	const cards = `select id from students where display_name like '${PREFIX}%' and import_key is null`
-	sql(`delete from lesson_comments where student_id in (${cards})`)
-	sql(`delete from lesson_marks where lesson_id in (select id from lessons where student_id in (${cards}))`)
-	sql(`delete from lessons where student_id in (${cards})`)
-	sql(`delete from student_notes where student_id in (${cards})`)
-	sql(`delete from student_sections where student_id in (${cards})`)
-	const result = sql(`delete from students where display_name like '${PREFIX}%' and import_key is null`)
-	console.log(`fixture cards removed ${result.rowCount}`)
+	const removed = removeStudentCards(sql, `display_name like '${PREFIX}%' and import_key is null`)
+	console.log(`fixture cards removed ${removed}`)
 }
 
 function setTheme(page) {

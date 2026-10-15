@@ -4,6 +4,7 @@ import { createConnection } from 'node:net'
 
 import { BASE, ROOT, check, env, failures, shot, signIn, sql, theme } from './browser-context.ts'
 import { withBrowser } from './browser-journey.ts'
+import { removeStudentCards } from './fixture-cleanup.mjs'
 
 let apiOrigin = BASE
 
@@ -106,10 +107,7 @@ function stopApi(child) {
 function removeCards() {
 	const list = NAMES.map((name) => `'${name}'`).join(', ')
 	const where = `display_name in (${list}) and import_key is null`
-	sql(`delete from payments where student_id in (select id from students where ${where})`)
-	sql(`delete from student_sections where student_id in (select id from students where ${where})`)
-	const result = sql(`delete from students where ${where}`)
-	console.log(`fixture cards removed ${result.rowCount}`)
+	console.log(`fixture cards removed ${removeStudentCards(sql, where)}`)
 }
 
 function removeConversations(ids) {

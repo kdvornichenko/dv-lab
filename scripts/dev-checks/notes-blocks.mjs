@@ -68,12 +68,6 @@ async function blocks(id) {
 }
 
 function removeFixtures() {
-	const cards = `select id from students where display_name like ${quote(`${PREFIX}%`)}`
-	sql(`delete from lesson_comments where student_id in (${cards})`)
-	sql(`delete from student_notes where student_id in (${cards})`)
-	sql(`delete from student_sections where student_id in (${cards})`)
-	sql(`delete from student_terms where student_id in (${cards})`)
-	sql(`delete from note_reviews where student_id in (${cards})`)
 	removeCards(`display_name like ${quote(`${PREFIX}%`)}`)
 }
 

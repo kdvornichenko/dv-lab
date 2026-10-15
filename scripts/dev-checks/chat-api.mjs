@@ -581,13 +581,6 @@ async function checkPreviews(ctx, as) {
 	check('api log has no message text', !ctx.api.logs().includes('zeta'))
 }
 
-function removeEntries(where) {
-	const cards = `select id from students where ${where}`
-	sql(`delete from lesson_comments where student_id in (${cards})`)
-	sql(`delete from student_notes where student_id in (${cards})`)
-	sql(`delete from student_sections where student_id in (${cards})`)
-}
-
 const noteRow = (id) =>
 	sql(
 		`select student_id, section_kind, body, revision, retracted_at is not null as retracted from student_notes where id = ${quote(id)}`
@@ -3545,7 +3538,6 @@ if (!run) {
 	process.exit(2)
 }
 
-removeEntries(`display_name like ${quote(`${PREFIX}%`)} and import_key is null`)
 const tails = removeCards(`display_name like ${quote(`${PREFIX}%`)} and import_key is null`)
 console.log(`fixture tails removed ${tails}`)
 
@@ -3565,7 +3557,6 @@ try {
 } finally {
 	if (api) await api.stop()
 	if (conversations.length > 0) removeChats(`id in (${conversations.map(quote).join(', ')})`)
-	if (ids.length > 0) removeEntries(`id in (${ids.map(quote).join(', ')}) and import_key is null`)
 	if (ids.length > 0) removeCards(`id in (${ids.map(quote).join(', ')}) and import_key is null`)
 }
 

@@ -3,6 +3,8 @@ import { addDays, lessonDayMinutes, startOfLessonDay } from '@dv-lab/core'
 
 export const COLUMN_STRIP = 12
 const COLUMN_INSET = 2
+const PHONE_INSET = 0
+const PHONE_RIGHT = 2
 const LANE_GAP = 2
 const LANE_MIN = 20
 const CASCADE_STEP = 12
@@ -82,22 +84,23 @@ function laneCluster(cluster: Segment[]): { items: Laned[]; lanes: number } {
 	return { items, lanes }
 }
 
-function placeCluster(cluster: Segment[], minuteHeight: number, columnWidth: number) {
+function placeCluster(cluster: Segment[], minuteHeight: number, columnWidth: number, phone: boolean) {
 	const { items, lanes } = laneCluster(cluster)
-	const room = Math.max(columnWidth - COLUMN_INSET - COLUMN_STRIP, LANE_MIN)
+	const inset = phone ? PHONE_INSET : COLUMN_INSET
+	const room = Math.max(columnWidth - inset - (phone ? PHONE_RIGHT : COLUMN_STRIP), LANE_MIN)
 	const fit = Math.max(1, Math.floor((room + LANE_GAP) / (LANE_MIN + LANE_GAP)))
 	const shown = Math.min(lanes, fit)
 	const laneWidth = (room - LANE_GAP * (shown - 1)) / shown
-	const lastLeft = COLUMN_INSET + (shown - 1) * (laneWidth + LANE_GAP)
-	const cascadeStart = Math.max(COLUMN_INSET, lastLeft - (lanes - shown) * CASCADE_STEP)
+	const lastLeft = inset + (shown - 1) * (laneWidth + LANE_GAP)
+	const cascadeStart = Math.max(inset, lastLeft - (lanes - shown) * CASCADE_STEP)
 	return items.map((item) => {
 		const cascade = lanes > fit && item.lane >= fit - 1
 		const lane = cascade ? fit - 1 : item.lane
 		const span = cascade ? 1 : Math.max(1, Math.min(item.span, (lanes > fit ? fit - 1 : shown) - lane))
 		const width = span * laneWidth + (span - 1) * LANE_GAP
 		const left = cascade
-			? Math.min(cascadeStart + (item.lane - (fit - 1)) * CASCADE_STEP, COLUMN_INSET + room - width)
-			: COLUMN_INSET + lane * (laneWidth + LANE_GAP)
+			? Math.min(cascadeStart + (item.lane - (fit - 1)) * CASCADE_STEP, inset + room - width)
+			: inset + lane * (laneWidth + LANE_GAP)
 		const drawnEnd = Math.min(DAY_MINUTES, Math.max(item.end, item.start + MIN_DRAWN_MINUTES))
 		return {
 			event: item.event,
@@ -119,19 +122,20 @@ export function placeDay(
 	date: string,
 	timeZone: string,
 	hourHeight: number,
-	columnWidth: number
+	columnWidth: number,
+	phone = false
 ) {
 	const placed: { event: CalendarEventView; layout: BlockLayout }[] = []
 	let cluster: Segment[] = []
 	let clusterEnd = -1
 	for (const item of segments(events, date, timeZone)) {
 		if (cluster.length > 0 && item.start >= clusterEnd) {
-			placed.push(...placeCluster(cluster, hourHeight / 60, columnWidth))
+			placed.push(...placeCluster(cluster, hourHeight / 60, columnWidth, phone))
 			cluster = []
 		}
 		cluster.push(item)
 		clusterEnd = Math.max(clusterEnd, item.end)
 	}
-	if (cluster.length > 0) placed.push(...placeCluster(cluster, hourHeight / 60, columnWidth))
+	if (cluster.length > 0) placed.push(...placeCluster(cluster, hourHeight / 60, columnWidth, phone))
 	return placed
 }

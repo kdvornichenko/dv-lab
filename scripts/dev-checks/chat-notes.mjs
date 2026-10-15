@@ -39,13 +39,9 @@ const cardBody = (displayName) => ({
 })
 
 function removeFixtures(where) {
-	const cards = `select id from students where ${where}`
 	const conversations = `select distinct conversation_id from chat_actions where target->>'studentId' in (select id::text from students where ${where})`
 	const chats = sql(`select id from chat_conversations where id in (${conversations})`).rows.map((row) => row.id)
 	if (chats.length > 0) removeChats(`id in (${chats.map(quote).join(', ')})`)
-	sql(`delete from student_terms where student_id in (${cards})`)
-	sql(`delete from student_notes where student_id in (${cards})`)
-	sql(`delete from note_reviews where student_id in (${cards})`)
 	return removeCards(where)
 }
 

@@ -29,6 +29,7 @@ import { SCHEDULE_TIME_ZONE } from '@dv-lab/core'
 import { ActionLink } from './action-link'
 import { ActionResult } from './action-result'
 import { BulkMoveProposal, isBulkMove } from './bulk-move-proposal'
+import { CalendarEvents } from './calendar-events'
 import { CalendarProposal } from './calendar-proposal'
 import { ChangeProposal } from './change-proposal'
 import { ChatNoteChange } from './chat-note-change'
@@ -262,6 +263,7 @@ function Block({
 	if (block.type === 'review_result') return <ReviewResult block={block} {...reviews} />
 	if (block.type === 'refused') return <Refused block={block} />
 	if (isRecordBlock(block)) return <RecordBlockView block={block} followUp={followUp} />
+	if (block.type === 'calendar_events') return <CalendarEvents block={block} />
 	if (block.type === 'action_link') return <ActionLink block={block} />
 	if (block.type === 'stopped') return <p className="text-caption text-muted-foreground">Reply stopped.</p>
 	if (block.type === 'withheld') return <Withheld onAsk={replies.onAsk} />

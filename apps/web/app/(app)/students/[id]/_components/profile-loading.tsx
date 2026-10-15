@@ -188,7 +188,7 @@ export function ProfileLoading() {
 				<div className="flex w-fit max-w-full min-w-0 rounded-xl bg-muted">
 					<TabsList
 						aria-label="Student sections"
-						className="scroll-fade-x bg-transparent [--scroll-fade-size:var(--scroll-fade-size-compact)] max-sm:min-w-0 max-sm:flex-1 max-sm:overflow-x-auto"
+						className="scroll-fade-x no-scrollbar bg-transparent [--scroll-fade-size:var(--scroll-fade-size-compact)] max-sm:min-w-0 max-sm:flex-1 max-sm:overflow-x-auto"
 					>
 						<TabItem value="overview" label="Overview" disabled />
 						<TabItem value="lessons" label="Lessons" disabled />

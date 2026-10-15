@@ -30,7 +30,7 @@ export function StudentsLoading() {
 					<div className="flex min-w-0 rounded-xl bg-muted md:w-fit md:flex-none">
 						<TabsList
 							aria-label="Student lists"
-							className="scroll-fade-x bg-transparent [--scroll-fade-size:var(--scroll-fade-size-compact)] max-md:min-w-0 max-md:flex-1 max-md:overflow-x-auto"
+							className="scroll-fade-x no-scrollbar bg-transparent [--scroll-fade-size:var(--scroll-fade-size-compact)] max-md:min-w-0 max-md:flex-1 max-md:overflow-x-auto"
 						>
 							<TabItem value="active" label="Active" />
 							<TabItem value="archived" label="Archived" />

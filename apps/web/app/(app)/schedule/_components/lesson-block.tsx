@@ -2,7 +2,7 @@
 
 import type { ComponentProps, CSSProperties } from 'react'
 
-import { Loader2, TriangleAlert } from 'lucide-react'
+import { Check, Loader2, TriangleAlert, UserX } from 'lucide-react'
 
 import { eventPaint } from '@/lib/event-colors'
 import { cn } from '@/lib/utils'
@@ -23,6 +23,9 @@ const HATCH =
 	'bg-[repeating-linear-gradient(45deg,color-mix(in_oklab,var(--event-fill)_40%,transparent)_0_5px,transparent_5px_10px)] ring-1 ring-(--event-fill) ring-inset'
 const LESSON_HATCH =
 	'bg-[repeating-linear-gradient(45deg,color-mix(in_oklab,var(--selected)_40%,transparent)_0_5px,transparent_5px_10px)] ring-1 ring-selected ring-inset'
+const PHONE_LINE = 14
+const PHONE_LETTER_BELOW = 28
+const PHONE_COLOUR_BELOW = 12
 const GHOST = 'bg-transparent text-muted-foreground outline-1 -outline-offset-1 outline-foreground/40 outline-dashed'
 
 interface LessonBlockProps extends Omit<ComponentProps<'button'>, 'onClick'> {
@@ -33,16 +36,28 @@ interface LessonBlockProps extends Omit<ComponentProps<'button'>, 'onClick'> {
 	movable?: boolean
 	ghost?: boolean
 	mark?: BlockMark | null
+	phone?: boolean
+	needsMark?: boolean
 	onOpen: (event: CalendarEventView) => void
 	onClick?: ComponentProps<'button'>['onClick']
 }
 
 function surface(coloured: boolean, ghost: boolean, cancelled: boolean, tentative: boolean): string {
 	if (ghost) return GHOST
-	if (cancelled) return 'text-muted-foreground ring-1 ring-selected ring-inset'
+	if (cancelled) return `text-muted-foreground ring-1 ring-inset ${coloured ? 'ring-(--event-fill)' : 'ring-selected'}`
 	if (coloured)
 		return tentative ? `${HATCH} text-foreground` : 'bg-(--event-fill) text-(--event-ink) ring-1 ring-surface-2'
 	return tentative ? `${LESSON_HATCH} text-foreground` : 'bg-selected text-foreground ring-1 ring-surface-2'
+}
+
+function phoneTitle(event: CalendarEventView, layout: BlockLayout, title: string) {
+	if (layout.width < PHONE_COLOUR_BELOW) return null
+	const minutes =
+		event.when.kind === 'timed' ? (Date.parse(event.when.endsAt) - Date.parse(event.when.startsAt)) / 60000 : 60
+	const lines =
+		minutes < 30 ? 0 : minutes < 45 ? 1 : Math.max(1, Math.min(3, Math.floor((layout.height - 4) / PHONE_LINE)))
+	if (layout.width < PHONE_LETTER_BELOW) return { lines: Math.min(lines, 1), text: Array.from(title)[0] ?? '' }
+	return { lines, text: title }
 }
 
 export function LessonBlock({
@@ -53,6 +68,8 @@ export function LessonBlock({
 	movable = false,
 	ghost = false,
 	mark: markProp = null,
+	phone = false,
+	needsMark = false,
 	onOpen,
 	onClick,
 	className,
@@ -65,8 +82,16 @@ export function LessonBlock({
 	const tentative = calendarEvent.status === 'tentative'
 	const plain = calendarEvent.binding.kind === 'external'
 	const mark = markProp ?? (calendarEvent.binding.kind === 'transition' ? 'unconfirmed' : null)
-	const dimmed = mark !== null && !ghost
-	const marker = dimmed && layout !== null && layout.height >= MARKER_MIN_HEIGHT ? mark : null
+	const marked = calendarEvent.binding.kind === 'lesson' && calendarEvent.binding.mark !== null && !cancelled
+	const dimmed = (mark !== null || marked) && !ghost
+	const marker = !phone && dimmed && layout !== null && layout.height >= MARKER_MIN_HEIGHT ? mark : null
+	const pending = needsMark && !marked && !cancelled
+	const sign =
+		!phone && marked && marker === null && layout !== null && layout.height >= MARKER_MIN_HEIGHT
+			? calendarEvent.binding.kind === 'lesson'
+				? calendarEvent.binding.mark
+				: null
+			: null
 	const chip = layout === null
 	const availability = calendarEvent.blocksTime ? 'Busy' : 'Available'
 	const short = layout !== null && layout.height < (plain ? EVENT_SHORT_HEIGHT : LESSON_SHORT_HEIGHT)
@@ -83,6 +108,7 @@ export function LessonBlock({
 				}
 	const suggested = plain && calendarEvent.suggestion !== null
 	const hideText = ghost && plain
+	const phoneText = phone && layout !== null ? phoneTitle(calendarEvent, layout, title) : null
 	const resizable = movable && layout !== null && !layout.cutTop && !layout.cutBottom
 	const paintVars =
 		paint === null ? undefined : ({ '--event-fill': paint.fill, '--event-ink': paint.ink } as CSSProperties)
@@ -103,7 +129,9 @@ export function LessonBlock({
 				onOpen(calendarEvent)
 			}}
 			className={cn(
-				'z-10 block overflow-hidden rounded-md px-[6px] text-left focus-visible:outline-none',
+				'z-10 flex flex-col justify-start overflow-hidden text-left focus-visible:outline-none',
+				'rounded-sm',
+				phone && !chip ? 'px-[3px]' : 'px-[6px]',
 				chip ? 'py-[4px]' : 'py-[2px]',
 				plain ? EVENT_FOCUS : LESSON_FOCUS,
 				movable ? 'cursor-grab' : 'cursor-default',
@@ -111,25 +139,57 @@ export function LessonBlock({
 				layout?.cutTop && 'rounded-t-none',
 				layout?.cutBottom && 'rounded-b-none',
 				surface(paint !== null, ghost, cancelled, tentative),
+				phone && cancelled && 'text-foreground',
 				dimmed && 'opacity-60',
 				className
 			)}
 		>
-			<span
-				className={cn(
-					'block truncate text-caption',
-					tentative ? 'font-normal' : 'font-semibold',
-					cancelled && 'line-through',
-					suggested && 'pr-[14px]',
-					marker !== null && 'pr-4',
-					hideText && 'invisible'
-				)}
-			>
-				{title}
-				{short ? `, ${range}` : ''}
-			</span>
-			{!short && !chip ? (
-				<span className={cn('block truncate text-caption tabular-nums', hideText && 'invisible')}>{range}</span>
+			{phone && !chip ? (
+				phoneText !== null && phoneText.lines > 0 ? (
+					<span
+						className={cn(
+							'block overflow-hidden text-[11px] leading-[14px] font-medium wrap-anywhere',
+							cancelled && 'line-through'
+						)}
+						style={{ maxHeight: phoneText.lines * PHONE_LINE }}
+					>
+						{phoneText.text}
+					</span>
+				) : null
+			) : (
+				<span
+					className={cn(
+						'block truncate text-caption',
+						tentative ? 'font-normal' : 'font-medium',
+						cancelled && 'line-through',
+						suggested && 'pr-[14px]',
+						(marker !== null || sign !== null || (!phone && pending)) && 'pr-4',
+						hideText && 'invisible'
+					)}
+				>
+					{title}
+					{short ? `, ${range}` : ''}
+				</span>
+			)}
+			{!phone && !short && !chip ? (
+				<span className={cn('block truncate text-[11px] leading-[14px] tabular-nums', hideText && 'invisible')}>
+					{range}
+				</span>
+			) : null}
+			{pending ? (
+				<span
+					aria-hidden
+					data-slot="calendar-event-needs-mark"
+					className={cn(
+						'absolute size-2 rounded-full bg-warning ring-1 ring-surface-2',
+						phone ? 'top-0.5 right-0.5' : 'top-1 right-1'
+					)}
+				/>
+			) : null}
+			{sign === 'done' ? (
+				<Check aria-hidden data-slot="calendar-event-mark" className="absolute top-1 right-1 size-3" />
+			) : sign === 'no_show' ? (
+				<UserX aria-hidden data-slot="calendar-event-mark" className="absolute top-1 right-1 size-3" />
 			) : null}
 			{marker === 'syncing' ? (
 				<Loader2

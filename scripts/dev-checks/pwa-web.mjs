@@ -4,6 +4,7 @@ import vm from 'node:vm'
 import { lessonLink, studentPaymentsLink } from '../../packages/contracts/src/links.ts'
 import { BASE, ROOT, api, check, failures, shot, signIn, sql, theme } from './browser-context.ts'
 import { withBrowser } from './browser-journey.ts'
+import { removeStudentCards } from './fixture-cleanup.mjs'
 
 const EXPECTED_NOISE = /Failed to load resource|server caches disabled|Route "\/login": Next\.js encountered URL data/
 
@@ -561,13 +562,7 @@ const rows = () =>
 	).rows[0]
 
 function removeFixtures() {
-	const cards = `select id from students where display_name like '${FIXTURE_PREFIX}%' and import_key is null`
-	sql(`delete from push_payment_alerts where student_id in (${cards})`)
-	sql(`delete from student_notes where student_id in (${cards})`)
-	sql(`delete from student_sections where student_id in (${cards})`)
-	sql(`delete from student_terms where student_id in (${cards})`)
-	sql(`delete from note_reviews where student_id in (${cards})`)
-	sql(`delete from students where display_name like '${FIXTURE_PREFIX}%' and import_key is null`)
+	removeStudentCards(sql, `display_name like '${FIXTURE_PREFIX}%' and import_key is null`)
 	sql(`delete from push_subscriptions where endpoint like '${FAKE_ENDPOINTS}'`)
 }
 

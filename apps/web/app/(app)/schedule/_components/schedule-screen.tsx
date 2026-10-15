@@ -3,21 +3,18 @@
 import { useCallback, useMemo, useRef, useState, type ReactNode } from 'react'
 import { createPortal } from 'react-dom'
 
-import { CalendarPlus } from 'lucide-react'
-
 import { CalendarRecovery } from '@/components/app/calendar-command-notice'
 import { useCalendarCommands } from '@/components/app/calendar-command-provider'
-import { CalendarReadNotice, CalendarReadStatusButton } from '@/components/app/google-calendar-state'
-import { PageHeader, PageScroll, WorkspacePage } from '@/components/app/layout-parts'
+import { CalendarReadStatusButton } from '@/components/app/google-calendar-state'
+import { PageScroll, WorkspacePage } from '@/components/app/layout-parts'
 import { ReadError } from '@/components/app/read-error'
 import { TimeZonePicker, useSecondZone } from '@/components/app/time-zone-picker'
-import { Button } from '@/components/ui/button'
 import { calendarLesson, canEditCalendarEvent, canEditPlainEvent, changeableLesson } from '@/lib/lesson-actions'
-import { weekRange } from '@/lib/schedule-format'
 import { zoneLabel } from '@/lib/time-zones'
+import { cn } from '@/lib/utils'
 
 import type { CalendarEventView, GoogleScheduleWindow } from '@dv-lab/contracts'
-import { addDays, lessonDay, mondayOf, scheduleDate, zonedInstant, zonedParts } from '@dv-lab/core'
+import { addDays, lessonDay, mondayOf, scheduleDate, zonedInstant } from '@dv-lab/core'
 
 import { useMinuteNow } from '../../_components/use-minute-now'
 import { CalendarEventDialog } from './calendar-event-details'
@@ -27,15 +24,15 @@ import { NewLessonDialog, type NewLessonDraft } from './new-lesson-dialog'
 import { useOptimisticWrites, type WriteRunner } from './optimistic-writes'
 import { ScheduleArrival } from './schedule-arrival'
 import {
-	NOTICE_SLOT,
-	STRIP,
-	STRIP_TOOLS,
+	PHONE_BODY,
+	PHONE_ROW,
 	WORKSPACE_BODY,
 	LOADING_BLOCKS,
 	ScheduleLoading,
 	useLaptop,
+	usePhoneGrid,
 } from './schedule-loading'
-import { ScheduleBar, useScheduleKeys, weekSummary } from './schedule-toolbar'
+import { ScheduleBar, TOOLBAR_BUTTONS, useScheduleKeys, weekSummary } from './schedule-toolbar'
 import type { MoveSeed } from './use-lesson-drag'
 import { useLessonStudents, type StudentsState } from './use-lesson-students'
 import { arrivalMonday, useDropArrivalParams, type ArrivalParams } from './use-schedule-arrival'
@@ -67,7 +64,7 @@ function displayWindow(data: GoogleScheduleWindow | null, query: { monday: strin
 
 function LoadedSchedule({ now, arrival }: { now: Date; arrival: ArrivalParams }) {
 	const [initialMonday] = useState(() => arrivalMonday(arrival))
-	const { state: week, reload, navigate } = useScheduleWeek(initialMonday)
+	const { state: week, reload, navigate, peek } = useScheduleWeek(initialMonday)
 	const scrollTopRef = useRef(OPEN_SCROLL_TOP)
 	const [selection, setSelection] = useState<CalendarEventView | null>(null)
 	const [moveSeed, setMoveSeed] = useState<MoveSeed | undefined>(undefined)
@@ -90,6 +87,7 @@ function LoadedSchedule({ now, arrival }: { now: Date; arrival: ArrivalParams })
 	const titleRef = useRef<HTMLHeadingElement>(null)
 	const [zone, setZone] = useSecondZone(week.query?.mainTimeZone ?? null)
 	const laptop = useLaptop()
+	const phone = usePhoneGrid()
 	const requested = week.query?.monday ?? null
 	const todayMonday = week.query ? mondayOf(lessonDay(now, week.query.mainTimeZone)) : null
 	useScheduleKeys({
@@ -112,7 +110,6 @@ function LoadedSchedule({ now, arrival }: { now: Date; arrival: ArrivalParams })
 	if (week.query === null)
 		return week.kind === 'error' ? (
 			<PageScroll>
-				{laptop === null ? <PageHeader title="Schedule" /> : null}
 				<ReadError screen="schedule" onRefresh={() => void reload()} />
 			</PageScroll>
 		) : (
@@ -219,6 +216,19 @@ function LoadedSchedule({ now, arrival }: { now: Date; arrival: ArrivalParams })
 			frame={draft?.seed ?? null}
 			scrollTopRef={scrollTopRef}
 			placeholders={loadingFirst ? LOADING_BLOCKS : undefined}
+			phone={phone}
+			loadingBlocks={LOADING_BLOCKS}
+			pager={
+				phone && laptop === null
+					? {
+							onTurn: (target) => go(target, target === currentMonday),
+							pageEvents: (target) => {
+								const known = peek(target, mainTimeZone)
+								return known === null ? null : known.events.filter((event) => event.status !== 'cancelled')
+							},
+						}
+					: undefined
+			}
 		/>
 	)
 	const windowAttributes = {
@@ -288,6 +298,13 @@ function LoadedSchedule({ now, arrival }: { now: Date; arrival: ArrivalParams })
 		</>
 	)
 
+	const body = (
+		<>
+			{arrived}
+			{grid}
+		</>
+	)
+
 	if (laptop !== null) {
 		return (
 			<>
@@ -301,11 +318,10 @@ function LoadedSchedule({ now, arrival }: { now: Date; arrival: ArrivalParams })
 					/>,
 					laptop.left
 				)}
-				{inBar(<div className="flex items-center gap-2">{tools}</div>, laptop.right)}
+				{inBar(<div className={cn('flex items-center gap-2', TOOLBAR_BUTTONS)}>{tools}</div>, laptop.right)}
 				<WorkspacePage>
-					<div {...windowAttributes} className={WORKSPACE_BODY}>
-						{arrived}
-						{grid}
+					<div {...windowAttributes} className={phone ? PHONE_BODY : WORKSPACE_BODY}>
+						{body}
 					</div>
 				</WorkspacePage>
 				{dialogs}
@@ -315,52 +331,26 @@ function LoadedSchedule({ now, arrival }: { now: Date; arrival: ArrivalParams })
 
 	return (
 		<>
-			<PageScroll>
-				<PageHeader
-					titleRef={titleRef}
-					title={weekRange(monday)}
-					actions={
-						<Button
-							leadingIcon={CalendarPlus}
-							disabled={!editable}
-							onClick={() =>
-								openNew(
-									monday === currentMonday
-										? { ...nextWholeHour(now, mainTimeZone), durationMinutes: 60, dragged: false }
-										: { date: monday, time: '09:00', durationMinutes: 60, dragged: false }
-								)
-							}
-						>
-							New event
-						</Button>
-					}
-				/>
-				<div className={STRIP}>
-					<ScheduleBar {...navigation} onWeek={pickWeek} today={today} titleRef={null} summary={null} heading={false} />
-					<div className={STRIP_TOOLS}>{tools}</div>
-				</div>
-				<div {...windowAttributes} className="space-y-4">
-					<div data-slot="calendar-read-slot" className={NOTICE_SLOT}>
-						{loadingFirst ? null : (
-							<CalendarReadNotice read={read} write={write} timeZone={mainTimeZone} onRefresh={refreshWeek} />
-						)}
+			<WorkspacePage>
+				<div {...windowAttributes} className={PHONE_BODY}>
+					<div className={cn(PHONE_ROW, TOOLBAR_BUTTONS)}>
+						<ScheduleBar
+							{...navigation}
+							compact
+							onWeek={pickWeek}
+							today={today}
+							titleRef={null}
+							summary={null}
+							heading={false}
+						/>
+						{tools}
 					</div>
-					{arrived}
-					{grid}
+					{body}
 				</div>
-				<CalendarRecovery showEmpty={false} />
-			</PageScroll>
+			</WorkspacePage>
 			{dialogs}
 		</>
 	)
-}
-
-function nextWholeHour(now: Date, mainTimeZone: string) {
-	const parts = zonedParts(now, mainTimeZone)
-	const hour = Math.floor(parts.minutes / 60) + 1
-	return hour >= 24
-		? { date: addDays(parts.date, 1), time: '00:00' }
-		: { date: parts.date, time: `${String(hour).padStart(2, '0')}:00` }
 }
 
 function inBar(node: ReactNode, slot: HTMLElement) {

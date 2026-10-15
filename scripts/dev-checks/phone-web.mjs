@@ -5,6 +5,7 @@ import { createConnection } from 'node:net'
 import * as contracts from '../../packages/contracts/src/index.ts'
 import * as core from '../../packages/core/src/index.ts'
 import { BASE, ROOT, STATE_DIR, check, env, failures, shot, sql, theme } from './browser-context.ts'
+import { removeStudentCards } from './fixture-cleanup.mjs'
 
 const playwright = process.env.PLAYWRIGHT_CORE ?? '/Volumes/T7/personal/ielts/node_modules/playwright-core/index.mjs'
 const { chromium } = await import(playwright)
@@ -125,18 +126,11 @@ function removeConversations(ids) {
 }
 
 function removeFixtures() {
-	const cards = `select id from students where ${FIXTURES}`
 	const conversations = sql(
 		`select distinct conversation_id as id from chat_actions where target->>'studentId' in (select id::text from students where ${FIXTURES})`
 	).rows.map((row) => row.id)
 	removeConversations(conversations)
-	sql(`delete from student_notes where student_id in (${cards})`)
-	sql(`delete from lesson_comments where student_id in (${cards})`)
-	sql(`delete from student_sections where student_id in (${cards})`)
-	sql(`delete from accounts where student_id in (${cards}) and role = 'student'`)
-	sql(`delete from payments where student_id in (${cards})`)
-	const result = sql(`delete from students where ${FIXTURES}`)
-	console.log(`fixture cards removed ${result.rowCount}`)
+	console.log(`fixture cards removed ${removeStudentCards(sql, FIXTURES)}`)
 }
 
 async function openPhone() {
@@ -853,52 +847,46 @@ async function sectionSchedule({ page, apiOrigin, problems }) {
 		if (size.width === 320) await page.emulateMedia({ reducedMotion: 'reduce' })
 		mode = 'rows'
 		await page.goto(`${BASE}/schedule`)
-		await page.locator('[data-slot="calendar-agenda"] [data-event-key]').first().waitFor({ timeout: 30000 })
+		await page.locator('[data-slot="week-grid"] [data-page="current"] [data-event-key]').first().waitFor({ timeout: 30000 })
 		const grid = page.locator('[data-slot="week-grid"]')
-		const agenda = page.locator('[data-slot="calendar-agenda"]')
 		check(
-			`schedule @${size.width}: the day list is shown and the grid is hidden`,
-			(await agenda.isVisible()) &&
-				!(await grid
-					.first()
-					.isVisible()
-					.catch(() => false))
+			`schedule @${size.width}: the week grid is shown and no day list is drawn`,
+			(await grid.first().isVisible()) && (await page.locator('[data-slot="calendar-agenda"]').count()) === 0
 		)
-		await measure(page, 'schedule', size)
+		await measure(page, 'schedule', size, { hit: false })
 		await shot(page, 'phone-schedule', `${size.width}`)
 		const dates = await page
-			.locator('[data-slot="agenda-date"]')
-			.evaluateAll((nodes) =>
-				nodes.filter((node) => node.getBoundingClientRect().width > 0).map((node) => node.getAttribute('data-date'))
-			)
+			.locator('[data-page="current"] [data-slot="week-grid-day"]')
+			.evaluateAll((nodes) => nodes.map((node) => node.getAttribute('data-date')))
 		check(
-			`schedule @${size.width}: the days run in date order`,
-			dates.length === 3 && [...dates].sort().join() === dates.join(),
+			`schedule @${size.width}: the seven days run in date order`,
+			dates.length === 7 && [...dates].sort().join() === dates.join(),
 			dates.join(',')
 		)
-		const heading = (await page.locator('h1').first().innerText()).trim()
-		const rows = await page.locator('[data-slot="calendar-agenda"] [data-event-key]').evaluateAll((nodes) =>
+		const heading = (await page.locator('[data-slot="schedule-week-picker"]').first().innerText()).trim()
+		const rows = await page.locator('[data-slot="week-grid"] [data-page="current"] [data-event-key]').evaluateAll((nodes) =>
 			nodes.map((node) => {
 				const box = node.getBoundingClientRect()
-				return box.left >= 0 && box.right <= innerWidth && box.height >= 44
+				return box.left >= 0 && box.right <= innerWidth
 			})
 		)
 		check(
-			`schedule @${size.width}: every row is inside the window and 44 px high`,
+			`schedule @${size.width}: every block is inside the window`,
 			rows.length >= 4 && rows.every(Boolean),
 			JSON.stringify(rows)
 		)
-		await tap(page, page.locator('[data-slot="calendar-agenda"] [data-event-key="a"]'))
+		await tap(page, page.locator('[data-slot="week-grid"] [data-page="current"] [data-event-key="a"]'))
 		await fitDialog(page, size, 'schedule lesson dialog')
 		await measure(page, 'schedule lesson dialog', size)
 		await shot(page, 'phone-schedule', `${size.width}-lesson`)
 		await closeDialog(page)
 		check(
 			`schedule @${size.width}: closing the dialog keeps the selected week`,
-			(await page.locator('h1').first().innerText()).trim() === heading
+			(await page.locator('[data-slot="schedule-week-picker"]').first().innerText()).trim() === heading
 		)
-		const newEvent = page.getByRole('button', { name: /New event/ }).first()
-		await tap(page, newEvent)
+		const empty = await page.locator('[data-page="current"] [data-slot="week-grid-column"]').nth(6).boundingBox()
+		const bodyBox = await page.locator('[data-slot="week-grid-body"]').boundingBox()
+		await page.touchscreen.tap(empty.x + empty.width / 2, bodyBox.y + 150)
 		await fitDialog(page, size, 'schedule new event dialog')
 		await measure(page, 'schedule new event dialog', size)
 		await shot(page, 'phone-schedule', `${size.width}-new`)
@@ -907,6 +895,10 @@ async function sectionSchedule({ page, apiOrigin, problems }) {
 			mode = next
 			await page.goto(`${BASE}/schedule`)
 			await page.waitForTimeout(1800)
+			if (next !== 'empty') {
+				await tap(page, page.getByRole('button', { name: /Read-only/ }).first())
+				await page.waitForTimeout(500)
+			}
 			const text = await page.locator('body').innerText()
 			if (next === 'empty')
 				check(
@@ -926,7 +918,8 @@ async function sectionSchedule({ page, apiOrigin, problems }) {
 						(await page.getByRole('button', { name: 'Refresh', exact: true }).first().isVisible()),
 					text.slice(0, 120).replace(/\n/g, ' | ')
 				)
-			await measure(page, `schedule ${next}`, size)
+			if (next !== 'empty') await page.keyboard.press('Escape')
+			await measure(page, `schedule ${next}`, size, { hit: false })
 			await shot(page, 'phone-schedule', `${size.width}-${next}`)
 		}
 	}
@@ -1341,9 +1334,9 @@ const period =
 		: undefined
 try {
 	const apiOrigin = await detectApiOrigin()
-	const health = await fetch('http://127.0.0.1:4000/healthz').catch(() => null)
+	const health = await fetch(`${BASE}/api/healthz`).catch(() => null)
 	if (!health || health.status !== 200)
-		throw new Error('the dev api does not answer on 4000: this script needs the dev stack')
+		throw new Error(`the dev api does not answer through ${BASE}/api: this script needs the dev stack (stand.mjs up)`)
 	let chatPort = null
 	if (section === 'chat') {
 		chatPort = await freePort()

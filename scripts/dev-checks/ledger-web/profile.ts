@@ -13,6 +13,7 @@ import type {
 import * as core from '../../../packages/core/src/index.ts'
 import { BASE, api, check, failures, shot, signIn, sql } from '../browser-context.ts'
 import { withBrowser } from '../browser-journey.ts'
+import { removeStudentCards } from '../fixture-cleanup.mjs'
 import { VN, setTheme } from './common.mjs'
 
 const NAMES = ['Alex Example 2550', 'Alex Example 2551', 'Alex Example 2552'] as const
@@ -98,15 +99,7 @@ function exec(text: string) {
 
 function cleanup() {
 	const where = `display_name in (${NAMES.map(quote).join(', ')}) and import_key is null`
-	exec(`do $$ begin
-delete from lesson_comments where student_id in (select id from students where ${where});
-delete from student_terms where student_id in (select id from students where ${where});
-delete from lesson_marks where lesson_id in (select id from lessons where student_id in (select id from students where ${where}));
-delete from lessons where student_id in (select id from students where ${where});
-delete from payments where student_id in (select id from students where ${where});
-delete from student_sections where student_id in (select id from students where ${where});
-delete from students where ${where};
-end $$`)
+	removeStudentCards(sql, where)
 	const left = Number(exec(`select count(*)::int as n from students where ${where}`)[0]?.n ?? -1)
 	console.log(`profile fixture cards left ${left}`)
 	return left

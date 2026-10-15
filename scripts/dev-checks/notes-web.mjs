@@ -1,5 +1,6 @@
 import { BASE, api, check, failures, shot, signIn, sql, theme } from './browser-context.ts'
 import { withBrowser } from './browser-journey.ts'
+import { removeStudentCards } from './fixture-cleanup.mjs'
 import { createCard } from './ledger-web/common.mjs'
 
 const PREFIX = 'Alex Example 257'
@@ -10,13 +11,8 @@ const STANDARD = ['General info', 'Interests', 'Level', 'Goals', 'Typical mistak
 const sections = { blocks: sectionBlocks, order: sectionOrder, vocabulary: sectionVocabulary, review: sectionReview }
 
 function removeFixtures() {
-	const cards = `select id from students where display_name like '${PREFIX}%' and import_key is null`
-	sql(`delete from student_notes where student_id in (${cards})`)
-	sql(`delete from student_sections where student_id in (${cards})`)
-	sql(`delete from student_terms where student_id in (${cards})`)
-	sql(`delete from note_reviews where student_id in (${cards})`)
-	const result = sql(`delete from students where display_name like '${PREFIX}%' and import_key is null`)
-	console.log(`fixture cards removed ${result.rowCount}`)
+	const removed = removeStudentCards(sql, `display_name like '${PREFIX}%' and import_key is null`)
+	console.log(`fixture cards removed ${removed}`)
 }
 
 function setTheme(page) {

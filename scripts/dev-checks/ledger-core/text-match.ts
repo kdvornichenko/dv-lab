@@ -47,7 +47,89 @@ const CASES: [string, string, string, boolean][] = [
 	['latinNameCyrillicQuery', 'Alex Example 2101', 'алекс', false],
 ]
 
+const SIMILAR: [string, string, string, string | null][] = [
+	['cyrillicToYekaterina', 'Yekaterina IELTS', 'Екатерина', 'Yekaterina'],
+	['cyrillicToEkaterina', 'Ekaterina', 'Екатерина', 'Ekaterina'],
+	['cyrillicToJekaterina', 'Jekaterina', 'Екатерина', 'Jekaterina'],
+	['latinToCyrillic', 'Екатерина speaking', 'Yekaterina', 'Екатерина'],
+	['fullToKatya', 'Катя', 'Екатерина', 'Катя'],
+	['fullToLatinKatya', 'Katya', 'Екатерина', 'Katya'],
+	['katyaToFull', 'Екатерина', 'Катя', 'Екатерина'],
+	['vanyaToIvan', 'Иван', 'Ваня', 'Иван'],
+	['fullToLatinShort', 'Misha', 'Михаил', 'Misha'],
+	['sashaToAleksandra', 'Александра', 'Саша', 'Александра'],
+	['vovaToVladimir', 'Владимир', 'Вова', 'Владимир'],
+	['mariya', 'Maria', 'Мария', 'Maria'],
+	['dmitry', 'Dmitry', 'Дмитрий', 'Dmitry'],
+	['sergei', 'Sergei', 'Сергей', 'Sergei'],
+	['yulia', 'Iulia', 'Юлия', 'Iulia'],
+	['typo', 'Ekatarina', 'Екатерина', 'Ekatarina'],
+	['alexander', 'Alexander', 'Александр', 'Alexander'],
+	['prefix', 'Екатерина Иванова', 'Екат', 'Екатерина'],
+	['latinPrefix', 'Yekaterina', 'Екат', 'Yekaterina'],
+	['lookalike', 'Eкатерина', 'екатерина', 'Eкатерина'],
+	['twoWords', 'Alex Example 0002', 'alex example 0002', 'Alex Example 0002'],
+	['annaNotYana', 'Яна', 'Анна', null],
+	['yanaNotTatyana', 'Татьяна', 'Яна', null],
+	['annaNotAnastasia', 'Анастасия', 'Анна', null],
+	['mashaNotMisha', 'Миша', 'Маша', null],
+	['sashaNotDasha', 'Даша', 'Саша', null],
+	['olyaNotYulya', 'Юля', 'Оля', null],
+	['lenaNotLera', 'Лера', 'Лена', null],
+	['iraNotInna', 'Инна', 'Ира', null],
+	['mariaNotMarina', 'Марина', 'Мария', null],
+	['alinaNotAlena', 'Алёна', 'Алина', null],
+	['marinaNotArina', 'Арина', 'Марина', null],
+	['angelinaNotAngelika', 'Ангелика', 'Ангелина', null],
+	['polinaNotGalina', 'Галина', 'Полина', null],
+	['alekseiNotAleksandr', 'Александр', 'Алексей', null],
+	['otherNumber', 'Alex Example 0001', 'alex example 0002', null],
+	['unrelated', 'Other', 'Екатерина', null],
+]
+
+const SCORES: [string, string, string][] = [
+	['typo', 'Ekatarina', 'Екатерина'],
+	['alexander', 'Alexander', 'Александр'],
+	['marinaArina', 'Арина', 'Марина'],
+	['angelinaAngelika', 'Ангелика', 'Ангелина'],
+	['mashaMisha', 'Миша', 'Маша'],
+	['annaYana', 'Яна', 'Анна'],
+]
+
 function textMatchVectors(expect: Expect): void {
+	expect(
+		'p2 text-match similarTitle: transliteration, name forms and the similarity threshold',
+		Object.fromEntries(SIMILAR.map(([name, title, query]) => [name, core.similarTitle(title, query)])),
+		Object.fromEntries(SIMILAR.map(([name, , , wanted]) => [name, wanted]))
+	)
+	expect(
+		'p2 text-match latinKey folds Russian and Latin spellings to one key',
+		{
+			ekaterina: ['Екатерина', 'Yekaterina', 'Ekaterina', 'Jekaterina'].map(core.latinKey),
+			katya: ['Катя', 'Katya', 'Katia', 'Katja'].map(core.latinKey),
+			letters: ['Хабиб', 'Khabib', 'Жанна', 'Zhanna', 'Щукин', 'Shchukin', 'Юрий', 'Iurii'].map(core.latinKey),
+		},
+		{
+			ekaterina: ['ekaterina', 'ekaterina', 'ekaterina', 'ekaterina'],
+			katya: ['katya', 'katya', 'katya', 'katya'],
+			letters: ['habib', 'habib', 'zhana', 'zhana', 'shukin', 'shukin', 'yuri', 'yuri'],
+		}
+	)
+	expect(
+		'p2 text-match Jaro-Winkler scores around the threshold',
+		Object.fromEntries(
+			SCORES.map(([name, left, right]) => [
+				name,
+				Math.round(core.jaroWinkler(core.latinKey(left), core.latinKey(right)) * 1000) / 1000,
+			])
+		),
+		{ typo: 0.956, alexander: 0.98, marinaArina: 0.944, angelinaAngelika: 0.95, mashaMisha: 0.88, annaYana: 0.917 }
+	)
+	expect(
+		'p2 text-match similarity constants',
+		{ min: core.NAME_SIMILARITY_MIN, length: core.NAME_SIMILARITY_LENGTH },
+		{ min: 0.9, length: 6 }
+	)
 	expect(
 		'p2 text-match nameMatches normalizes NFKC, invisible characters and latin lookalikes',
 		Object.fromEntries(CASES.map(([name, title, query]) => [name, core.nameMatches(title, query)])),

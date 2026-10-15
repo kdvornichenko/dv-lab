@@ -104,11 +104,6 @@ function removeChats(where) {
 }
 
 function removeCardRows(where) {
-	const cards = `select id from students where ${where}`
-	sql(`delete from student_notes where student_id in (${cards})`)
-	sql(`delete from lesson_comments where student_id in (${cards})`)
-	sql(`delete from student_sections where student_id in (${cards})`)
-	sql(`delete from accounts where student_id in (${cards}) and role = 'student'`)
 	return removeCards(where)
 }
 

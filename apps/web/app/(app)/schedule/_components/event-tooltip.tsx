@@ -70,6 +70,8 @@ interface EventTooltipProps {
 	movable?: boolean
 	ghost?: boolean
 	mark?: BlockMark | null
+	phone?: boolean
+	needsMark?: boolean
 	studentName?: (id: string) => string | null
 	onOpen: (event: CalendarEventView) => void
 }
@@ -84,6 +86,8 @@ export function EventTooltip({
 	movable,
 	ghost,
 	mark = null,
+	phone = false,
+	needsMark = false,
 	studentName,
 	onOpen,
 }: EventTooltipProps) {
@@ -172,6 +176,8 @@ export function EventTooltip({
 				movable={movable}
 				ghost={ghost}
 				mark={mark}
+				phone={phone}
+				needsMark={needsMark}
 				event={event}
 				mainTimeZone={mainTimeZone}
 				layout={layout}

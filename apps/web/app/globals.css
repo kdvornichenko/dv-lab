@@ -2,6 +2,13 @@
 
 @custom-variant dark (&:is(.dark *));
 
+@utility no-scrollbar {
+	scrollbar-width: none !important;
+	&::-webkit-scrollbar {
+		display: none;
+	}
+}
+
 @utility hit-slop {
 	@media (pointer: coarse) {
 		&::after {
