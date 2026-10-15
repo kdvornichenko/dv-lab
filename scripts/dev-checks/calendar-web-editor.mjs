@@ -451,7 +451,7 @@ async function suite(viewport) {
 		dialog = await openEvent(page, 'Synthetic event 12')
 		check(
 			`${tag} weekly event says it repeats every Wednesday`,
-			(await dialog.innerText()).includes('Repeats every Wednesday'),
+			(await dialog.locator('[data-slot="event-repeat"]').getAttribute('aria-label')) === 'Repeats every Wednesday',
 			(await dialog.innerText()).replace(/\n/g, ' | ')
 		)
 		await dialog.getByRole('button', { name: 'Edit event' }).click()
@@ -506,7 +506,7 @@ async function suite(viewport) {
 		const otherText = await dialog.innerText()
 		check(
 			`${tag} unsupported repeat keeps the Google sentence and offers Delete only`,
-			otherText.includes('Repeats every 2 weeks') &&
+			(await dialog.locator('[data-slot="event-repeat"]').getAttribute('title')) === 'Repeats every 2 weeks' &&
 				otherText.includes("This repeat rule can't be edited here. Change it in Google Calendar.") &&
 				(await dialog.getByRole('button', { name: 'Edit event' }).count()) === 0 &&
 				(await dialog.getByRole('button', { name: 'Delete event' }).count()) === 1,

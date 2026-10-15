@@ -702,8 +702,8 @@ export function EventEditForm({
 	}, [direct, directState, onDirect])
 
 	return (
-		<form noValidate onSubmit={onSubmit} className="flex min-h-0 flex-col">
-			<div className="flex flex-col gap-3 py-1">
+		<form noValidate onSubmit={onSubmit} className="flex min-h-0 flex-col max-md:flex-1">
+			<div className="scroll-fade flex flex-col gap-3 py-1 max-md:-mx-1 max-md:min-h-0 max-md:flex-1 max-md:overflow-y-auto max-md:px-1">
 				<TimeZoneStaleNotice stale={context.stale} pending={false} onRefresh={onReload} />
 				<div onBlur={() => setTitleTouched(true)}>
 					<EventTitleRow
