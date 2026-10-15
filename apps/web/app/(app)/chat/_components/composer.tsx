@@ -19,7 +19,13 @@ import { Button } from '@/components/ui/button'
 import { Skeleton } from '@/components/ui/skeleton'
 import { Elevated } from '@/lib/elevated'
 
-import { CHAT_MESSAGE_MAX, type MentionBinding, type StudentLessonOption } from '@dv-lab/contracts'
+import {
+	CHAT_COMMANDS,
+	CHAT_MESSAGE_MAX,
+	type ChatCommand,
+	type MentionBinding,
+	type StudentLessonOption,
+} from '@dv-lab/contracts'
 
 import { BudgetNotice } from './budget-notice'
 import { MentionPopup, popupOptionId, type PopupItem, type PopupState } from './mention-popup'
@@ -37,22 +43,13 @@ import {
 
 type Trigger = { kind: 'mention'; from: number; query: string } | { kind: 'command'; query: string } | null
 
-export const COMMANDS = [
-	{ name: '/today', detail: "Today's lessons", student: false },
-	{ name: '/tomorrow', detail: "Tomorrow's lessons", student: false },
-	{ name: '/payments', detail: 'Who pays soon', student: false },
-	{ name: '/note', detail: 'Add a note to a student', student: true },
-	{ name: '/recap', detail: 'Summarise a student', student: true },
-	{ name: '/essay', detail: 'Feedback on a pasted essay', student: false },
-] as const
+export function commandText(command: ChatCommand): string {
+	return command.student ? `${command.name} @` : `${command.name} `
+}
 
 export const COMMAND_ROWS = [
 	{ name: '@', detail: 'Mention a student', text: '@' },
-	...COMMANDS.map((command) => ({
-		name: command.name,
-		detail: command.detail,
-		text: command.student ? `${command.name} @` : `${command.name} `,
-	})),
+	...CHAT_COMMANDS.map((command) => ({ name: command.name, detail: command.detail, text: commandText(command) })),
 ] as const
 
 function findTrigger(draft: Draft, caret: number): Trigger {
@@ -84,7 +81,7 @@ function studentItems(rows: readonly StudentLessonOption[], query: string): Popu
 }
 
 function commandItems(query: string): PopupItem[] {
-	return COMMANDS.filter((command) => command.name.slice(1).startsWith(query)).map((command) => ({
+	return CHAT_COMMANDS.filter((command) => command.name.slice(1).startsWith(query)).map((command) => ({
 		kind: 'command',
 		id: command.name,
 		name: command.name,
@@ -217,8 +214,8 @@ export function Composer({
 		const item = items[index]
 		if (!item || trigger === null) return
 		if (trigger.kind === 'command') {
-			const command = COMMANDS.find((entry) => entry.name === item.name)
-			apply(replaceText(draft, 0, caret, command?.student ? `${item.name} @` : `${item.name} `))
+			const command = CHAT_COMMANDS.find((entry) => entry.name === item.name)
+			if (command) apply(replaceText(draft, 0, caret, commandText(command)))
 			return
 		}
 		if (students.kind !== 'ready') return

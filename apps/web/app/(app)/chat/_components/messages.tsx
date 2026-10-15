@@ -32,6 +32,7 @@ import { BulkMoveProposal, isBulkMove } from './bulk-move-proposal'
 import { CalendarEvents } from './calendar-events'
 import { CalendarProposal } from './calendar-proposal'
 import { ChangeProposal } from './change-proposal'
+import { ChatHelp } from './chat-help'
 import { ChatNoteChange } from './chat-note-change'
 import { ChatProgress } from './chat-progress'
 import { ReviewFailed, ReviewOffer, ReviewResult, type ReviewHandlers } from './chat-review'
@@ -58,7 +59,9 @@ export type ReplyHandlers = {
 	onAsk: () => void
 	onCheckStatus: () => Promise<void>
 	onFollowUp: FactsFollowUp['onSend']
+	onCommand: (text: string) => void
 	busy: boolean
+	commandsOff: boolean
 }
 
 function followedUp(messages: readonly ChatMessage[], index: number, studentId: string): boolean {
@@ -265,6 +268,7 @@ function Block({
 	if (isRecordBlock(block)) return <RecordBlockView block={block} followUp={followUp} />
 	if (block.type === 'calendar_events') return <CalendarEvents block={block} />
 	if (block.type === 'action_link') return <ActionLink block={block} />
+	if (block.type === 'help') return <ChatHelp off={replies.commandsOff} onCommand={replies.onCommand} />
 	if (block.type === 'stopped') return <p className="text-caption text-muted-foreground">Reply stopped.</p>
 	if (block.type === 'withheld') return <Withheld onAsk={replies.onAsk} />
 	if (block.type === 'interrupted') return <Interrupted onCheckStatus={replies.onCheckStatus} />

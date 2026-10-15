@@ -8,7 +8,7 @@ const playwright = process.env.PLAYWRIGHT_CORE ?? '/Volumes/T7/personal/ielts/no
 const { chromium } = await import(playwright)
 
 export { ROOT, STATE_DIR }
-export const BASE = process.env.DEV_CHECK_BASE ?? 'http://localhost:3000'
+export const BASE = process.env.DEV_CHECK_BASE ?? `http://localhost:${process.env.DEV_CHECK_WEB_PORT ?? '3000'}`
 export const env = parseEnv(readFileSync(`${ROOT}/.env`, 'utf8'))
 export const theme = process.argv.includes('dark') ? 'dark' : 'light'
 
