@@ -41,7 +41,7 @@ function leftOutLine(leftOut: ChatLessonDatesBlock['leftOut']): string | null {
 	return parts.length === 0 ? null : `Not in the list: ${parts.join(', ')}.`
 }
 
-function MonthLine({ month, year }: { month: LessonCountMonth; year: number }) {
+export function MonthLine({ month, year }: { month: LessonCountMonth; year: number }) {
 	const last = month.days.length - 1
 	return (
 		<p data-slot="chat-dates-month" className="leading-6 pointer-coarse:leading-8">
