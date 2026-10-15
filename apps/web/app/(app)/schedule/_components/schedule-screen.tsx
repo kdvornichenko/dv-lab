@@ -17,10 +17,9 @@ import type { CalendarEventView, GoogleScheduleWindow } from '@dv-lab/contracts'
 import { addDays, lessonDay, mondayOf, scheduleDate, zonedInstant } from '@dv-lab/core'
 
 import { useMinuteNow } from '../../_components/use-minute-now'
-import { CalendarEventDialog } from './calendar-event-details'
-import { CalendarLessonDialog } from './calendar-lesson-dialog'
+import { CalendarEventDialog, CalendarLessonDialog, NewLessonDialog, useScheduleDialogsPreload } from './lazy-dialogs'
 import { LessonCountDialog } from './lesson-count-dialog'
-import { NewLessonDialog, type NewLessonDraft } from './new-lesson-dialog'
+import type { NewLessonDraft } from './new-lesson-dialog'
 import { useOptimisticWrites, type WriteRunner } from './optimistic-writes'
 import { ScheduleArrival } from './schedule-arrival'
 import {
@@ -113,6 +112,7 @@ function LoadedSchedule({ now, arrival }: { now: Date; arrival: ArrivalParams })
 		week.data?.requestedRange.timeZone ?? week.query?.mainTimeZone ?? null,
 		week.kind === 'ready'
 	)
+	useScheduleDialogsPreload(week.data !== null)
 
 	if (week.query === null)
 		return week.kind === 'error' ? (
