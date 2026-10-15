@@ -16,15 +16,24 @@ import { Elevated } from '@/lib/elevated'
 import { formatDay, yearInZone } from '@/lib/schedule-format'
 import { cn } from '@/lib/utils'
 
-import type { StudentDetail, StudentTerm, StudentTermResponse, StudentTermsResponse } from '@dv-lab/contracts'
+import {
+	studentBlocksResponse,
+	type StudentDetail,
+	type StudentTerm,
+	type StudentTermResponse,
+	type StudentTermsResponse,
+} from '@dv-lab/contracts'
 
 import { useToast } from '../../../_components/toasts'
+import { ReviewStamp, ReviewStampLoading } from './review-stamp'
 import { AddTermDialog, EditNoteDialog } from './term-dialogs'
 
 type View = 'words' | 'removed'
 
 type ReadState =
-	{ kind: 'loading' } | { kind: 'error' } | { kind: 'ready'; words: StudentTerm[]; removed: StudentTerm[] }
+	| { kind: 'loading' }
+	| { kind: 'error' }
+	| { kind: 'ready'; words: StudentTerm[]; removed: StudentTerm[]; reviewedAt: string | null }
 
 function newestFirst(terms: StudentTerm[]): StudentTerm[] {
 	return [...terms].sort(
@@ -33,12 +42,20 @@ function newestFirst(terms: StudentTerm[]): StudentTerm[] {
 }
 
 async function readTerms(studentId: string): Promise<ReadState> {
-	const [words, removed] = await Promise.all([
+	const [words, removed, blocks] = await Promise.all([
 		apiRequest<StudentTermsResponse>('GET', `/students/${studentId}/terms`),
 		apiRequest<StudentTermsResponse>('GET', `/students/${studentId}/terms?view=removed`),
+		apiRequest<unknown>('GET', `/students/${studentId}/blocks`),
 	])
-	if (!words.ok || !removed.ok) return { kind: 'error' }
-	return { kind: 'ready', words: newestFirst(words.data.terms), removed: removed.data.terms }
+	if (!words.ok || !removed.ok || !blocks.ok) return { kind: 'error' }
+	const review = studentBlocksResponse.safeParse(blocks.data)
+	if (!review.success) return { kind: 'error' }
+	return {
+		kind: 'ready',
+		words: newestFirst(words.data.terms),
+		removed: removed.data.terms,
+		reviewedAt: review.data.reviewedAt,
+	}
 }
 
 const GRID =
@@ -76,11 +93,18 @@ interface RowFrameProps {
 	date: string
 	source: string | null
 	actions: React.ReactNode
-	actionsClassName: string
+	actionsBelow?: boolean
 	error?: string
 }
 
-function RowFrame({ term, muted, date, source, actions, actionsClassName, error }: RowFrameProps) {
+function RowFrame({ term, muted, date, source, actions, actionsBelow, error }: RowFrameProps) {
+	const hasNote = Boolean(term.note)
+	const dateRow = hasNote ? 'max-sm:row-start-3' : 'max-sm:row-start-2'
+	const actionsClassName = !actionsBelow
+		? 'max-sm:col-start-2 max-sm:row-start-1'
+		: hasNote
+			? 'max-sm:col-span-2 max-sm:row-start-4 max-sm:justify-start'
+			: 'max-sm:col-span-2 max-sm:row-start-3 max-sm:justify-start'
 	return (
 		<li
 			data-slot="vocabulary-row"
@@ -98,7 +122,12 @@ function RowFrame({ term, muted, date, source, actions, actionsClassName, error 
 			<span className="min-w-0 wrap-anywhere whitespace-pre-line text-muted-foreground empty:hidden max-sm:col-span-2 max-sm:row-start-2 sm:empty:block">
 				{term.note}
 			</span>
-			<div className="flex min-w-0 flex-wrap items-baseline gap-x-1 text-micro text-muted-foreground tabular-nums max-sm:col-span-2 max-sm:row-start-3 sm:flex-col sm:gap-x-0 sm:text-body sm:text-foreground">
+			<div
+				className={cn(
+					'flex min-w-0 flex-wrap items-baseline gap-x-1 text-micro text-muted-foreground tabular-nums max-sm:col-span-2 sm:flex-col sm:gap-x-0 sm:text-body sm:text-foreground',
+					dateRow
+				)}
+			>
 				<span>{date}</span>
 				{source ? (
 					<Fragment>
@@ -209,7 +238,7 @@ export function VocabularyTab({ student, timeZone, asOf }: VocabularyTabProps) {
 		setState((current) =>
 			current.kind === 'ready'
 				? {
-						kind: 'ready',
+						...current,
 						words: newestFirst([...current.words.filter((item) => item.id !== restored.id), restored]),
 						removed: current.removed.filter((item) => item.id !== term.id),
 					}
@@ -227,7 +256,12 @@ export function VocabularyTab({ student, timeZone, asOf }: VocabularyTabProps) {
 	const removed = state.kind === 'ready' ? state.removed : null
 	return (
 		<div className="flex flex-col gap-4">
-			<div className="flex flex-wrap items-center justify-end gap-2">
+			<div className="flex flex-wrap items-center justify-between gap-2">
+				{state.kind === 'ready' ? (
+					<ReviewStamp reviewedAt={state.reviewedAt} timeZone={timeZone} now={new Date(asOf)} />
+				) : (
+					<ReviewStampLoading />
+				)}
 				<Button ref={addButton} variant="secondary" leadingIcon={Plus} onClick={() => setAdding(true)}>
 					Add term
 				</Button>
@@ -262,7 +296,6 @@ export function VocabularyTab({ student, timeZone, asOf }: VocabularyTabProps) {
 										term={term}
 										date={formatDay(new Date(term.createdAt), timeZone, year)}
 										source={addedSource(term)}
-										actionsClassName="max-sm:col-start-2 max-sm:row-start-1"
 										actions={
 											<>
 												<Tooltip content="Edit note">
@@ -318,7 +351,7 @@ export function VocabularyTab({ student, timeZone, asOf }: VocabularyTabProps) {
 										date={formatDay(new Date(term.removedAt ?? term.createdAt), timeZone, year)}
 										source={removedSource(term)}
 										error={restoreErrors[term.id]}
-										actionsClassName="max-sm:col-span-2 max-sm:row-start-4 max-sm:justify-start"
+										actionsBelow
 										actions={
 											<Button
 												id={`restore-term-${term.id}`}

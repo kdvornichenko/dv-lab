@@ -7,7 +7,7 @@ const EXPECTED_NOISE =
 	/status of 500|Failed to load resource|server caches disabled|Route "\/login": Next\.js encountered URL data/
 const STANDARD = ['General info', 'Interests', 'Level', 'Goals', 'Typical mistakes', 'Lesson ideas']
 
-const sections = { blocks: sectionBlocks, order: sectionOrder }
+const sections = { blocks: sectionBlocks, order: sectionOrder, vocabulary: sectionVocabulary, review: sectionReview }
 
 function removeFixtures() {
 	const cards = `select id from students where display_name like '${PREFIX}%' and import_key is null`
@@ -173,6 +173,20 @@ async function sectionBlocks(page, problems) {
 	check('the custom block carries the arrival highlight', true)
 	check('the arrival parameter leaves the address', !page.url().includes('section='), page.url())
 	await shot(page, 'notes-blocks', 'arrival')
+
+	await page.goto(`${BASE}/students/${id}?tab=overview`)
+	const recent = page
+		.locator('[data-slot="overview-recent"][data-kind="note"]')
+		.filter({ hasText: 'Writing exam in November' })
+	await recent.waitFor({ timeout: 30000 })
+	await recent.click()
+	await blockOf(page, key).waitFor({ timeout: 30000 })
+	await page.waitForFunction(
+		(blockKey) => (document.getElementById(`section-${blockKey}`)?.style.boxShadow ?? '') !== '',
+		key,
+		{ timeout: 8000 }
+	)
+	check('a note of a custom block in Recent opens Notes with that block highlighted', true)
 
 	await page.goto(`${BASE}/students/${id}?tab=notes&section=goals`)
 	await blockOf(page, 'goals').waitFor({ timeout: 30000 })
@@ -463,6 +477,311 @@ async function sectionOrder(page, problems) {
 	)
 	await shot(page, 'notes-order', 'phone')
 
+	const unexpected = problems.filter((line) => !EXPECTED_NOISE.test(line))
+	check('no unexpected console problems', unexpected.length === 0, unexpected.slice(0, 3).join(' | '))
+}
+
+const termRows = (page, area) => page.locator(`[data-slot="vocabulary-${area}"] li[data-slot="vocabulary-row"]`)
+const termNames = (page, area) =>
+	termRows(page, area).evaluateAll((rows) => rows.map((row) => row.querySelector('span')?.textContent ?? ''))
+const termRow = (page, name, area) => termRows(page, area).filter({ has: page.getByText(name, { exact: true }) })
+const tabNamed = (page, name) => page.getByRole('tab', { name, exact: true })
+
+async function openVocabulary(page, id, count) {
+	await page.goto(`${BASE}/students/${id}?tab=vocabulary`)
+	await tabNamed(page, `Words ${count}`).waitFor({ timeout: 30000 })
+}
+
+function termsSql(id) {
+	return sql(
+		`insert into student_terms (student_id, term, note, added_by, created_at, removed_at, removed_by) values
+		('${id}', 'alpha', 'first meaning', null, now() - interval '5 days', null, null),
+		('${id}', 'bravo', 'second meaning', 'chat', now() - interval '2 days', null, null),
+		('${id}', 'charlie', null, 'review', now() - interval '1 day', null, null),
+		('${id}', 'delta', 'fourth meaning', 'chat', now() - interval '9 days', now() - interval '3 days', 'chat'),
+		('${id}', 'echo', 'fifth meaning', null, now() - interval '8 days', now() - interval '1 day', 'review')`
+	)
+}
+
+const removedAtOf = (id, term) =>
+	sql(`select removed_at is not null as removed from student_terms where student_id = '${id}' and term = '${term}'`)
+		.rows[0]?.removed
+
+async function sectionVocabulary(page, problems) {
+	const id = await createCard(page, `${PREFIX}3`)
+	termsSql(id)
+	await openVocabulary(page, id, 3)
+	check('the views are Words 3 and Removed 2', await tabNamed(page, 'Removed 2').isVisible())
+	const names = await termNames(page, 'words')
+	check(
+		'words are listed newest first',
+		JSON.stringify(names) === JSON.stringify(['charlie', 'bravo', 'alpha']),
+		names.join(' | ')
+	)
+	check(
+		'a word added by review says Added by review',
+		(await termRow(page, 'charlie', 'words').innerText()).includes('Added by review')
+	)
+	check(
+		'a word added in chat says Added in chat',
+		(await termRow(page, 'bravo', 'words').innerText()).includes('Added in chat')
+	)
+	check(
+		'a word the teacher typed has the date only',
+		!/Added (in|by)/.test(await termRow(page, 'alpha', 'words').innerText())
+	)
+	check(
+		'the meaning is shown next to the word',
+		(await termRow(page, 'alpha', 'words').innerText()).includes('first meaning')
+	)
+	check(
+		'Edit note and Delete stay on every word',
+		(await page.getByRole('button', { name: /^Edit note for / }).count()) === 3 &&
+			(await page.getByRole('button', { name: /^Delete / }).count()) === 3
+	)
+	check('Add term stays next to the stamp', await page.getByRole('button', { name: 'Add term' }).isVisible())
+	await page.waitForTimeout(400)
+	await shot(page, 'notes-vocabulary', 'words')
+
+	await tabNamed(page, 'Removed 2').click()
+	await termRows(page, 'removed').first().waitFor({ timeout: 10000 })
+	const removed = await termNames(page, 'removed')
+	check(
+		'removed words are listed newest first',
+		JSON.stringify(removed) === JSON.stringify(['echo', 'delta']),
+		removed.join(' | ')
+	)
+	check(
+		'a word removed by review says so',
+		(await termRow(page, 'echo', 'removed').innerText()).includes('Removed by review')
+	)
+	check(
+		'a word removed in chat says so',
+		(await termRow(page, 'delta', 'removed').innerText()).includes('Removed in chat')
+	)
+	check(
+		'every removed word has Restore and no Edit or Delete',
+		(await page.getByRole('button', { name: /^Restore / }).count()) === 2 &&
+			(await page.getByRole('button', { name: /^Edit note for / }).count()) === 0
+	)
+	await page.waitForTimeout(400)
+	await shot(page, 'notes-vocabulary', 'removed')
+
+	await page.route('**/api/students/*/terms/*/restore', (route) =>
+		route.fulfill({ status: 500, json: { error: { code: 'internal_error', message: 'Internal Server Error' } } })
+	)
+	await page.getByRole('button', { name: 'Restore delta' }).click()
+	await page.getByText('Could not restore the word. Try again.').waitFor({ timeout: 10000 })
+	check(
+		'a failed Restore keeps the row and says why in it',
+		(await termRow(page, 'delta', 'removed').count()) === 1 && removedAtOf(id, 'delta') === true
+	)
+	await page.unroute('**/api/students/*/terms/*/restore')
+
+	await page.getByRole('button', { name: 'Restore echo' }).click()
+	await tabNamed(page, 'Removed 1').waitFor({ timeout: 10000 })
+	check('Restore returns the word at once: Words 4, Removed 1', await tabNamed(page, 'Words 4').isVisible())
+	check('Restore clears the removal in the database', removedAtOf(id, 'echo') === false)
+	check('the row leaves Removed', (await termRow(page, 'echo', 'removed').count()) === 0)
+	check(
+		'focus moves to the next Restore',
+		await page.evaluate(() => document.activeElement?.textContent?.includes('Restore') === true)
+	)
+	await tabNamed(page, 'Words 4').click()
+	await termRows(page, 'words').first().waitFor({ timeout: 10000 })
+	const four = await termNames(page, 'words')
+	check(
+		'the restored word is back in Words in its place',
+		JSON.stringify(four) === JSON.stringify(['charlie', 'bravo', 'alpha', 'echo']),
+		four.join(' | ')
+	)
+
+	await tabNamed(page, 'Removed 1').click()
+	await page.getByRole('button', { name: 'Restore delta' }).click()
+	await page.getByText('Nothing removed', { exact: true }).waitFor({ timeout: 10000 })
+	check(
+		'an empty Removed says what is missing',
+		await page.getByText('Words the assistant removes stay here for 30 days.').isVisible()
+	)
+	check('the last Restore leaves Words 5, Removed 0', await tabNamed(page, 'Words 5').isVisible())
+	check(
+		'focus returns to the Removed view when the list empties',
+		await page.evaluate(() => document.activeElement?.getAttribute('role') === 'tab')
+	)
+	await page.reload()
+	await tabNamed(page, 'Words 5').waitFor({ timeout: 30000 })
+	check('the restored words survive a reload', removedAtOf(id, 'delta') === false)
+
+	await tabNamed(page, 'Removed 0').click()
+	await page.getByRole('button', { name: 'Add term' }).click()
+	await page.getByLabel('Term', { exact: true }).fill('zulu')
+	await page.getByLabel('Note (optional)').fill('last meaning')
+	await page.getByRole('button', { name: 'Add term' }).last().click()
+	await tabNamed(page, 'Words 6').waitFor({ timeout: 10000 })
+	check(
+		'adding a word switches to Words and shows it first without a source line',
+		(await tabNamed(page, 'Words 6').getAttribute('aria-selected')) === 'true' &&
+			(await termNames(page, 'words'))[0] === 'zulu' &&
+			!/Added (in|by)/.test(await termRow(page, 'zulu', 'words').innerText())
+	)
+	await page.getByRole('button', { name: 'Delete zulu' }).click()
+	await page.getByRole('button', { name: 'Delete term' }).click()
+	await tabNamed(page, 'Words 5').waitFor({ timeout: 10000 })
+	check('deleting a word of the teacher removes it for good', removedAtOf(id, 'zulu') === undefined)
+
+	const empty = await createCard(page, `${PREFIX}4`)
+	await openVocabulary(page, empty, 0)
+	check('an empty Words says No words yet', await page.getByText('No words yet', { exact: true }).isVisible())
+	check(
+		'an empty Words points to the chat',
+		await page.getByText('Ask the assistant in the chat to add the words from a lesson.').isVisible()
+	)
+	await tabNamed(page, 'Removed 0').click()
+	check('an empty Removed says Nothing removed', await page.getByText('Nothing removed', { exact: true }).isVisible())
+
+	await page.route('**/api/students/*/terms*', async (route) => {
+		await new Promise((resolve) => setTimeout(resolve, 2500))
+		await route.continue().catch(() => {})
+	})
+	await page.goto(`${BASE}/students/${empty}?tab=vocabulary`)
+	await page.locator('[data-slot="vocabulary-loading"]').first().waitFor({ timeout: 10000 })
+	check(
+		'while loading the tabs are real and the stamp is a shape',
+		(await tabNamed(page, 'Words …').isVisible()) &&
+			(await tabNamed(page, 'Removed …').isVisible()) &&
+			(await page.locator('[data-slot="review-stamp-loading"]').count()) === 1
+	)
+	await shot(page, 'notes-vocabulary', 'loading')
+	await page.unroute('**/api/students/*/terms*')
+	await tabNamed(page, 'Words 0').waitFor({ timeout: 30000 })
+
+	await page.route('**/api/students/*/terms*', (route) =>
+		route.fulfill({ status: 500, json: { error: { code: 'internal_error', message: 'Internal Server Error' } } })
+	)
+	await page.reload()
+	await page.getByText('Could not load vocabulary').waitFor({ timeout: 15000 })
+	check('a read error is one panel with Refresh', await page.getByRole('button', { name: 'Refresh' }).isVisible())
+	await page.unroute('**/api/students/*/terms*')
+	await page.getByRole('button', { name: 'Refresh' }).click()
+	await tabNamed(page, 'Words 0').waitFor({ timeout: 30000 })
+	check('Refresh reads the words again', true)
+
+	await page.setViewportSize({ width: 375, height: 800 })
+	await openVocabulary(page, id, 5)
+	check('at 375 px the column head is gone', !(await page.locator('[data-slot="vocabulary-head"]').isVisible()))
+	const first = termRow(page, 'bravo', 'words')
+	const wordBox = await first.locator('span').first().boundingBox()
+	const meaningBox = await first.locator('span').nth(1).boundingBox()
+	const dateBox = await first.locator('div').first().boundingBox()
+	check(
+		'at 375 px a word is a card: word, meaning, then the date line',
+		wordBox !== null && meaningBox !== null && dateBox !== null && wordBox.y < meaningBox.y && meaningBox.y < dateBox.y
+	)
+	check(
+		'at 375 px the page does not scroll sideways',
+		await page.evaluate(() => document.documentElement.scrollWidth <= document.documentElement.clientWidth)
+	)
+	await page.waitForTimeout(400)
+	await shot(page, 'notes-vocabulary', 'phone-words')
+	sql(
+		`update student_terms set removed_at = now(), removed_by = 'chat' where student_id = '${id}' and term in ('alpha', 'bravo')`
+	)
+	await page.reload()
+	await tabNamed(page, 'Removed 2').waitFor({ timeout: 30000 })
+	await tabNamed(page, 'Removed 2').click()
+	const card = termRows(page, 'removed').first()
+	await card.waitFor({ timeout: 10000 })
+	const dateLine = await card.locator('div').first().boundingBox()
+	const restoreBox = await card.getByRole('button', { name: /^Restore / }).boundingBox()
+	check(
+		'at 375 px Restore sits under the removed word',
+		dateLine !== null && restoreBox !== null && restoreBox.y > dateLine.y
+	)
+	check(
+		'at 375 px the page does not scroll sideways on Removed',
+		await page.evaluate(() => document.documentElement.scrollWidth <= document.documentElement.clientWidth)
+	)
+	await page.waitForTimeout(400)
+	await shot(page, 'notes-vocabulary', 'phone-removed')
+
+	const unexpected = problems.filter((line) => !EXPECTED_NOISE.test(line))
+	check('no unexpected console problems', unexpected.length === 0, unexpected.slice(0, 3).join(' | '))
+}
+
+const REVIEW_AGES = [
+	['now()', 'Reviewed today'],
+	["now() - interval '1 day'", 'Reviewed yesterday'],
+	["now() - interval '3 days'", 'Reviewed 3 days ago'],
+	["now() - interval '45 days'", 'Reviewed 1 month ago'],
+	["now() - interval '70 days'", 'Reviewed 2 months ago'],
+]
+
+function setReview(id, expression) {
+	sql(
+		`insert into note_reviews (student_id, reviewed_at) values ('${id}', ${expression}) on conflict (student_id) do update set reviewed_at = excluded.reviewed_at`
+	)
+}
+
+async function openStamped(page, id, tab) {
+	await page.goto(`${BASE}/students/${id}?tab=${tab}`)
+	if (tab === 'notes') await blockOf(page, 'general_info').waitFor({ timeout: 30000 })
+	else await tabNamed(page, 'Words 0').waitFor({ timeout: 30000 })
+	const stamp = page.locator('[data-slot="review-stamp"]')
+	await stamp.waitFor({ timeout: 10000 })
+	return stamp
+}
+
+async function sectionReview(page, problems) {
+	const id = await createCard(page, `${PREFIX}5`)
+	for (const tab of ['notes', 'vocabulary']) {
+		const stamp = await openStamped(page, id, tab)
+		check(`${tab}: no review reads Never reviewed`, (await stamp.innerText()).trim() === 'Never reviewed')
+		check(`${tab}: Never reviewed has no tooltip trigger`, (await stamp.getAttribute('tabindex')) === null)
+		await shot(page, 'notes-review', `${tab}-never`)
+	}
+	for (const [expression, text] of REVIEW_AGES) {
+		setReview(id, expression)
+		const stamp = await openStamped(page, id, 'notes')
+		check(`notes: ${text}`, (await stamp.innerText()).trim() === text, (await stamp.innerText()).trim())
+	}
+	setReview(id, "now() - interval '3 days'")
+	for (const tab of ['notes', 'vocabulary']) {
+		const stamp = await openStamped(page, id, tab)
+		check(`${tab}: 3 days ago reads Reviewed 3 days ago`, (await stamp.innerText()).trim() === 'Reviewed 3 days ago')
+		const stampBox = await stamp.boundingBox()
+		const addBox = await page.getByRole('button', { name: tab === 'notes' ? 'Add block' : 'Add term' }).boundingBox()
+		check(
+			`${tab}: the stamp is on the left of the top row, the add button on the right`,
+			stampBox !== null && addBox !== null && stampBox.x < addBox.x && Math.abs(stampBox.y - addBox.y) < 24
+		)
+		const expected = sql(
+			`select to_char(reviewed_at at time zone 'Asia/Ho_Chi_Minh', 'Dy FMDD Mon YYYY, HH24:MI') as text from note_reviews where student_id = '${id}'`
+		).rows[0].text
+		await stamp.hover()
+		const tip = page.getByText(/^Last review: /)
+		await tip.waitFor({ timeout: 8000 })
+		check(
+			`${tab}: the tooltip gives the exact date and time`,
+			(await tip.innerText()) === `Last review: ${expected} VN`,
+			`${await tip.innerText()} vs ${expected}`
+		)
+		await page.waitForTimeout(300)
+		await shot(page, 'notes-review', `${tab}-reviewed`)
+	}
+	await page.setViewportSize({ width: 375, height: 800 })
+	for (const tab of ['notes', 'vocabulary']) {
+		const stamp = await openStamped(page, id, tab)
+		const stampBox = await stamp.boundingBox()
+		check(
+			`${tab}: at 375 px the stamp is first and fits`,
+			stampBox !== null && stampBox.x >= 0 && stampBox.x + stampBox.width <= 375
+		)
+		check(
+			`${tab}: at 375 px the page does not scroll sideways`,
+			await page.evaluate(() => document.documentElement.scrollWidth <= document.documentElement.clientWidth)
+		)
+		await shot(page, 'notes-review', `${tab}-phone`)
+	}
 	const unexpected = problems.filter((line) => !EXPECTED_NOISE.test(line))
 	check('no unexpected console problems', unexpected.length === 0, unexpected.slice(0, 3).join(' | '))
 }

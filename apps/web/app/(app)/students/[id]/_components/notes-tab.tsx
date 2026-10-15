@@ -23,11 +23,13 @@ import { NewBlockPanel, NoteBlockPanel } from './note-block'
 import { NoteBlocksOrder } from './note-blocks-order'
 import { type NotesState } from './note-entries'
 import type { ProfileMark } from './profile-arrival'
+import { ReviewStamp, ReviewStampLoading } from './review-stamp'
 import { useNotesArrival } from './use-notes-arrival'
 
 export type SectionDrafts = Partial<Record<string, string>>
 
-type ReadState = { kind: 'loading' } | { kind: 'error' } | { kind: 'ready'; blocks: NoteBlock[] }
+type ReadState =
+	{ kind: 'loading' } | { kind: 'error' } | { kind: 'ready'; blocks: NoteBlock[]; reviewedAt: string | null }
 
 function byPosition(blocks: NoteBlock[]): NoteBlock[] {
 	return [...blocks].sort((left, right) => left.position - right.position)
@@ -37,7 +39,9 @@ async function readBlocks(studentId: string): Promise<ReadState> {
 	const result = await apiRequest<unknown>('GET', `/students/${studentId}/blocks`)
 	if (!result.ok) return { kind: 'error' }
 	const parsed = studentBlocksResponse.safeParse(result.data)
-	return parsed.success ? { kind: 'ready', blocks: byPosition(parsed.data.blocks) } : { kind: 'error' }
+	return parsed.success
+		? { kind: 'ready', blocks: byPosition(parsed.data.blocks), reviewedAt: parsed.data.reviewedAt }
+		: { kind: 'error' }
 }
 
 async function readNotes(studentId: string): Promise<NotesState> {
@@ -65,7 +69,7 @@ function LoadingBlocks() {
 	return (
 		<div className="flex max-w-190 flex-col gap-3" data-slot="notes-loading">
 			<div className="flex flex-wrap items-center justify-between gap-2">
-				<Skeleton className="h-4 w-40" />
+				<ReviewStampLoading />
 				<AddBlockButton disabled />
 			</div>
 			{[0, 1, 2].map((item) => (
@@ -133,7 +137,7 @@ export function NotesTab({ student, drafts, timeZone, asOf, onDraftChange, mark,
 	}, [studentId])
 
 	function setBlocks(blocks: NoteBlock[]) {
-		setState({ kind: 'ready', blocks: byPosition(blocks) })
+		setState((previous) => (previous.kind === 'ready' ? { ...previous, blocks: byPosition(blocks) } : previous))
 	}
 
 	function noteRemoved(note: StudentNote) {
@@ -159,7 +163,7 @@ export function NotesTab({ student, drafts, timeZone, asOf, onDraftChange, mark,
 	function changed(block: NoteBlock) {
 		setState((previous) =>
 			previous.kind === 'ready'
-				? { kind: 'ready', blocks: previous.blocks.map((item) => (item.id === block.id ? block : item)) }
+				? { ...previous, blocks: previous.blocks.map((item) => (item.id === block.id ? block : item)) }
 				: previous
 		)
 	}
@@ -167,7 +171,7 @@ export function NotesTab({ student, drafts, timeZone, asOf, onDraftChange, mark,
 	function created(block: NoteBlock) {
 		setAdding(false)
 		setState((previous) =>
-			previous.kind === 'ready' ? { kind: 'ready', blocks: byPosition([...previous.blocks, block]) } : previous
+			previous.kind === 'ready' ? { ...previous, blocks: byPosition([...previous.blocks, block]) } : previous
 		)
 		requestAnimationFrame(() => {
 			document.querySelector<HTMLElement>(`[data-block-id="${block.id}"] [data-block-edit]`)?.focus()
@@ -178,7 +182,7 @@ export function NotesTab({ student, drafts, timeZone, asOf, onDraftChange, mark,
 		if (state.kind !== 'ready') return
 		const index = state.blocks.findIndex((item) => item.id === block.id)
 		const neighbour = state.blocks[index + 1] ?? state.blocks[index - 1]
-		setState({ kind: 'ready', blocks: state.blocks.filter((item) => item.id !== block.id) })
+		setState({ ...state, blocks: state.blocks.filter((item) => item.id !== block.id) })
 		requestAnimationFrame(() => {
 			const target = neighbour
 				? document.querySelector<HTMLElement>(`[data-block-id="${neighbour.id}"] [data-block-edit]`)
@@ -195,7 +199,7 @@ export function NotesTab({ student, drafts, timeZone, asOf, onDraftChange, mark,
 	return (
 		<div className="flex max-w-190 flex-col gap-3" data-slot="notes-ready">
 			<div className="flex flex-wrap items-center justify-between gap-2">
-				<span />
+				<ReviewStamp reviewedAt={state.reviewedAt} timeZone={timeZone} now={now} />
 				<AddBlockButton buttonRef={addButton} disabled={adding} onClick={() => setAdding(true)} />
 			</div>
 			{blocks.length === 0 ? (
