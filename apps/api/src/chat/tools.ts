@@ -206,6 +206,7 @@ const inputs = {
 		title: nullable(z.string().trim().min(1).max(200)),
 		merge: nullable(z.boolean()),
 	}),
+	show_help: z.strictObject({}),
 }
 
 const string = { type: 'string' }
@@ -712,6 +713,16 @@ async function essayFeedback(
 		return result({ status: 'not_shown', note: 'The label is already shown in this answer.' })
 	context.shown.add('essay')
 	return show(context, { type: 'essay', task: input.task }, result({ status: 'shown', note: ESSAY_NOTE }))
+}
+
+const HELP_NOTE =
+	'The teacher sees the help block with the commands and what you can do. It is the whole answer: write no text at all, no sentence and no list.'
+
+async function showHelp(context: ToolContext): Promise<ToolOutcome> {
+	if (context.shown.has('help'))
+		return result({ status: 'not_shown', note: 'The help is already shown in this answer.' })
+	context.shown.add('help')
+	return show(context, { type: 'help' }, result({ status: 'shown', note: HELP_NOTE }))
 }
 
 const CALENDAR_DISCONNECTED: ReadonlySet<string> = new Set([
@@ -1232,6 +1243,17 @@ export const CHAT_TOOL_ENTRIES: readonly ChatToolEntry[] = [
 		effect: 'show',
 		step: { student: null, search: null, period: 'range' },
 		run: calendarEvents,
+	}),
+	chatTool({
+		name: 'show_help',
+		description:
+			'Show the teacher the help block: the chat commands and what you can do. Call it when the teacher asks what you can do, which commands there are, how to use the chat, or just writes help. The block is the whole answer: write no text with it and never list the commands or abilities yourself.',
+		input: inputs.show_help,
+		properties: {},
+		strict: false,
+		effect: 'show',
+		step: null,
+		run: showHelp,
 	}),
 
 	...REVIEW_TOOL_ENTRIES,
