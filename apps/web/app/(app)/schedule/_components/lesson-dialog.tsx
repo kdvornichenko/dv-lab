@@ -211,7 +211,10 @@ export function LessonDialog({
 						<TimePair as="span" main={description} second={second} />
 					</DialogDescription>
 				</DialogHeader>
-				<ScrollArea className="max-h-[calc(100dvh-14rem)]" viewportClassName="scroll-fade max-h-[inherit] -m-1 p-1">
+				<ScrollArea
+					className="max-h-[calc(100dvh-14rem)] max-md:max-h-none max-md:min-h-0 max-md:flex-1"
+					viewportClassName="scroll-fade max-h-[inherit] -m-1 p-1"
+				>
 					<div className="flex flex-col gap-4 py-1">
 						<TimeZoneStaleNotice stale={context.stale} pending={busy} onRefresh={onRefresh} />
 						{notice === 'stale' ? (

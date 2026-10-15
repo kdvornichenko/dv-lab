@@ -7,11 +7,13 @@ import type { z } from 'zod'
 
 import { calendarVersionFor } from '@/app/(app)/schedule/_components/calendar-overlaps'
 import { Button } from '@/components/ui/button'
+import { dialogPhoneFooter } from '@/components/ui/dialog'
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover'
 import { Tooltip } from '@/components/ui/tooltip'
 import { apiRequest } from '@/lib/api-client'
 import { formatDate, formatDay, formatTime, mainRange, yearInZone } from '@/lib/schedule-format'
 import { zoneLabel } from '@/lib/time-zones'
+import { cn } from '@/lib/utils'
 
 import {
 	googleConflictRequest,
@@ -626,7 +628,11 @@ export function FormFooter({
 	return (
 		<div
 			data-slot="form-footer"
-			className={`${className} flex flex-col gap-2 sm:flex-row sm:items-center sm:gap-3 pointer-coarse:max-sm:gap-4`}
+			className={cn(
+				className,
+				'flex flex-col gap-2 sm:flex-row sm:items-center sm:gap-3 pointer-coarse:max-sm:gap-4',
+				dialogPhoneFooter
+			)}
 		>
 			<div className="min-w-0 sm:flex-1">{status}</div>
 			<div className="flex flex-wrap justify-end gap-2">{children}</div>

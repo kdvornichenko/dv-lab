@@ -311,7 +311,7 @@ export function StudentFormDialog({ mode, student, onClose, onSaved }: StudentFo
 						</DialogDescription>
 					</DialogHeader>
 					<ScrollArea
-						className="-m-1 max-h-[calc(100dvh-16rem)] pointer-coarse:-m-2"
+						className="-m-1 max-h-[calc(100dvh-16rem)] max-md:max-h-none max-md:min-h-0 max-md:flex-1 pointer-coarse:-m-2"
 						viewportClassName="scroll-fade max-h-[inherit] p-1 pointer-coarse:p-2"
 					>
 						<div className="flex flex-col gap-4">

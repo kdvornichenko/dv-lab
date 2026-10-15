@@ -10,9 +10,10 @@ import {
 	type HTMLAttributes,
 } from 'react'
 
-import { motion } from 'framer-motion'
+import { motion, useReducedMotion } from 'framer-motion'
 
 import { Button } from '@/components/ui/button'
+import { useIsMobile } from '@/hooks/use-mobile'
 import { fontWeights } from '@/lib/font-weight'
 import { useIcons } from '@/lib/icon-context'
 import { useShape } from '@/lib/shape-context'
@@ -23,6 +24,20 @@ import { SurfaceProvider, useSurface } from '@/lib/surface-context'
 import { cn } from '@/lib/utils'
 
 const DIALOG_OFFSET = 4
+type DialogPhone = 'screen' | 'sheet' | 'center'
+const PHONE_POPUP: Record<DialogPhone, string> = {
+	screen:
+		'max-md:inset-0 max-md:flex max-md:h-dvh max-md:max-h-none max-md:w-full max-md:max-w-none max-md:flex-col max-md:rounded-none max-md:pb-0 max-md:[--scroll-fade-size:20px] max-md:[&>form]:contents',
+	sheet:
+		'max-md:top-auto max-md:bottom-0 max-md:left-0 max-md:max-h-[calc(100dvh-3rem)] max-md:w-full max-md:max-w-none max-md:rounded-t-2xl max-md:rounded-b-none max-md:pb-0',
+	center: '',
+}
+const PHONE_FOOTER = cn(
+	'max-md:[&>button]:h-10 max-md:[&>div:last-child>button]:h-10',
+	'max-md:group-data-[phone=screen]/dialog:mt-auto max-md:group-data-[phone=screen]/dialog:shrink-0 max-md:group-data-[phone=screen]/dialog:pt-unit-1.5',
+	'max-md:group-data-[phone=screen]/dialog:pb-[calc(var(--unit)*1.5+env(safe-area-inset-bottom))]',
+	'max-md:group-data-[phone=sheet]/dialog:pb-[calc(var(--unit)*1.5+env(safe-area-inset-bottom))]'
+)
 interface DialogProps {
 	open?: boolean
 	defaultOpen?: boolean
@@ -80,6 +95,7 @@ interface DialogContentProps extends HTMLAttributes<HTMLDivElement> {
 	showCloseButton?: boolean
 	position?: 'center' | 'top'
 	backdropClassName?: string
+	phone?: DialogPhone
 }
 const DialogContent = forwardRef<HTMLDivElement, DialogContentProps>(
 	(
@@ -91,10 +107,14 @@ const DialogContent = forwardRef<HTMLDivElement, DialogContentProps>(
 			showCloseButton = true,
 			position = 'center',
 			backdropClassName,
+			phone = 'screen',
 			...props
 		},
 		ref
 	) => {
+		const mobile = useIsMobile()
+		const reduced = useReducedMotion()
+		const slide = mobile && phone !== 'center' && !container
 		const icons = useIcons()
 		const XIcon = icons.x
 		const shape = useShape()
@@ -157,7 +177,9 @@ const DialogContent = forwardRef<HTMLDivElement, DialogContentProps>(
 									| 'onAnimationEnd'
 									| 'onAnimationIteration'
 								>)}
+								data-phone={phone}
 								className={cn(
+									'group/dialog',
 									container ? 'absolute' : 'fixed',
 									'left-1/2 z-50 w-[calc(100%-2rem)]',
 									position === 'top' ? 'top-[12dvh]' : 'top-1/2',
@@ -167,20 +189,42 @@ const DialogContent = forwardRef<HTMLDivElement, DialogContentProps>(
 									size === 'lg' && (compact ? 'max-w-[480px]' : 'max-w-[540px]'),
 									size === 'xl' && (compact ? 'max-w-[800px]' : 'max-w-[880px]'),
 									shape.container,
+									!container && PHONE_POPUP[phone],
 									className
 								)}
 								style={{
 									...(baseStyle as React.CSSProperties | undefined),
 									...(props.style as React.CSSProperties | undefined),
 								}}
-								initial={{ opacity: 0, scale: 0.97, x: '-50%', y: position === 'top' ? 0 : '-50%' }}
-								animate={{
-									opacity: exiting ? 0 : 1,
-									scale: exiting ? 0.97 : 1,
-									x: '-50%',
-									y: position === 'top' ? 0 : '-50%',
-								}}
-								transition={exiting ? spring.slow.exit : spring.slow}
+								initial={
+									slide
+										? { opacity: reduced ? 0 : 1, scale: 1, x: 0, y: reduced ? 0 : '100%' }
+										: { opacity: 0, scale: 0.97, x: '-50%', y: position === 'top' ? 0 : '-50%' }
+								}
+								animate={
+									slide
+										? {
+												opacity: exiting && reduced ? 0 : 1,
+												scale: 1,
+												x: 0,
+												y: exiting && !reduced ? '100%' : 0,
+											}
+										: {
+												opacity: exiting ? 0 : 1,
+												scale: exiting ? 0.97 : 1,
+												x: '-50%',
+												y: position === 'top' ? 0 : '-50%',
+											}
+								}
+								transition={
+									slide
+										? exiting
+											? spring.fast
+											: { ...spring.slow, bounce: 0 }
+										: exiting
+											? spring.slow.exit
+											: spring.slow
+								}
 							>
 								<SurfaceProvider value={dialogLevel}>
 									{children}
@@ -205,10 +249,10 @@ const DialogContent = forwardRef<HTMLDivElement, DialogContentProps>(
 )
 DialogContent.displayName = 'DialogContent'
 function DialogHeader({ className, ...props }: HTMLAttributes<HTMLDivElement>) {
-	return <div className={cn('mb-4 flex flex-col gap-1.5', className)} {...props} />
+	return <div className={cn('mb-4 flex shrink-0 flex-col gap-1.5', className)} {...props} />
 }
 function DialogFooter({ className, ...props }: HTMLAttributes<HTMLDivElement>) {
-	return <div className={cn('mt-6 flex justify-end gap-2', className)} {...props} />
+	return <div className={cn('mt-6 flex flex-wrap justify-end gap-2', PHONE_FOOTER, className)} {...props} />
 }
 const DialogTitle = forwardRef<HTMLHeadingElement, HTMLAttributes<HTMLHeadingElement>>(
 	({ className, ...props }, ref) => {
@@ -237,5 +281,15 @@ const DialogDescription = forwardRef<HTMLParagraphElement, HTMLAttributes<HTMLPa
 	}
 )
 DialogDescription.displayName = 'DialogDescription'
-export { Dialog, DialogTrigger, DialogContent, DialogHeader, DialogFooter, DialogTitle, DialogDescription, DialogClose }
+export {
+	Dialog,
+	DialogTrigger,
+	DialogContent,
+	DialogHeader,
+	DialogFooter,
+	DialogTitle,
+	DialogDescription,
+	DialogClose,
+	PHONE_FOOTER as dialogPhoneFooter,
+}
 export type { DialogSlotProps as DialogTriggerProps, DialogSlotProps as DialogCloseProps }

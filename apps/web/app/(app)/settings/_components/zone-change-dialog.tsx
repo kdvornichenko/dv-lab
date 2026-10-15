@@ -92,8 +92,9 @@ export function ZoneChangeDialog({
 				role="alertdialog"
 				aria-describedby={`${descriptionId} ${changesId} ${staysId}`}
 				aria-busy={pending}
+				phone="sheet"
 				showCloseButton={false}
-				className="max-w-110 overflow-hidden rounded-xl bg-surface-5 p-5 [overflow-wrap:anywhere] shadow-surface-5"
+				className="max-w-110 rounded-xl bg-surface-5 p-5 [overflow-wrap:anywhere] shadow-surface-5 max-md:rounded-t-2xl max-md:rounded-b-none max-md:px-unit-1.5 max-md:pt-unit-1.5 max-md:pb-0"
 			>
 				<DialogHeader className="gap-1">
 					<DialogTitle style={{ fontVariationSettings: '"wght" 600' }}>Change the default time zone?</DialogTitle>
@@ -101,7 +102,10 @@ export function ZoneChangeDialog({
 						From {oldName} time ({oldLabel}) to {newName} time ({newLabel}).
 					</DialogDescription>
 				</DialogHeader>
-				<ScrollArea className="max-h-[calc(100dvh-14rem)]" viewportClassName="scroll-fade max-h-[inherit] -m-1 p-1">
+				<ScrollArea
+					className="max-h-[calc(100dvh-14rem)] max-md:max-h-[calc(100dvh-16rem)]"
+					viewportClassName="scroll-fade max-h-[inherit] -m-1 p-1"
+				>
 					<div className="flex flex-col gap-4">
 						<section id={changesId} className="text-body">
 							<h3 className="mb-2 font-semibold">What changes</h3>

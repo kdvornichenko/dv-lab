@@ -135,7 +135,7 @@ export function ScopeDialog({
 				if (!open && !pending) onClose()
 			}}
 		>
-			<DialogContent size="sm" showCloseButton={false}>
+			<DialogContent size="sm" phone="sheet" showCloseButton={false}>
 				<DialogHeader>
 					<DialogTitle id={titleId}>{copy.title}</DialogTitle>
 					<DialogDescription className="sr-only">Choose which {kind.subject}s this covers.</DialogDescription>

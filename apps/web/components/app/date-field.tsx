@@ -63,7 +63,7 @@ export function DateField(props: DateFieldProps) {
 	const describedBy = error ? errorId : helper ? helperId : undefined
 
 	return (
-		<div className="flex min-w-0 flex-col gap-2">
+		<div className="flex min-w-0 flex-col gap-unit-0.5">
 			<span className="text-body text-muted-foreground">{label}</span>
 			<Popover open={open} onOpenChange={setOpen}>
 				<PopoverTrigger

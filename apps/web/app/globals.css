@@ -27,6 +27,12 @@
 @utility py-unit-* {
 	padding-block: calc(var(--unit) * --value(number));
 }
+@utility pt-unit {
+	padding-top: var(--unit);
+}
+@utility pt-unit-* {
+	padding-top: calc(var(--unit) * --value(number));
+}
 @utility gap-unit {
 	gap: var(--unit);
 }

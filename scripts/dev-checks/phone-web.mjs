@@ -500,7 +500,7 @@ async function closeDialog(page) {
 	await page.keyboard.press('Escape')
 	await page.waitForTimeout(500)
 	if ((await page.locator('[role="dialog"]:visible').count()) > 0) {
-		const discard = page.getByRole('button', { name: /Discard/ })
+		const discard = page.getByRole('button', { name: 'Close', exact: true })
 		if (await discard.isVisible().catch(() => false)) await discard.click()
 		await page.waitForTimeout(400)
 	}
