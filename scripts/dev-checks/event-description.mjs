@@ -3,7 +3,7 @@ import { readFileSync } from 'node:fs'
 import { parseEnv } from 'node:util'
 
 import { ROOT, SYNTHETIC_CALENDAR_ID, calendarSql, targetEnvFile } from './calendar-env.mjs'
-import { descriptionFixtures } from './event-description-fixtures.mjs'
+import { descriptionFixtures, hugeFixtures } from './event-description-fixtures.mjs'
 
 const TARGET = 'test'
 const DETAIL_EVENTS = [
@@ -54,6 +54,31 @@ function expectations(name, reading, expect) {
 		record(`${name} text`, texts.some((value) => value.includes(text)), JSON.stringify(text))
 	for (const text of expect.absent ?? [])
 		record(`${name} absent`, !all.some((value) => value.includes(text)), JSON.stringify(text))
+	for (const flag of ['bold', 'italic', 'underline'])
+		for (const text of expect[flag] ?? [])
+			record(
+				`${name} ${flag}`,
+				runs.some((run) => run.kind !== 'break' && run[flag] && run.text.includes(text)),
+				JSON.stringify(text)
+			)
+	if (expect.lists) {
+		const lists = reading.blocks
+			.filter((block) => block.kind === 'list')
+			.map((block) => `${block.ordered ? 'ol' : 'ul'}:${block.items.length}`)
+		record(`${name} lists`, lists.join() === expect.lists.join(), lists.join('|'))
+	}
+}
+
+async function parse() {
+	for (const fixture of descriptionFixtures) expectations(fixture.id, readDescription(fixture.raw), fixture.expect)
+	for (const fixture of hugeFixtures) {
+		const started = performance.now()
+		const reading = readDescription(fixture.raw)
+		const elapsed = performance.now() - started
+		const schema = contracts.eventDescriptionBlocks.safeParse(reading.blocks)
+		record(`huge ${fixture.id} schema`, schema.success && fixture.raw.length === 8192, `${fixture.raw.length} chars`)
+		record(`huge ${fixture.id} time`, elapsed < 50, `${elapsed.toFixed(2)} ms`)
+	}
 }
 
 function rows(text) {
@@ -112,7 +137,7 @@ where connection_id = ${quote(connection.id)} and event_id = ${quote(eventId)}`
 	}
 }
 
-const SECTIONS = { details }
+const SECTIONS = { parse, details }
 const requested = process.argv[2]
 if (requested && !SECTIONS[requested]) {
 	console.log(`usage: node scripts/dev-checks/event-description.mjs [${Object.keys(SECTIONS).join('|')}]`)
