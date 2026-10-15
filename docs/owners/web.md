@@ -16,7 +16,7 @@
 ## Общие компоненты
 
 - Страницы 404 и ошибки — `apps/web/components/app/status-pages.tsx`; корневые `not-found.tsx`, `error.tsx` и `global-error.tsx` только вызывают их. Ошибка чтения целого экрана — `apps/web/components/app/read-error.tsx`. Ошибка чтения вкладки профиля — `apps/web/components/app/records-unread.tsx`. Скелетоны — `apps/web/components/ui/skeleton.tsx`.
-- Вид markdown в web — `apps/web/components/app/markdown-view.tsx` (`react-markdown` со `skipHtml`).
+- Вид markdown в web — `apps/web/components/app/markdown-view.tsx` (`react-markdown` со `skipHtml`). Превью в одну-две строки — `MarkdownPreview` оттуда же: заголовки жирным, пункты через «•», ссылки текстом, без блоков, ссылок и картинок; на нём превью Overview и тексты заметок и комментариев в предложениях чата.
 - Строки денег, уроков и дат оплат — `apps/web/components/app/ledger-text.tsx` поверх `packages/core`. Остаток и долг — `apps/web/components/app/student-balance.tsx` поверх core.
 - Затухание скроллеров без поддержки CSS — `apps/web/components/app/scroll-fade-fallback.tsx`.
 - Строка конфликта ревизии в формах — `apps/web/components/app/reload-notice.tsx`.
@@ -33,6 +33,7 @@
 - Мутации расписания — `mutate`, мутация отметки — `markLesson` из `apps/web/app/(app)/schedule/_components/schedule-mutations.ts`; доступность отметки задаёт `actions.mark` блока.
 - Общий хост диалогов урока для расписания и Today — `apps/web/app/(app)/schedule/_components/lesson-dialogs.tsx` (`LessonDialogs`). Слова статуса, слот блока и подписи отметок — `apps/web/lib/lesson-mark-text.ts`.
 - Обновление экранов после записи — канал `dvlab:data-changed` в `apps/web/lib/api-client.ts` и `refreshReaders` в `apps/web/components/app/calendar-command-provider.tsx`.
+- Кэш чтений — `apps/web/lib/api-client.ts`: успешные GET через `apiRequest` хранятся по пути (200 записей, вытесняется самая старая), `peekApi(path)` отдаёт их синхронно. Кэш сбрасывается любой записью через `apiRequest`, событием `API_CACHE_INVALIDATED` и сообщениями `DATA_CHANGED_CHANNEL` и `SESSION_CACHE_CHANNEL`; ответ, начатый до сброса, в кэш не попадает. Не кэшируются `/schedule/*`, `/google/events/*`, `/healthz` и `/auth/*` (у расписания свой кэш в `schedule-prefetch.ts` и `use-schedule-week.ts`). Страница ученика и её табы, список учеников, Unassigned payments, Today, Settings и список чатов берут начальное состояние из `peekApi` и обновляют его запросом в фоне. Проверка — `scripts/dev-checks/web-cache.mjs`.
 
 ## Экраны и точки входа
 
@@ -40,5 +41,7 @@
 - Settings → General — `apps/web/app/(app)/settings`: порог Pays soon и второй пояс.
 - Представление списка Students — `apps/web/app/(app)/students/_components/students-view.ts`.
 - Вкладка Lessons профиля — `apps/web/app/(app)/students/[id]/_components/lessons-tab.tsx`, поверх `GET /students/:id/lessons`.
+- Табы профиля монтируются при первом открытии и остаются смонтированными (`TabPanel keepMounted`), Unassigned payments на списке учеников так же.
+- Действия страницы ученика — меню `student-actions.tsx` (Record payment, Ask in chat, Account с подменю на месте, Archive или Restore) в слоте `aside` у `PageHeader`; диалоги аккаунта открываются оттуда. Overview одной колонкой: Details, факты, Held dates, заметки, словарь. Кнопки «назад» нет.
 - Палитра команд — `apps/web/app/(app)/_components/command-palette.tsx` (группы Actions, Students, Screens).
 - Прибытия по адресу: `/?dialog=payment` (форма Add payment на Today), `/chat?new=1&student=<id>` (новый разговор с черновиком `@Имя`), `/students/<id>?tab=lessons|payments&payment=<id>` (разбор — `apps/web/app/(app)/students/[id]/_components/profile-arrival.ts`).

@@ -12,7 +12,7 @@ import { useSecondZone } from '@/components/app/time-zone-picker'
 import { Banner, BannerAction, BannerActions, BannerTitle } from '@/components/ui/banner'
 import { Button } from '@/components/ui/button'
 import { Skeleton } from '@/components/ui/skeleton'
-import { apiRequest } from '@/lib/api-client'
+import { apiRequest, peekApi } from '@/lib/api-client'
 import { calendarEventFor, type CalendarLesson } from '@/lib/lesson-actions'
 import { occurrenceSlot } from '@/lib/lesson-mark-text'
 
@@ -178,7 +178,11 @@ export function LessonsTab({ student, mainTimeZone, asOf, refreshKey, onOpenPaym
 	const [chosen, setChosen] = useState<RangeChoice>(() => ({ kind: lastPayment === null ? 'month' : 'since_payment' }))
 	const choice: RangeChoice = chosen.kind === 'since_payment' && lastPayment === null ? { kind: 'month' } : chosen
 	const [outcomes, setOutcomes] = useState<OutcomeKey[]>([])
-	const [state, setState] = useState<ReadState | null>(null)
+	const [state, setState] = useState<ReadState | null>(() => {
+		const first = lessonsQuery(choice, today)
+		const cached = peekApi<StudentLessonsResponse>(`/students/${student.id}/lessons?${first}`)
+		return cached === null || !cached.ok ? null : { query: first, result: { kind: 'ready', data: cached.data } }
+	})
 	const [selected, setSelected] = useState<LessonSelection | null>(null)
 	const [restoring, setRestoring] = useState<{
 		lesson: StudentLesson

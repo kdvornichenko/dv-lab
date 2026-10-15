@@ -5,7 +5,7 @@ import { useCallback, useEffect, useRef, useState } from 'react'
 import { useRouter } from 'next/navigation'
 
 import { useCalendarController } from '@/components/app/calendar-command-provider'
-import { API_CACHE_INVALIDATED, DATA_CHANGED_CHANNEL, apiEventStream, apiRequest } from '@/lib/api-client'
+import { API_CACHE_INVALIDATED, DATA_CHANGED_CHANNEL, apiEventStream, apiRequest, peekApi } from '@/lib/api-client'
 
 import {
 	CHAT_ACTIVE_TURN_STATES,
@@ -356,7 +356,12 @@ function useAssistantSnapshot() {
 export function useChat(initialConversationId: string | null, options: { startNew: boolean }) {
 	const calendar = useCalendarController()
 	const router = useRouter()
-	const [list, setList] = useState<ConversationListState>({ kind: 'loading' })
+	const [list, setList] = useState<ConversationListState>(() => {
+		const cached = peekApi<ChatConversationsResponse>('/chat/conversations')
+		return cached !== null && cached.ok
+			? { kind: 'ready', conversations: cached.data.conversations }
+			: { kind: 'loading' }
+	})
 	const listRef = useRef<ConversationListState>(list)
 	const [selectedId, setSelectedId] = useState<string | null>(options.startNew ? null : initialConversationId)
 	const [startedNew, setStartedNew] = useState(options.startNew)

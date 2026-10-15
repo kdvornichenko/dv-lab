@@ -426,7 +426,8 @@ async function sectionAsk(page, problems, ids) {
 	await page.getByRole('heading', { name: ASKED, level: 1 }).waitFor({ timeout: 30000 })
 	const conversationsBefore = count('chat_conversations')
 	const messagesBefore = count('chat_messages')
-	const ask = page.getByRole('button', { name: 'Ask in chat' })
+	await page.locator('[data-slot="student-actions"]').click()
+	const ask = page.getByRole('menuitem', { name: 'Ask in chat' })
 	await ask.waitFor({ timeout: 15000 })
 	await shot(page, 'entry-ask', 'profile')
 	const release = await holdNewChat(page, 2500)
@@ -434,8 +435,8 @@ async function sectionAsk(page, problems, ids) {
 	const opening = page.getByRole('button', { name: 'Opening chat…' })
 	await opening.waitFor({ timeout: 5000 })
 	check(
-		'Ask in chat shows Opening chat… at least 144 px wide and cannot be pressed again',
-		(await opening.isDisabled()) && ((await opening.boundingBox())?.width ?? 0) >= 144
+		'Ask in chat turns the actions button into Opening chat… that cannot be pressed again',
+		await opening.isDisabled()
 	)
 	await shot(page, 'entry-ask', 'opening')
 	await release()
@@ -473,7 +474,8 @@ async function sectionAsk(page, problems, ids) {
 
 	await page.goBack()
 	await page.getByRole('heading', { name: ASKED, level: 1 }).waitFor({ timeout: 30000 })
-	await page.getByRole('button', { name: 'Ask in chat' }).click()
+	await page.locator('[data-slot="student-actions"]').click()
+	await page.getByRole('menuitem', { name: 'Ask in chat' }).click()
 	await page.waitForURL(/\/chat/, { timeout: 15000 })
 	await page.waitForFunction(
 		(value) => document.querySelector('[data-slot="chat-composer-field"]')?.value === value,
@@ -490,8 +492,13 @@ async function sectionAsk(page, problems, ids) {
 
 	await page.goto(`${BASE}/students/${archivedId}`)
 	await page.getByRole('heading', { name: ARCHIVED, level: 1 }).waitFor({ timeout: 30000 })
-	await page.getByRole('button', { name: 'Restore' }).waitFor({ timeout: 15000 })
-	check('an archived card has no Ask in chat', (await page.getByRole('button', { name: 'Ask in chat' }).count()) === 0)
+	await page.locator('[data-slot="student-actions"]').click()
+	await page.getByRole('menuitem', { name: 'Restore' }).waitFor({ timeout: 15000 })
+	check(
+		'an archived card has no Ask in chat',
+		(await page.getByRole('menuitem', { name: 'Ask in chat' }).count()) === 0
+	)
+	await page.keyboard.press('Escape')
 	await page.goto(`${BASE}/chat?new=1&student=${archivedId}`)
 	await page.getByText(GONE).waitFor({ timeout: 30000 })
 	await page.waitForTimeout(500)

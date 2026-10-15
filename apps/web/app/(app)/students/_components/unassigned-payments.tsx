@@ -12,7 +12,7 @@ import { Button } from '@/components/ui/button'
 import { Skeleton, SkeletonLine, SkeletonTable, type SkeletonTableColumn } from '@/components/ui/skeleton'
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table'
 import { Tooltip } from '@/components/ui/tooltip'
-import { apiRequest } from '@/lib/api-client'
+import { apiRequest, peekApi } from '@/lib/api-client'
 import { Elevated } from '@/lib/elevated'
 
 import type { PaymentRow, PaymentsResponse, StudentRow } from '@dv-lab/contracts'
@@ -57,7 +57,10 @@ interface UnassignedPaymentsProps {
 
 export function UnassignedPayments({ students, onChanged }: UnassignedPaymentsProps) {
 	const toast = useToast()
-	const [state, setState] = useState<ReadState>({ kind: 'loading' })
+	const [state, setState] = useState<ReadState>(() => {
+		const cached = peekApi<PaymentsResponse>('/payments/unassigned')
+		return cached !== null && cached.ok ? { kind: 'ready', payments: cached.data.payments } : { kind: 'loading' }
+	})
 	const [assigning, setAssigning] = useState<PaymentRow | null>(null)
 	const [removing, setRemoving] = useState<PaymentRow | null>(null)
 	const [removeFailure, setRemoveFailure] = useState<string | null>(null)

@@ -13,7 +13,7 @@ import { Button } from '@/components/ui/button'
 import { Skeleton, SkeletonLine, SkeletonTable, type SkeletonTableColumn } from '@/components/ui/skeleton'
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table'
 import { Tooltip } from '@/components/ui/tooltip'
-import { apiRequest } from '@/lib/api-client'
+import { apiRequest, peekApi, type ApiResult } from '@/lib/api-client'
 import { Elevated } from '@/lib/elevated'
 
 import type { PaymentRow, PaymentsResponse, StudentDetail } from '@dv-lab/contracts'
@@ -26,9 +26,17 @@ import { SetCurrencyDialog } from './set-currency-dialog'
 
 type ReadState = { kind: 'loading' } | { kind: 'error' } | { kind: 'ready'; payments: PaymentRow[] }
 
-async function readPayments(studentId: string): Promise<ReadState> {
-	const result = await apiRequest<PaymentsResponse>('GET', `/payments?student=${studentId}`)
+function paymentsFrom(result: ApiResult<PaymentsResponse>): ReadState {
 	return result.ok ? { kind: 'ready', payments: result.data.payments } : { kind: 'error' }
+}
+
+async function readPayments(studentId: string): Promise<ReadState> {
+	return paymentsFrom(await apiRequest<PaymentsResponse>('GET', `/payments?student=${studentId}`))
+}
+
+function peekPayments(studentId: string): ReadState {
+	const cached = peekApi<PaymentsResponse>(`/payments?student=${studentId}`)
+	return cached === null ? { kind: 'loading' } : paymentsFrom(cached)
 }
 
 const headClass = 'px-4 text-body font-normal text-muted-foreground'
@@ -105,7 +113,7 @@ export function PaymentsTab({
 	onOpeningOpened,
 }: PaymentsTabProps) {
 	const toast = useToast()
-	const [state, setState] = useState<ReadState>({ kind: 'loading' })
+	const [state, setState] = useState<ReadState>(() => peekPayments(student.id))
 	const [removing, setRemoving] = useState<PaymentRow | null>(null)
 	const [removeFailure, setRemoveFailure] = useState<string | null>(null)
 	const [currencyFor, setCurrencyFor] = useState<PaymentRow | null>(null)

@@ -243,7 +243,8 @@ async function openingBalance(page: Page, { card, date }: Fixtures): Promise<Fil
 }
 
 async function payment(page: Page, { card, date }: Fixtures): Promise<FilledForm> {
-	await page.getByRole('button', { name: 'Record payment', exact: true }).click()
+	await page.locator('[data-slot="student-actions"]').click()
+	await page.getByRole('menuitem', { name: 'Record payment', exact: true }).click()
 	const root = page.getByRole('dialog', { name: 'Record payment', exact: true })
 	const paidOn = addDays(date, -15)
 	await root.locator('#record-payment-amount').fill('11')

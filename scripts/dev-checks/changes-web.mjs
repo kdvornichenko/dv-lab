@@ -410,7 +410,8 @@ async function sectionForms() {
 
 				await page.goto(`${BASE}/students/${studentId}`)
 				await page.getByRole('heading', { name: FORMS_NAME, level: 1 }).waitFor({ timeout: 30000 })
-				await page.getByRole('button', { name: 'Record payment' }).click()
+				await page.locator('[data-slot="student-actions"]').click()
+				await page.getByRole('menuitem', { name: 'Record payment' }).click()
 				const dialog = page.getByRole('dialog')
 				await dialog.getByLabel('Amount').fill('8000')
 				await dialog.getByRole('button', { name: 'Record payment' }).click()
@@ -577,11 +578,12 @@ async function sectionForms() {
 						sql(`select goals from students where id = '${studentId}'`).rows[0]?.goals === 'new goals'
 				)
 
-				const archive = page.getByRole('button', { name: 'Archive', exact: true })
-				await archive.click()
+				await page.locator('[data-slot="student-actions"]').click()
+				await page.getByRole('menuitem', { name: 'Archive', exact: true }).click()
 				await page.getByRole('button', { name: 'Archive student' }).click()
 				await page.getByText('Student archived').waitFor({ timeout: 15000 })
-				await page.getByRole('button', { name: 'Restore', exact: true }).click()
+				await page.locator('[data-slot="student-actions"]').click()
+				await page.getByRole('menuitem', { name: 'Restore', exact: true }).click()
 				await page.getByRole('button', { name: 'Restore student' }).click()
 				await page.getByText('Student restored').waitFor({ timeout: 15000 })
 				check(

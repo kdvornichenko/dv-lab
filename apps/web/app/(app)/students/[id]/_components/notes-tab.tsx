@@ -8,7 +8,7 @@ import { EmptyState } from '@/components/app/empty-state'
 import { RecordsUnread } from '@/components/app/records-unread'
 import { Button } from '@/components/ui/button'
 import { Skeleton } from '@/components/ui/skeleton'
-import { apiRequest } from '@/lib/api-client'
+import { apiRequest, peekApi, type ApiResult } from '@/lib/api-client'
 import { Elevated } from '@/lib/elevated'
 
 import {
@@ -38,7 +38,10 @@ function byPosition(blocks: NoteBlock[]): NoteBlock[] {
 }
 
 async function readBlocks(studentId: string): Promise<ReadState> {
-	const result = await apiRequest<unknown>('GET', `/students/${studentId}/blocks`)
+	return blocksFrom(await apiRequest<unknown>('GET', `/students/${studentId}/blocks`))
+}
+
+function blocksFrom(result: ApiResult<unknown>): ReadState {
 	if (!result.ok) return { kind: 'error' }
 	const parsed = studentBlocksResponse.safeParse(result.data)
 	return parsed.success
@@ -52,8 +55,21 @@ async function readBlocks(studentId: string): Promise<ReadState> {
 }
 
 async function readNotes(studentId: string): Promise<NotesState> {
-	const result = await apiRequest<StudentNotesResponse>('GET', `/students/${studentId}/notes`)
+	return notesFrom(await apiRequest<StudentNotesResponse>('GET', `/students/${studentId}/notes`))
+}
+
+function notesFrom(result: ApiResult<StudentNotesResponse>): NotesState {
 	return result.ok ? { kind: 'ready', notes: result.data.notes } : { kind: 'error' }
+}
+
+function peekBlocks(studentId: string): ReadState {
+	const cached = peekApi<unknown>(`/students/${studentId}/blocks`)
+	return cached === null ? { kind: 'loading' } : blocksFrom(cached)
+}
+
+function peekNotes(studentId: string): NotesState {
+	const cached = peekApi<StudentNotesResponse>(`/students/${studentId}/notes`)
+	return cached === null ? { kind: 'loading' } : notesFrom(cached)
 }
 
 function AddBlockButton({
@@ -107,8 +123,8 @@ interface NotesTabProps {
 }
 
 export function NotesTab({ student, drafts, timeZone, asOf, onDraftChange, mark, onMarkDone }: NotesTabProps) {
-	const [state, setState] = useState<ReadState>({ kind: 'loading' })
-	const [notes, setNotes] = useState<NotesState>({ kind: 'loading' })
+	const [state, setState] = useState<ReadState>(() => peekBlocks(student.id))
+	const [notes, setNotes] = useState<NotesState>(() => peekNotes(student.id))
 	const [adding, setAdding] = useState(false)
 	const addButton = useRef<HTMLButtonElement>(null)
 	const studentId = student.id

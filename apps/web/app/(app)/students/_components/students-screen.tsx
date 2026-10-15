@@ -38,7 +38,7 @@ import {
 } from '@/components/ui/skeleton'
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table'
 import { TabItem, TabPanel, Tabs, TabsList } from '@/components/ui/tabs'
-import { apiRequest } from '@/lib/api-client'
+import { apiRequest, peekApi } from '@/lib/api-client'
 import { Elevated } from '@/lib/elevated'
 import { yearInZone } from '@/lib/schedule-format'
 import { cn } from '@/lib/utils'
@@ -260,9 +260,14 @@ function StudentsTable({
 }
 
 export function StudentsScreen() {
-	const [state, setState] = useState<ReadState>({ kind: 'loading' })
+	const [state, setState] = useState<ReadState>(() => {
+		const cached = peekApi<StudentsResponse>('/students')
+		return cached !== null && cached.ok ? { kind: 'ready', data: cached.data } : { kind: 'loading' }
+	})
 	const [createOpen, setCreateOpen] = useState(false)
 	const [tab, setTab] = useState('active')
+	const [unassignedSeen, setUnassignedSeen] = useState(false)
+	if (tab === 'unassigned' && !unassignedSeen) setUnassignedSeen(true)
 	const [view, setView] = useQueryStates(viewParsers, {
 		history: 'replace',
 		shallow: true,
@@ -401,8 +406,8 @@ export function StudentsScreen() {
 						/>
 					)}
 				</TabPanel>
-				<TabPanel value="unassigned" className="mt-4">
-					{loading ? (
+				<TabPanel value="unassigned" keepMounted className="mt-4">
+					{!unassignedSeen ? null : loading ? (
 						<UnassignedPaymentsSkeleton />
 					) : (
 						<UnassignedPayments students={activeSorted} onChanged={() => void load()} />

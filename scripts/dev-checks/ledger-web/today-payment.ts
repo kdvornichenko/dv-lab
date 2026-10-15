@@ -134,7 +134,8 @@ async function recordFromToday(page: Page, fx: Awaited<ReturnType<typeof fixture
 
 async function recordFromProfile(page: Page, fx: Awaited<ReturnType<typeof fixtures>>) {
 	await openProfile(page, fx.a)
-	await page.getByRole('button', { name: 'Record payment', exact: true }).click()
+	await page.locator('[data-slot="student-actions"]').click()
+	await page.getByRole('menuitem', { name: 'Record payment', exact: true }).click()
 	const dialog = page.getByRole('dialog')
 	await dialog.waitFor()
 	check('payment: preset profile has no Student field', (await dialog.locator('#record-payment-student').count()) === 0)
