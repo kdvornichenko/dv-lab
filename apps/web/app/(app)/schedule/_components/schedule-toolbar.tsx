@@ -3,6 +3,7 @@
 import { useEffect, useEffectEvent, useState, type ReactNode, type Ref } from 'react'
 import { enUS } from 'react-day-picker/locale'
 
+import { motion } from 'framer-motion'
 import { Calendar, ChevronLeft, ChevronRight } from 'lucide-react'
 
 import { Button } from '@/components/ui/button'
@@ -134,7 +135,18 @@ function WeekPicker({
 								compact ? 'w-auto min-w-0 px-1.5 text-[13px]' : 'w-44 shrink-0 text-title'
 							)}
 						>
-							{weekTitle(monday)}
+							{compact ? (
+								<motion.span
+									key={weekTitle(monday)}
+									initial={{ opacity: 0 }}
+									animate={{ opacity: 1 }}
+									transition={{ duration: 0.08 }}
+								>
+									{weekTitle(monday)}
+								</motion.span>
+							) : (
+								weekTitle(monday)
+							)}
 						</Button>
 					}
 				/>

@@ -63,7 +63,7 @@ function displayWindow(data: GoogleScheduleWindow | null, query: { monday: strin
 
 function LoadedSchedule({ now, arrival }: { now: Date; arrival: ArrivalParams }) {
 	const [initialMonday] = useState(() => arrivalMonday(arrival))
-	const { state: week, reload, navigate } = useScheduleWeek(initialMonday)
+	const { state: week, reload, navigate, peek } = useScheduleWeek(initialMonday)
 	const scrollTopRef = useRef(OPEN_SCROLL_TOP)
 	const [selection, setSelection] = useState<CalendarEventView | null>(null)
 	const [moveSeed, setMoveSeed] = useState<MoveSeed | undefined>(undefined)
@@ -216,6 +216,18 @@ function LoadedSchedule({ now, arrival }: { now: Date; arrival: ArrivalParams })
 			scrollTopRef={scrollTopRef}
 			placeholders={loadingFirst ? LOADING_BLOCKS : undefined}
 			phone={phone}
+			loadingBlocks={LOADING_BLOCKS}
+			pager={
+				phone && laptop === null
+					? {
+							onTurn: (target) => go(target, target === currentMonday),
+							pageEvents: (target) => {
+								const known = peek(target, mainTimeZone)
+								return known === null ? null : known.events.filter((event) => event.status !== 'cancelled')
+							},
+						}
+					: undefined
+			}
 		/>
 	)
 	const windowAttributes = {

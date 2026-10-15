@@ -20,6 +20,7 @@ type Prefetch = { monday: string; promise: Promise<GoogleScheduleWindow | null>;
 const FRESH_MS = 60_000
 const PREFETCH_DELAY_MS = 150
 const NEIGHBOURS = [7, -7] as const
+const WINDOWS_KEPT = 9
 
 function weekKey(timeZone: string, monday: string): string {
 	return `${timeZoneIdentity(timeZone) ?? timeZone}|${monday}`
@@ -97,18 +98,40 @@ export function useScheduleWeek(initialMonday: string | null = null) {
 	const requests = useRef(0)
 	const latest = useRef<GoogleScheduleWindow | null>(null)
 	const cache = useRef(new Map<string, Cached>())
+	const windows = useRef(new Map<string, GoogleScheduleWindow>())
+	const [, setTick] = useState(0)
 	const epoch = useRef(0)
 	const prefetch = useRef<Prefetch | null>(null)
 	const loading = useRef(false)
 	const handledRevision = useRef<string | null>(null)
 	const sync = useGoogleSync()
 
-	const remember = useCallback((data: GoogleScheduleWindow, since: number) => {
-		if (since !== epoch.current || data.read.state !== 'fresh') return
-		for (const [key, entry] of cache.current)
-			if (entry.data.connection.generation !== data.connection.generation) cache.current.delete(key)
-		cache.current.set(windowKey(data), { data, at: Date.now() })
+	const store = useCallback((data: GoogleScheduleWindow) => {
+		const key = windowKey(data)
+		windows.current.delete(key)
+		windows.current.set(key, data)
+		for (const old of windows.current.keys()) {
+			if (windows.current.size <= WINDOWS_KEPT) break
+			windows.current.delete(old)
+		}
+		setTick((tick) => tick + 1)
 	}, [])
+
+	const peek = useCallback(
+		(monday: string, timeZone: string) => windows.current.get(weekKey(timeZone, monday)) ?? null,
+		[]
+	)
+
+	const remember = useCallback(
+		(data: GoogleScheduleWindow, since: number) => {
+			store(data)
+			if (since !== epoch.current || data.read.state !== 'fresh') return
+			for (const [key, entry] of cache.current)
+				if (entry.data.connection.generation !== data.connection.generation) cache.current.delete(key)
+			cache.current.set(windowKey(data), { data, at: Date.now() })
+		},
+		[store]
+	)
 
 	const stopPrefetch = useCallback((keep?: string) => {
 		const running = prefetch.current
@@ -296,5 +319,5 @@ export function useScheduleWeek(initialMonday: string | null = null) {
 		if (query.current !== null) void start({ ...query.current, monday, current })
 	}
 
-	return { state, reload, navigate }
+	return { state, reload, navigate, peek }
 }
