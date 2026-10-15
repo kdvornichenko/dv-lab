@@ -569,7 +569,7 @@ Superseded by Phase 25.1 (owner decisions D5-D10, 2026-10-12). Its research and 
 4. Students shows the four-column table with sorting, filters in the URL and the payment ring; the profile has Overview, Lessons (date range, outcomes, totals) and Payments (Opening balance).
 5. The app installs as a PWA and sends "lesson soon" and "student about to pay" pushes.
 
-**Plans**: 18 plans, 50 tasks, 10 waves; execution pending. See [25.2-PLAN-INDEX.md](phases/25.2-polish/25.2-PLAN-INDEX.md).
+**Plans**: 27 plans, 66 tasks, 16 waves; execution pending. See [25.2-PLAN-INDEX.md](phases/25.2-polish/25.2-PLAN-INDEX.md).
 - [ ] 25.2-01-PLAN.md — dependencies, Firefox for checks, schema M1-M9
 - [ ] 25.2-02-PLAN.md — dialog kinds, Firefox fade, long titles, chat small fixes
 - [ ] 25.2-03-PLAN.md — core: chronological ledger (ARCH-A1), short balance, title matching
@@ -577,17 +577,26 @@ Superseded by Phase 25.1 (owner decisions D5-D10, 2026-10-12). Its research and 
 - [ ] 25.2-05-PLAN.md — ledger loader, Last payment, Lessons route, since_payment, follow-up
 - [ ] 25.2-06-PLAN.md — Students table: columns, palette, sort and filters in URL, ring
 - [ ] 25.2-07-PLAN.md — chat tool registry (ARCH-A3)
-- [ ] 25.2-08-PLAN.md — profile: Lessons tab, Overview, Opening balance in Payments
-- [ ] 25.2-09-PLAN.md — Details from chat, calendar search, /recap and /essay prompts in the database
-- [ ] 25.2-10-PLAN.md — Notes blocks and Vocabulary Removed (web)
+- [ ] 25.2-08-PLAN.md — profile: Lessons tab
+- [ ] 25.2-09-PLAN.md — Details from chat, removal phrase (item 52), tool list checked against the registry
+- [ ] 25.2-10-PLAN.md — Notes blocks (web)
 - [ ] 25.2-11-PLAN.md — notes and vocabulary from chat by the diff rule
-- [ ] 25.2-12-PLAN.md — chat facts v94, follow-up, ChangeCardDetails, Settings prompts and privacy
+- [ ] 25.2-12-PLAN.md — chat facts v94, answer block, follow-up, dates since the last payment
 - [ ] 25.2-13-PLAN.md — notes review: turn mode, one transaction, review offer
 - [ ] 25.2-14-PLAN.md — ChatNoteChange, empty chat, long essay (web)
-- [ ] 25.2-15-PLAN.md — push: VAPID, subscriptions, presence, scheduler, delivery
+- [ ] 25.2-15-PLAN.md — push: VAPID config, subscriptions, link builders, notification settings, presence
 - [ ] 25.2-16-PLAN.md — ChatReview, Review now (web)
-- [ ] 25.2-17-PLAN.md — PWA: manifest, service worker, notification settings, presence
+- [ ] 25.2-17-PLAN.md — PWA: manifest, icons, head, proxy exceptions
 - [ ] 25.2-18-PLAN.md — docs, build, knip, full check pass
+- [ ] 25.2-19-PLAN.md — profile: Overview, Opening balance in Payments, skeleton, Ask in chat
+- [ ] 25.2-20-PLAN.md — calendar search from chat (time, duration, calendar_events)
+- [ ] 25.2-21-PLAN.md — /recap and /essay prompts in the database
+- [ ] 25.2-22-PLAN.md — Vocabulary Removed and review date line (web)
+- [ ] 25.2-23-PLAN.md — ChangeCardDetails, Review archive, step words (web)
+- [ ] 25.2-24-PLAN.md — Settings prompts and privacy, Count lessons on core (web)
+- [ ] 25.2-25-PLAN.md — service worker: push to a shown notification, tap, resubscribe
+- [ ] 25.2-26-PLAN.md — notification settings, subscription client, presence (web)
+- [ ] 25.2-27-PLAN.md — push: scheduler (lesson soon, pays soon), presence suppression, web-push delivery
 **UI hint**: yes
 **Notes**: `/edvibe` and the command builder are Phase 25.3 and wait for the owner's template examples.
 
@@ -637,6 +646,6 @@ Superseded by Phase 25.1 (owner decisions D5-D10, 2026-10-12). Its research and 
 | 23. Confirmed Chat Changes and Entry Points      | v2.0      | 14/14          | Complete    | 2026-10-14 |
 | 24. Google Calendar Connection and Outbound Sync | v2.0      | 13/14          | In Progress | -          |
 | 25. Google Calendar Two-Way Sync                 | v2.0      | 0/12           | Planned     | -          |
-| 25.2. Polish before IELTS                        | v2.0      | 0/18           | Planned     | -          |
+| 25.2. Polish before IELTS                        | v2.0      | 0/27           | Planned     | -          |
 | 25.3. Chat Command Builder                       | v2.0      | 0/0            | Not planned | -          |
 | 26. IELTS Section                                | v2.0      | 0/40           | Planned     | -          |
