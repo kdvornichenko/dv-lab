@@ -13,6 +13,7 @@ const apiRequire = createRequire(new URL('../../apps/api/package.json', import.m
 const pino = apiRequire('pino')
 const { serve } = apiRequire('@hono/node-server')
 
+const GATEWAY_SOURCE = readFileSync(new URL('../../apps/api/src/calendar/gateway.ts', import.meta.url), 'utf8')
 const PORT = 4231
 const CALENDAR = 'synthetic-calendar'
 let failures = 0
@@ -33,14 +34,20 @@ const pages = {
 		nextPageToken: 'page-2',
 		items: [
 			{ status: 'confirmed', summary: 'Екатерина', start: { dateTime: '2026-06-01T10:00:00+07:00' } },
-			{ status: 'confirmed', summary: 'Alex Example 0001', start: { dateTime: '2026-06-05T18:00:00+07:00' } },
+			{
+				status: 'confirmed',
+				summary: 'Alex Example 0001',
+				description: 'hidden-description',
+				start: { dateTime: '2026-06-05T18:00:00+07:00' },
+				end: { dateTime: '2026-06-05T19:30:00+07:00' },
+			},
 			{ status: 'tentative', summary: 'Екатерина', start: { dateTime: '2026-07-03T18:00:00+07:00' } },
 		],
 	},
 	'page-2': {
 		items: [
 			{ status: 'confirmed', summary: 'Eкатерина', start: { dateTime: '2026-08-31T09:00:00+07:00' } },
-			{ status: 'confirmed', start: { date: '2026-08-10' } },
+			{ status: 'confirmed', start: { date: '2026-08-10' }, end: { date: '2026-08-11' } },
 			{ status: 'confirmed', summary: 'Outside', start: { dateTime: '2026-09-01T09:00:00+07:00' } },
 		],
 	},
@@ -97,10 +104,34 @@ try {
 		JSON.stringify({ timeMin: calls[0]?.timeMin, timeMax: calls[0]?.timeMax })
 	)
 	const events = ok.json?.events ?? []
+	const timedKeys = ['day,durationMinutes,time,title', 'day,time,title']
 	check(
-		'titles and days only',
-		events.every((item) => Object.keys(item).sort().join() === 'day,title'),
-		JSON.stringify(Object.keys(ok.json ?? {}))
+		'titles, days, times and lengths only',
+		events.every((item) =>
+			(typeof item.time === 'string' ? timedKeys : ['day,title']).includes(Object.keys(item).sort().join())
+		),
+		JSON.stringify(events.map((item) => Object.keys(item).sort().join()))
+	)
+	const timed = events.find((item) => item.title === 'Alex Example 0001')
+	check(
+		'timed event has the teacher-zone start and its length',
+		timed?.day === '2026-06-05' && timed?.time === '18:00' && timed?.durationMinutes === 90,
+		JSON.stringify(timed)
+	)
+	check(
+		'timed event without end has a time and no length',
+		events.some((item) => item.day === '2026-06-01' && item.time === '10:00' && !('durationMinutes' in item))
+	)
+	const allDay = events.find((item) => item.title === null && item.day === '2026-08-10')
+	check(
+		'all-day event has no time and no length',
+		allDay !== undefined && !('time' in allDay) && !('durationMinutes' in allDay),
+		JSON.stringify(allDay)
+	)
+	check('description is not returned', !JSON.stringify(ok.json).includes('hidden-description'))
+	check(
+		'events.list asks for start and end, without description',
+		/fields: 'nextPageToken,items\(status,summary,start,end\)'/.test(GATEWAY_SOURCE)
 	)
 	check('out-of-range event is dropped', events.length === 5, events.length)
 	check(

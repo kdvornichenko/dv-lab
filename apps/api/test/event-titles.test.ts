@@ -12,8 +12,13 @@ describe('parseTitlePage', () => {
 			{
 				nextPageToken: 'next',
 				items: [
-					{ status: 'confirmed', summary: 'Екатерина', start: { dateTime: '2026-06-01T10:00:00+07:00' } },
-					{ status: 'tentative', summary: 'Anna', start: { date: '2026-07-15' } },
+					{
+						status: 'confirmed',
+						summary: 'Екатерина',
+						start: { dateTime: '2026-06-01T10:00:00+07:00' },
+						end: { dateTime: '2026-06-01T11:00:00+07:00' },
+					},
+					{ status: 'tentative', summary: 'Anna', start: { date: '2026-07-15' }, end: { date: '2026-07-16' } },
 					{ status: 'confirmed', start: { dateTime: '2026-08-31T12:00:00Z' } },
 				],
 			},
@@ -23,9 +28,9 @@ describe('parseTitlePage', () => {
 		expect(page).toEqual({
 			nextPageToken: 'next',
 			events: [
-				{ title: 'Екатерина', day: '2026-06-01' },
+				{ title: 'Екатерина', day: '2026-06-01', time: '10:00', durationMinutes: 60 },
 				{ title: 'Anna', day: '2026-07-15' },
-				{ title: null, day: '2026-08-31' },
+				{ title: null, day: '2026-08-31', time: '19:00' },
 			],
 		})
 	})
@@ -54,7 +59,7 @@ describe('parseTitlePage', () => {
 			ZONE,
 			SUMMER
 		)
-		expect(page.events).toEqual([{ title: 'Late', day: '2026-06-01' }])
+		expect(page.events).toEqual([{ title: 'Late', day: '2026-06-01', time: '01:00' }])
 	})
 
 	it('refuses a malformed page', () => {

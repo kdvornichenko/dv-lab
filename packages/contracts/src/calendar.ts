@@ -462,7 +462,12 @@ export const eventTitlesQuery = z
 
 export type EventTitlesQuery = z.infer<typeof eventTitlesQuery>
 
-export const eventTitleItem = z.strictObject({ title: z.string().nullable(), day: calendarDate })
+export const eventTitleItem = z.strictObject({
+	title: z.string().nullable(),
+	day: calendarDate,
+	time: eventClock.optional(),
+	durationMinutes: z.number().int().min(0).optional(),
+})
 
 export type EventTitleItem = z.infer<typeof eventTitleItem>
 
