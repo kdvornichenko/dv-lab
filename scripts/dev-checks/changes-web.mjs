@@ -3211,6 +3211,403 @@ async function sectionNotes() {
 	}
 }
 
+const REVIEW_PORT = 4261
+const RV = {
+	no: 'Alex Example 2430',
+	yes: 'Alex Example 2431',
+	pending: 'Alex Example 2432',
+	variants: 'Alex Example 2433',
+	stamp: 'Alex Example 2434',
+	running: 'Alex Example 2435',
+}
+const REVIEW_WHERE = `display_name like 'Alex Example 243_' and import_key is null`
+const OFFER = '[data-slot="chat-review"][data-state="offer"]'
+const RESULT = '[data-slot="chat-review"][data-state="result"]'
+const FAILED = '[data-slot="chat-review"][data-state="failed"]'
+const TEACHER = '[data-role="teacher"]'
+const DUPLICATED = 'Line one\nLine one\nLine two'
+const DEDUPED = 'Line one\nLine two'
+const REVIEW_CANT_UNDO = "Can't undo: a block changed after the review."
+const REVIEW_UNDONE = 'Changes undone. The notes are as they were before the review.'
+const REVIEW_DAY = /[A-Z][a-z]{2} \d{1,2} [A-Z][a-z]{2}/
+
+function removeReviewCards(conversations = []) {
+	const cards = `select id from students where ${REVIEW_WHERE}`
+	sql(`delete from note_reviews where student_id in (${cards})`)
+	removeConversations(conversations)
+	const left = sql(
+		`select distinct conversation_id as id from chat_actions where target->>'studentId' in (select id::text from students where ${REVIEW_WHERE})`
+	).rows.map((row) => row.id)
+	const mentioned = sql(
+		`select distinct m.conversation_id as id from chat_messages m join students s on position(s.id::text in m.mentions::text) > 0 where s.display_name like 'Alex Example 243_' and s.import_key is null`
+	).rows.map((row) => row.id)
+	removeConversations([...new Set([...left, ...mentioned])])
+	sql(`delete from student_notes where student_id in (${cards})`)
+	sql(`delete from note_reviews where student_id in (${cards})`)
+	sql(`delete from student_terms where student_id in (${cards})`)
+	sql(`delete from student_sections where student_id in (${cards})`)
+	sql(`delete from payments where student_id in (${cards})`)
+	const result = sql(`delete from students where ${REVIEW_WHERE}`)
+	console.log(`fixture cards removed ${result.rowCount}`)
+}
+
+async function sendReview(page, name, tail = '') {
+	const field = page.locator(FIELD)
+	await field.waitFor({ timeout: 30000 })
+	await field.click()
+	await page.keyboard.type('/review ')
+	await page.keyboard.type(`@${name}`)
+	await page.locator(POPUP).waitFor({ timeout: 15000 })
+	await page.keyboard.press('Enter')
+	await page.locator(POPUP).waitFor({ state: 'detached', timeout: 5000 })
+	if (tail !== '') await page.keyboard.type(tail)
+	await page.locator(SEND).click()
+}
+
+async function sectionReview() {
+	const apiOrigin = await detectApiOrigin()
+	const health = await fetch(`${BASE}/api/healthz`).catch(() => null)
+	if (!health || health.status !== 200)
+		throw new Error('the dev api does not answer through the web proxy: this section needs the dev stack')
+	const started = await startFakeModelApi(REVIEW_PORT)
+	const conversations = []
+	try {
+		removeReviewCards()
+		await withBrowser(
+			{ width: 1280, height: 800 },
+			async ({ page, problems }) => {
+				await proposalsPrepare(page, apiOrigin, REVIEW_PORT)
+				await signIn(page)
+				const call = (method, path, body) => formsApi(page, apiOrigin, method, path, body)
+				const ids = {}
+				for (const [key, name] of Object.entries(RV)) {
+					const created = await call('POST', '/students', {
+						displayName: name,
+						rateMinor: 400000,
+						currency: 'RUB',
+						defaultLessonMinutes: 60,
+						parent: null,
+						level: null,
+						goals: null,
+						timeZone: null,
+					})
+					check(`the fixture card ${name} is created`, created.status === 201, String(created.status))
+					ids[key] = created.json.student.id
+				}
+				const track = () => {
+					const id = new URL(page.url()).searchParams.get('c')
+					if (id && !conversations.includes(id)) conversations.push(id)
+				}
+				const newChat = async () => {
+					await page.goto(`${BASE}/chat?new=1`)
+					await page.locator('[data-slot="chat-commands"]').waitFor({ timeout: 30000 })
+				}
+				const count = (selector) => page.locator(selector).count()
+				const messages = () => count('[data-message-id]')
+				const idle = () => page.locator(SEND).waitFor({ timeout: 30000 })
+				const askAbout = async (key) => {
+					setSection(RV[key], 'goals', 'Line one')
+					const goals = sectionOf(RV[key], 'goals')
+					await newChat()
+					await askNote(page, `[fake:note-write] block: ${goals.id}; text: Line one\\nLine one\\nLine two`, RV[key])
+					track()
+					await page.locator(OFFER).waitFor({ timeout: 20000 })
+					return page.locator(OFFER)
+				}
+				const reviewed = async (selector, total) => {
+					await page.reload()
+					await page.locator(selector).first().waitFor({ timeout: 30000 })
+					return total === undefined ? null : count(selector)
+				}
+
+				const noOffer = await askAbout('no')
+				const never = await noOffer.innerText()
+				const apart = await page.evaluate(() => {
+					const offer = document.querySelector('[data-slot="chat-review"][data-state="offer"]')?.closest('li')
+					const receipt = document.querySelector('[data-slot="chat-note-change"]')?.closest('li')
+					return offer !== null && receipt !== null && offer !== receipt
+				})
+				check(
+					'after a turn about the notes the question is a message of its own: never reviewed, Yes and No',
+					apart &&
+						never.includes(`${RV.no}'s notes and vocabulary have never been reviewed. Run a review?`) &&
+						(await noOffer.getByRole('button', { name: 'Yes', exact: true }).isVisible()) &&
+						(await noOffer.getByRole('button', { name: 'No', exact: true }).isVisible()),
+					never
+				)
+				await shot(page, 'changes-review', 'offer')
+				const before = await messages()
+				await noOffer.getByRole('button', { name: 'No', exact: true }).click()
+				await page.locator(OFFER).waitFor({ state: 'detached', timeout: 15000 })
+				check(
+					'No takes the question away without a trace: no message of its own is left',
+					(await messages()) === before - 1 && (await count(TEACHER)) === 1
+				)
+				await reviewed('[data-slot="chat-note-change"]')
+				check(
+					'after a reload the answered No does not come back',
+					(await count(OFFER)) === 0 && (await messages()) === before - 1
+				)
+
+				const yesOffer = await askAbout('yes')
+				await yesOffer.getByRole('button', { name: 'Yes', exact: true }).click()
+				await page.locator(RESULT).waitFor({ timeout: 40000 })
+				await idle()
+				track()
+				const teacher = await page.locator(TEACHER).allInnerTexts()
+				check(
+					'Yes takes the question away and sends the review command with the student',
+					(await count(OFFER)) === 0 && teacher.some((text) => text.includes('/review') && text.includes(RV.yes)),
+					teacher.join(' | ')
+				)
+				const result = page.locator(RESULT)
+				const body = await result.innerText()
+				const links = await result
+					.getByRole('link')
+					.evaluateAll((nodes) => nodes.map((node) => node.getAttribute('href')))
+				const last = await page.evaluate(() => {
+					const items = [...document.querySelectorAll('[data-slot="chat-messages"] > li')]
+					return items.at(-1)?.querySelector('[data-slot="chat-review"][data-state="result"]') !== null
+				})
+				check(
+					'the result names the student with the day, has the three sections, a block link and Undo changes, and is the last message',
+					body.includes('Review finished') &&
+						new RegExp(`${RV.yes}'s notes and vocabulary · ${REVIEW_DAY.source}`).test(body) &&
+						body.includes('Fixed') &&
+						body.includes('Found and left as it is') &&
+						body.includes('Needs your decision') &&
+						links.some((href) => href?.startsWith(`/students/${ids.yes}?tab=notes&section=`)) &&
+						(await result.getByRole('button', { name: 'Undo changes' }).isVisible()) &&
+						last,
+					body
+				)
+				check('the review wrote the block once', sectionOf(RV.yes, 'goals').body === DEDUPED)
+				const progress = page.locator('li', { has: page.locator(RESULT) }).locator('[data-slot="chat-progress"]')
+				await progress.getByRole('button', { name: /Show steps/ }).click()
+				const steps = await progress.innerText()
+				check(
+					'the review steps are named by the design',
+					steps.includes(`Reading ${RV.yes}'s notes and vocabulary`) &&
+						steps.includes('Looking for duplicates and conflicts'),
+					steps
+				)
+				await shot(page, 'changes-review', 'result')
+
+				await page.setViewportSize({ width: 375, height: 800 })
+				const narrow = await page.evaluate(() => ({
+					overflow: document.documentElement.scrollWidth - window.innerWidth,
+					right: document.querySelector('[data-slot="chat-review"][data-state="result"]').getBoundingClientRect().right,
+				}))
+				check(
+					'at 375 px the result stays inside the screen',
+					narrow.overflow <= 0 && narrow.right <= 375,
+					JSON.stringify(narrow)
+				)
+				await page.setViewportSize({ width: 1280, height: 800 })
+
+				await reviewed(RESULT)
+				check(
+					'after a reload the answered question does not come back and the result keeps Undo changes',
+					(await count(OFFER)) === 0 &&
+						(await page.locator(RESULT).getByRole('button', { name: 'Undo changes' }).isVisible())
+				)
+				await page.locator(RESULT).getByRole('button', { name: 'Undo changes' }).click()
+				await page.getByText(REVIEW_UNDONE).waitFor({ timeout: 30000 })
+				check(
+					'Undo changes puts the block back and leaves the mark of the rollback without the button',
+					sectionOf(RV.yes, 'goals').body === DUPLICATED &&
+						(await page.locator(RESULT).getByRole('button', { name: 'Undo changes' }).count()) === 0
+				)
+				await reviewed(RESULT)
+				check(
+					'after a reload the rollback mark stays and Undo changes is not offered again',
+					(await page.getByText(REVIEW_UNDONE).count()) === 1 &&
+						(await page.getByRole('button', { name: 'Undo changes' }).count()) === 0
+				)
+
+				await askAbout('pending')
+				await page.reload()
+				await page.locator(OFFER).waitFor({ timeout: 30000 })
+				check(
+					'an unanswered question survives a reload with Yes and No',
+					(await page.locator(OFFER).getByRole('button', { name: 'Yes', exact: true }).isVisible()) &&
+						(await page.locator(OFFER).getByRole('button', { name: 'No', exact: true }).isVisible())
+				)
+				const assistants = await count('[data-role="assistant"]')
+				await page.locator(FIELD).click()
+				await page.keyboard.type('hello')
+				await page.locator(SEND).click()
+				await page.waitForFunction(
+					(total) => document.querySelectorAll('[data-role="assistant"]').length > total,
+					assistants,
+					{ timeout: 30000 }
+				)
+				await idle()
+				check('a new message does not remove the waiting question', (await count(OFFER)) === 1)
+
+				setSection(RV.variants, 'goals', DUPLICATED)
+				await newChat()
+				await sendReview(page, RV.variants, ' [fake:review-clean]')
+				await page.locator(RESULT).waitFor({ timeout: 40000 })
+				await idle()
+				track()
+				const clean = await page.locator(RESULT).last().innerText()
+				check(
+					'a review with nothing to fix says so, names the student and has no Undo',
+					clean.includes(`Nothing to fix. ${RV.variants}'s notes and vocabulary are consistent.`) &&
+						REVIEW_DAY.test(clean) &&
+						(await page.getByRole('button', { name: 'Undo changes' }).count()) === 0,
+					clean
+				)
+				await sendReview(page, RV.variants, ' [fake:review-questions]')
+				await page.waitForFunction(
+					(total) => document.querySelectorAll('[data-slot="chat-review"][data-state="result"]').length > total,
+					1,
+					{
+						timeout: 40000,
+					}
+				)
+				await idle()
+				const questions = await page.locator(RESULT).last().innerText()
+				check(
+					'a review with only questions shows Needs your decision with a block link and no Undo',
+					questions.includes('Needs your decision') &&
+						!questions.includes('Fixed') &&
+						(await page
+							.locator(RESULT)
+							.last()
+							.getByRole('link', { name: /^Open / })
+							.count()) === 1 &&
+						(await page.getByRole('button', { name: 'Undo changes' }).count()) === 0,
+					questions
+				)
+				const asked = await count(TEACHER)
+				await sendReview(page, RV.variants, ' [fake:review-skip]')
+				await page.locator(FAILED).waitFor({ timeout: 40000 })
+				await idle()
+				const failed = await page.locator(FAILED).innerText()
+				check(
+					'a turn that ended without a result says the review did not finish and offers Run again',
+					failed.includes('The review did not finish. Nothing was changed.') &&
+						failed.includes(`${RV.variants}'s notes are as they were.`) &&
+						(await page.locator(FAILED).getByRole('button', { name: 'Run again' }).isVisible()) &&
+						(await count(RESULT)) === 2,
+					failed
+				)
+				await page.locator(FAILED).getByRole('button', { name: 'Run again' }).click()
+				await page.waitForFunction(
+					(total) => document.querySelectorAll('[data-slot="chat-review"][data-state="result"]').length > total,
+					2,
+					{
+						timeout: 40000,
+					}
+				)
+				await idle()
+				check(
+					'Run again sends the review command once more',
+					(await count(TEACHER)) === asked + 2 && sectionOf(RV.variants, 'goals').body === DEDUPED
+				)
+				setSection(RV.variants, 'goals', 'Teacher edit')
+				await page.locator(RESULT).last().getByRole('button', { name: 'Undo changes' }).click()
+				await page.getByText(REVIEW_CANT_UNDO).waitFor({ timeout: 30000 })
+				check(
+					'after a block changed Undo changes is gone with the explanation and the teacher text stays',
+					(await page.locator(RESULT).last().getByRole('button', { name: 'Undo changes' }).count()) === 0 &&
+						sectionOf(RV.variants, 'goals').body === 'Teacher edit'
+				)
+
+				setSection(RV.stamp, 'goals', DUPLICATED)
+				await page.goto(`${BASE}/students/${ids.stamp}?tab=notes`)
+				const stamp = page.locator('[data-slot="review-stamp"]')
+				await stamp.waitFor({ timeout: 30000 })
+				const now = page.locator('[data-slot="review-now"]')
+				check(
+					'the Notes stamp offers Review now beside Never reviewed',
+					(await stamp.innerText()).includes('Never reviewed') &&
+						(await now.getAttribute('href')) === `/chat?new=1&student=${ids.stamp}&review=1`
+				)
+				await now.click()
+				await page.locator(RESULT).waitFor({ timeout: 60000 })
+				await idle()
+				track()
+				const arrival = new URL(page.url())
+				check(
+					'Review now opens a chat with the review already running, without the question, and drops the parameter',
+					arrival.pathname === '/chat' &&
+						!arrival.searchParams.has('review') &&
+						(await count(TEACHER)) === 1 &&
+						(await count(OFFER)) === 0 &&
+						sectionOf(RV.stamp, 'goals').body === DEDUPED,
+					page.url()
+				)
+				await reviewed(RESULT)
+				check('after a reload no second review starts', (await count(TEACHER)) === 1 && (await count(RESULT)) === 1)
+				await page.goto(`${BASE}/students/${ids.stamp}?tab=vocabulary`)
+				await stamp.waitFor({ timeout: 30000 })
+				check(
+					'the Vocabulary tab shows the same stamp with the new date and Review now',
+					(await stamp.innerText()).includes('Reviewed today') &&
+						(await page.locator('[data-slot="review-now"]').isVisible())
+				)
+
+				const made = await call('POST', '/chat/conversations')
+				const conversationId = made.json.conversation.id
+				conversations.push(conversationId)
+				const text = `/review @${RV.running} [fake:review-hang]`
+				const start = '/review @'.length
+				const sent = await call('POST', `/chat/conversations/${conversationId}/messages`, {
+					requestId: randomUUID(),
+					text,
+					mentions: [{ studentId: ids.running, text: RV.running, start, end: start + RV.running.length }],
+				})
+				check(
+					'the long review is started through the chat',
+					sent.status === 200 || sent.status === 201,
+					String(sent.status)
+				)
+				await page.goto(`${BASE}/students/${ids.running}?tab=notes`)
+				await stamp.waitFor({ timeout: 30000 })
+				await page.getByText('Review in progress').waitFor({ timeout: 30000 })
+				const open = page.locator('[data-slot="review-open-chat"]')
+				check(
+					'while the review runs the Notes stamp says Review in progress with Open chat in place of Review now',
+					(await open.getAttribute('href')) === `/chat?c=${conversationId}` &&
+						(await page.locator('[data-slot="review-now"]').count()) === 0
+				)
+				await shot(page, 'changes-review', 'running')
+				await page.goto(`${BASE}/students/${ids.running}?tab=vocabulary`)
+				await page.getByText('Review in progress').waitFor({ timeout: 30000 })
+				check(
+					'the Vocabulary tab shows the same state',
+					(await page.locator('[data-slot="review-open-chat"]').isVisible()) &&
+						(await page.locator('[data-slot="review-now"]').count()) === 0
+				)
+				const stopped = await call('POST', `/chat/turns/${sent.json.turn.id}/stop`, {})
+				check('the long review is stopped', stopped.status === 200, String(stopped.status))
+				await page.locator('[data-slot="review-now"]').waitFor({ timeout: 20000 })
+				check(
+					'when the review ends the stamp comes back by itself with Review now and the old date',
+					(await stamp.innerText()).includes('Never reviewed')
+				)
+				await page.goto(`${BASE}/chat?c=${conversationId}`)
+				await page.locator(FAILED).waitFor({ timeout: 30000 })
+				check(
+					'a stopped review shows the did not finish message with Run again',
+					(await page.locator(FAILED).getByRole('button', { name: 'Run again' }).isVisible()) &&
+						(await count(RESULT)) === 0
+				)
+
+				const unexpected = problems.filter((line) => !EXPECTED_NOISE.test(line))
+				check('no unexpected console problems', unexpected.length === 0, unexpected.slice(0, 3).join(' | '))
+			},
+			() => removeReviewCards(conversations)
+		)
+	} finally {
+		await stopFakeModelApi(started)
+		removeReviewCards(conversations)
+	}
+}
+
 const PROMPT_BLOCK = (command) => `[data-slot="command-prompt"][data-command="${command}"]`
 const PROMPT_ACCOUNTS = `select id from accounts where role = 'teacher'`
 const PROMPTS_NOISE = EXPECTED_NOISE
@@ -3423,6 +3820,7 @@ async function sectionPrompts() {
 
 const sections = {
 	notes: sectionNotes,
+	review: sectionReview,
 	prompts: sectionPrompts,
 	details: sectionDetails,
 	facts: sectionFacts,

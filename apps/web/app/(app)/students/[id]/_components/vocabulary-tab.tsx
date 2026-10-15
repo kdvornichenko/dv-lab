@@ -33,7 +33,13 @@ type View = 'words' | 'removed'
 type ReadState =
 	| { kind: 'loading' }
 	| { kind: 'error' }
-	| { kind: 'ready'; words: StudentTerm[]; removed: StudentTerm[]; reviewedAt: string | null }
+	| {
+			kind: 'ready'
+			words: StudentTerm[]
+			removed: StudentTerm[]
+			reviewedAt: string | null
+			reviewRunning: { conversationId: string } | null
+	  }
 
 function newestFirst(terms: StudentTerm[]): StudentTerm[] {
 	return [...terms].sort(
@@ -55,6 +61,7 @@ async function readTerms(studentId: string): Promise<ReadState> {
 		words: newestFirst(words.data.terms),
 		removed: removed.data.terms,
 		reviewedAt: review.data.reviewedAt,
+		reviewRunning: review.data.reviewRunning,
 	}
 }
 
@@ -258,7 +265,14 @@ export function VocabularyTab({ student, timeZone, asOf }: VocabularyTabProps) {
 		<div className="flex flex-col gap-4">
 			<div className="flex flex-wrap items-center justify-between gap-2">
 				{state.kind === 'ready' ? (
-					<ReviewStamp reviewedAt={state.reviewedAt} timeZone={timeZone} now={new Date(asOf)} />
+					<ReviewStamp
+						studentId={studentId}
+						reviewedAt={state.reviewedAt}
+						reviewRunning={state.reviewRunning}
+						timeZone={timeZone}
+						now={new Date(asOf)}
+						onPoll={() => void load()}
+					/>
 				) : (
 					<ReviewStampLoading />
 				)}

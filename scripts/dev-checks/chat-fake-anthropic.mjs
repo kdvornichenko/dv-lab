@@ -160,6 +160,54 @@ function proposalPlan(marker, content, continued, body) {
 	return null
 }
 
+function reviewPlan(marker, content, continued, body) {
+	const studentId = /student_id: ([0-9a-f-]{36})/.exec(content)?.[1] ?? null
+	const call = (name, input) => ({
+		blocks: [{ kind: 'tool', id: `toolu_fake_${++state.ids}`, name, input }],
+		stop: 'tool_use',
+	})
+	const say = (text) => ({ blocks: [{ kind: 'text', sentences: [text] }], stop: 'end_turn' })
+	if (marker === 'review-hang') return { hang: true }
+	if (!continued)
+		return marker === 'review-skip'
+			? say('I could not review the notes.')
+			: call('review_read', { student_id: studentId })
+	let read = null
+	try {
+		read = JSON.parse(toolResultText(body))
+	} catch {
+		return say('I could not review the notes.')
+	}
+	if (typeof read?.status === 'string') return say('The review is finished.')
+	const blocks = Array.isArray(read?.blocks) ? read.blocks : []
+	const repeated = blocks.find((block) => {
+		const lines = String(block.text).split('\n')
+		return new Set(lines).size !== lines.length
+	})
+	const other = blocks.find((block) => block !== repeated) ?? repeated
+	const item = (text, block) => ({ text, block_id: block?.block_id ?? null })
+	const input = {
+		student_id: studentId,
+		blocks: [],
+		words: [],
+		remove_words: [],
+		merged_entries: [],
+		fixed: [],
+		found: [],
+		decisions: [],
+	}
+	if (marker === 'review-questions') {
+		input.decisions = [item('Is the exam date still the fifth of March?', other)]
+		return call('apply_review', input)
+	}
+	if (marker === 'review-clean' || repeated === undefined) return call('apply_review', input)
+	input.blocks = [{ block_id: repeated.block_id, text: [...new Set(String(repeated.text).split('\n'))].join('\n') }]
+	input.fixed = [item('Removed a repeated line.', repeated)]
+	input.found = [item('The level says B2 here and B1 in the lesson comments: both are kept.', null)]
+	input.decisions = [item('Is the exam date still the fifth of March?', other)]
+	return call('apply_review', input)
+}
+
 function plan(body) {
 	const asked = body.messages.filter((message) => message.role === 'user' && typeof message.content === 'string')
 	const marker = /\[fake:([a-z-]+)\]/.exec(asked.at(-1)?.content ?? '')?.[1] ?? 'answer'
@@ -188,6 +236,8 @@ function plan(body) {
 			stop: 'tool_use',
 		}
 	}
+	const reviewContent = asked.at(-1)?.content ?? ''
+	if (reviewContent.includes('Call review_read first')) return reviewPlan(marker, reviewContent, continued, body)
 	const proposal = proposalPlan(marker, asked.at(-1)?.content ?? '', continued, body)
 	if (proposal) return proposal
 	if (marker === 'hang') return { hang: true }

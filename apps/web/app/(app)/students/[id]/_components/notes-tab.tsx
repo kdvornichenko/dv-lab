@@ -29,7 +29,9 @@ import { useNotesArrival } from './use-notes-arrival'
 export type SectionDrafts = Partial<Record<string, string>>
 
 type ReadState =
-	{ kind: 'loading' } | { kind: 'error' } | { kind: 'ready'; blocks: NoteBlock[]; reviewedAt: string | null }
+	| { kind: 'loading' }
+	| { kind: 'error' }
+	| { kind: 'ready'; blocks: NoteBlock[]; reviewedAt: string | null; reviewRunning: { conversationId: string } | null }
 
 function byPosition(blocks: NoteBlock[]): NoteBlock[] {
 	return [...blocks].sort((left, right) => left.position - right.position)
@@ -40,7 +42,12 @@ async function readBlocks(studentId: string): Promise<ReadState> {
 	if (!result.ok) return { kind: 'error' }
 	const parsed = studentBlocksResponse.safeParse(result.data)
 	return parsed.success
-		? { kind: 'ready', blocks: byPosition(parsed.data.blocks), reviewedAt: parsed.data.reviewedAt }
+		? {
+				kind: 'ready',
+				blocks: byPosition(parsed.data.blocks),
+				reviewedAt: parsed.data.reviewedAt,
+				reviewRunning: parsed.data.reviewRunning,
+			}
 		: { kind: 'error' }
 }
 
@@ -199,7 +206,14 @@ export function NotesTab({ student, drafts, timeZone, asOf, onDraftChange, mark,
 	return (
 		<div className="flex max-w-190 flex-col gap-3" data-slot="notes-ready">
 			<div className="flex flex-wrap items-center justify-between gap-2">
-				<ReviewStamp reviewedAt={state.reviewedAt} timeZone={timeZone} now={now} />
+				<ReviewStamp
+					studentId={studentId}
+					reviewedAt={state.reviewedAt}
+					reviewRunning={state.reviewRunning}
+					timeZone={timeZone}
+					now={now}
+					onPoll={() => void load()}
+				/>
 				<AddBlockButton buttonRef={addButton} disabled={adding} onClick={() => setAdding(true)} />
 			</div>
 			{blocks.length === 0 ? (

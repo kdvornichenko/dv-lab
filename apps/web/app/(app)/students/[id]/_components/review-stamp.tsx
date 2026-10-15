@@ -1,7 +1,11 @@
 'use client'
 
-import { CircleCheck, Info } from 'lucide-react'
+import { useEffect } from 'react'
 
+import { CircleCheck, Info, LoaderCircle } from 'lucide-react'
+import Link from 'next/link'
+
+import { Button } from '@/components/ui/button'
 import { Skeleton } from '@/components/ui/skeleton'
 import { Tooltip } from '@/components/ui/tooltip'
 import { formatDay, formatTime } from '@/lib/schedule-format'
@@ -10,6 +14,8 @@ import { zoneLabel } from '@/lib/time-zones'
 import { zonedParts } from '@dv-lab/core'
 
 const DAY_MS = 86400000
+
+const POLL_MS = 4000
 
 function dayIndex(date: string): number {
 	return Date.parse(`${date}T00:00:00Z`) / DAY_MS
@@ -29,12 +35,38 @@ export function ReviewStampLoading() {
 }
 
 interface ReviewStampProps {
+	studentId: string
 	reviewedAt: string | null
+	reviewRunning: { conversationId: string } | null
 	timeZone: string
 	now: Date
+	onPoll: () => void
 }
 
-export function ReviewStamp({ reviewedAt, timeZone, now }: ReviewStampProps) {
+function Status({
+	reviewedAt,
+	running,
+	timeZone,
+	now,
+}: { reviewedAt: string | null; running: boolean } & Pick<ReviewStampProps, 'timeZone' | 'now'>) {
+	if (running) {
+		return (
+			<span
+				role="status"
+				data-slot="review-stamp"
+				data-state="running"
+				className="inline-flex items-center gap-1.5 text-body text-foreground"
+			>
+				<LoaderCircle
+					aria-hidden
+					size={16}
+					strokeWidth={1.5}
+					className="shrink-0 animate-spin motion-reduce:animate-none"
+				/>
+				Review in progress
+			</span>
+		)
+	}
 	if (reviewedAt === null) {
 		return (
 			<span
@@ -61,5 +93,42 @@ export function ReviewStamp({ reviewedAt, timeZone, now }: ReviewStampProps) {
 				Reviewed {reviewAge(at, now, timeZone)}
 			</span>
 		</Tooltip>
+	)
+}
+
+export function ReviewStamp({ studentId, reviewedAt, reviewRunning, timeZone, now, onPoll }: ReviewStampProps) {
+	const running = reviewRunning !== null
+
+	useEffect(() => {
+		if (!running) return
+		const timer = window.setInterval(onPoll, POLL_MS)
+		return () => window.clearInterval(timer)
+	}, [running, onPoll])
+
+	return (
+		<div className="flex flex-wrap items-center gap-x-3 gap-y-1" data-slot="review-row">
+			<Status reviewedAt={reviewedAt} running={running} timeZone={timeZone} now={now} />
+			{reviewRunning === null ? (
+				<Button
+					variant="ghost"
+					size="compact"
+					data-slot="review-now"
+					nativeButton={false}
+					render={<Link href={`/chat?new=1&student=${studentId}&review=1`} />}
+				>
+					Review now
+				</Button>
+			) : (
+				<Button
+					variant="ghost"
+					size="compact"
+					data-slot="review-open-chat"
+					nativeButton={false}
+					render={<Link href={`/chat?c=${reviewRunning.conversationId}`} />}
+				>
+					Open chat
+				</Button>
+			)}
+		</div>
 	)
 }

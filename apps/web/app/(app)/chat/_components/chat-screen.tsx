@@ -274,13 +274,13 @@ export function ChatScreen({
 	const sendChat = chat.send
 
 	useEffect(() => {
-		if (reviewStart === null || reviewSent.current === reviewStart) return
+		if (reviewStart === null || startReview || reviewSent.current === reviewStart) return
 		reviewSent.current = reviewStart
 		setReviewStart(null)
 		void sendChat(reviewStart).then((sent) => {
 			if (!sent) setDraft(reviewStart)
 		})
-	}, [reviewStart, sendChat, setDraft])
+	}, [reviewStart, startReview, sendChat, setDraft])
 
 	useEffect(() => {
 		if (askFocus === 0) return
