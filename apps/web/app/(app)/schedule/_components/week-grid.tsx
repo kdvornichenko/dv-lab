@@ -519,7 +519,10 @@ export function WeekGrid({
 			)
 		return (
 			<div ref={measure ? turning.clipRef : undefined} className="relative min-w-0 overflow-x-clip">
-				<motion.div className="-ml-[100%] flex w-[300%]" style={{ x: turning.x, opacity: turning.opacity, height }}>
+				<motion.div
+					className="isolate -ml-[100%] flex w-[300%]"
+					style={{ x: turning.x, opacity: turning.opacity, height }}
+				>
 					{pages.map((page) => (
 						<div
 							key={page.monday}
@@ -693,6 +696,15 @@ export function WeekGrid({
 			onOpen={onOpen}
 		/>
 	)
+	const hourLines = HOURS.map((hour) => (
+		<div
+			key={hour}
+			data-slot="week-grid-line"
+			data-hour={hour}
+			className={cn('pointer-events-none absolute right-0 h-px bg-gcal-line', phone ? 'left-9' : 'left-[100px]')}
+			style={{ top: hour * HOUR_HEIGHT }}
+		/>
+	))
 	const hasAllDay = pages.some((page) => page.events.some((event) => event.when.kind === 'all_day'))
 
 	return (
@@ -779,19 +791,9 @@ export function WeekGrid({
 									/>
 								))}
 							</div>
+							{phone ? hourLines : null}
 							{place(cells, false, bodyHeight)}
-							{HOURS.map((hour) => (
-								<div
-									key={hour}
-									data-slot="week-grid-line"
-									data-hour={hour}
-									className={cn(
-										'pointer-events-none absolute right-0 h-px bg-gcal-line',
-										phone ? 'left-9' : 'left-[100px]'
-									)}
-									style={{ top: hour * HOUR_HEIGHT }}
-								/>
-							))}
+							{phone ? null : hourLines}
 						</div>
 					</div>
 					{moving !== null ? (
