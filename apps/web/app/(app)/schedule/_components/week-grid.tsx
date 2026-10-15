@@ -609,7 +609,6 @@ export function WeekGrid({
 							movable={touchEditable && canMove(event)}
 							phone={phone}
 							needsMark={
-								phone &&
 								event.binding.kind === 'lesson' &&
 								event.when.kind === 'timed' &&
 								Date.parse(event.when.startsAt) <= now.getTime()

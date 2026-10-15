@@ -2,7 +2,7 @@
 
 import type { ComponentProps, CSSProperties } from 'react'
 
-import { Loader2, TriangleAlert } from 'lucide-react'
+import { Check, Loader2, TriangleAlert, UserX } from 'lucide-react'
 
 import { eventPaint } from '@/lib/event-colors'
 import { cn } from '@/lib/utils'
@@ -83,8 +83,15 @@ export function LessonBlock({
 	const plain = calendarEvent.binding.kind === 'external'
 	const mark = markProp ?? (calendarEvent.binding.kind === 'transition' ? 'unconfirmed' : null)
 	const marked = calendarEvent.binding.kind === 'lesson' && calendarEvent.binding.mark !== null && !cancelled
-	const dimmed = (mark !== null || (phone && marked)) && !ghost
+	const dimmed = (mark !== null || marked) && !ghost
 	const marker = !phone && dimmed && layout !== null && layout.height >= MARKER_MIN_HEIGHT ? mark : null
+	const pending = needsMark && !marked && !cancelled
+	const sign =
+		!phone && marked && marker === null && layout !== null && layout.height >= MARKER_MIN_HEIGHT
+			? calendarEvent.binding.kind === 'lesson'
+				? calendarEvent.binding.mark
+				: null
+			: null
 	const chip = layout === null
 	const availability = calendarEvent.blocksTime ? 'Busy' : 'Available'
 	const short = layout !== null && layout.height < (plain ? EVENT_SHORT_HEIGHT : LESSON_SHORT_HEIGHT)
@@ -156,7 +163,7 @@ export function LessonBlock({
 						tentative ? 'font-normal' : 'font-medium',
 						cancelled && 'line-through',
 						suggested && 'pr-[14px]',
-						marker !== null && 'pr-4',
+						(marker !== null || sign !== null || (!phone && pending)) && 'pr-4',
 						hideText && 'invisible'
 					)}
 				>
@@ -169,12 +176,20 @@ export function LessonBlock({
 					{range}
 				</span>
 			) : null}
-			{phone && needsMark && !marked && !cancelled ? (
+			{pending ? (
 				<span
 					aria-hidden
 					data-slot="calendar-event-needs-mark"
-					className="absolute top-0.5 right-0.5 size-2 rounded-full bg-warning ring-1 ring-surface-2"
+					className={cn(
+						'absolute size-2 rounded-full bg-warning ring-1 ring-surface-2',
+						phone ? 'top-0.5 right-0.5' : 'top-1 right-1'
+					)}
 				/>
+			) : null}
+			{sign === 'done' ? (
+				<Check aria-hidden data-slot="calendar-event-mark" className="absolute top-1 right-1 size-3" />
+			) : sign === 'no_show' ? (
+				<UserX aria-hidden data-slot="calendar-event-mark" className="absolute top-1 right-1 size-3" />
 			) : null}
 			{marker === 'syncing' ? (
 				<Loader2

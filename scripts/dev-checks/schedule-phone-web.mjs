@@ -526,6 +526,115 @@ async function tabletChecks(browser) {
 	}
 }
 
+const LESSON_PLAN = [
+	['mark-done', 0, 9, 0, 60, 'done'],
+	['mark-no-show', 0, 10, 15, 60, 'no_show'],
+	['mark-open', 1, 9, 0, 60, null],
+	['mark-open-short', 1, 11, 0, 20, null],
+	['mark-future', 6, 20, 0, 60, null],
+]
+
+function lessonEvents(monday, timeZone) {
+	return LESSON_PLAN.map(([id, day, hour, minute, length, mark], index) => ({
+		eventKey: id,
+		version: 'v1',
+		title: `Lesson ${index}`,
+		when: {
+			kind: 'timed',
+			startsAt: instantAt(addDays(monday, day), hour, minute, timeZone),
+			endsAt: instantAt(addDays(monday, day), hour, minute + length, timeZone),
+			timeZone,
+		},
+		status: 'confirmed',
+		blocksTime: true,
+		color: { id: String(index + 1), background: null, foreground: null, custom: false },
+		location: null,
+		seriesMember: false,
+		binding: {
+			kind: 'lesson',
+			ref: { kind: 'single', lessonId: `00000000-0000-4000-8000-00000000000${index}` },
+			studentId: `00000000-0000-4000-8000-00000000010${index}`,
+			version: 'v1',
+			mark,
+		},
+		suggestion: null,
+		editBlock: null,
+	}))
+}
+
+async function laptopMarkChecks(browser) {
+	const context = await browser.newContext({ viewport: { width: 1280, height: 800 } })
+	const page = await context.newPage()
+	try {
+		await signIn(page)
+		await context.route(/\/api\/schedule\/week(\?|$)/, async (route) => {
+			const response = await route.fetch()
+			const body = await response.json()
+			const start = new URL(route.request().url()).searchParams.get('start')
+			const timeZone = body.requestedRange?.timeZone ?? 'Asia/Ho_Chi_Minh'
+			return route.fulfill({
+				response,
+				json: {
+					...body,
+					read: { state: 'fresh', fetchedAt: new Date().toISOString(), revision: '1' },
+					write: { state: 'ready' },
+					snapshotRange: body.requestedRange,
+					events: start === null ? [] : lessonEvents(start, timeZone),
+					series: [],
+				},
+			})
+		})
+		await page.goto(`${BASE}/schedule`, { timeout: 120000 })
+		await page.locator('[data-event-key="mark-done"]').waitFor({ timeout: 30000 })
+		await page.waitForTimeout(800)
+		const read = (key) =>
+			page.locator(`[data-event-key="${key}"]`).evaluate((element) => {
+				const dot = element.querySelector('[data-slot="calendar-event-needs-mark"]')
+				const sign = element.querySelector('[data-slot="calendar-event-mark"]')
+				const dotBox = dot?.getBoundingClientRect()
+				const signBox = sign?.getBoundingClientRect()
+				const box = element.getBoundingClientRect()
+				return {
+					opacity: getComputedStyle(element).opacity,
+					dot: dotBox ? [dotBox.width, box.right - dotBox.right, dotBox.top - box.top] : null,
+					sign: signBox ? [signBox.width, box.right - signBox.right, signBox.top - box.top] : null,
+				}
+			})
+		const done = await read('mark-done')
+		check(
+			'laptop marks: a Done block is dimmed to 60% with a 12px sign 4px in',
+			done.opacity === '0.6' && done.dot === null && done.sign?.join() === '12,4,4',
+			JSON.stringify(done)
+		)
+		const noShow = await read('mark-no-show')
+		check(
+			'laptop marks: a No-show block is dimmed to 60% with a 12px sign 4px in',
+			noShow.opacity === '0.6' && noShow.sign?.join() === '12,4,4',
+			JSON.stringify(noShow)
+		)
+		const open = await read('mark-open')
+		check(
+			'laptop marks: a started unmarked lesson keeps full colour and gets the 8px warning dot 4px in',
+			open.opacity === '1' && open.sign === null && open.dot?.join() === '8,4,4',
+			JSON.stringify(open)
+		)
+		const short = await read('mark-open-short')
+		check('laptop marks: a short unmarked lesson has the dot too', short.dot?.[0] === 8, JSON.stringify(short))
+		const future = await page.locator('[data-event-key="mark-future"]').evaluate((element) => ({
+			dot: element.querySelector('[data-slot="calendar-event-needs-mark"]') !== null,
+			opacity: getComputedStyle(element).opacity,
+		}))
+		check(
+			'laptop marks: a lesson that has not started has no dot and no dimming',
+			!future.dot && future.opacity === '1',
+			JSON.stringify(future)
+		)
+	} finally {
+		await context.unrouteAll({ behavior: 'ignoreErrors' })
+		await context.close()
+	}
+}
+
 async function designMetrics(browser) {
 	const context = await browser.newContext({ viewport: { width: 390, height: 844 }, hasTouch: true })
 	const page = await context.newPage()
@@ -650,6 +759,7 @@ try {
 		await tabStrips(page, size)
 	}
 	await desktopSmoke(page)
+	await laptopMarkChecks(browser)
 	await designMetrics(browser)
 	await swipeChecks(browser)
 	await reducedMotionChecks(browser)
