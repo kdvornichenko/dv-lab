@@ -24,7 +24,7 @@ import { ToastProvider } from './toasts'
 function Topbar({ onOpenSearch, pathname, pending }: { onOpenSearch: () => void; pathname: string; pending: boolean }) {
 	const section = sectionForPath(pathname)
 	return (
-		<SidebarInsetTopbar className="max-md:px-3">
+		<SidebarInsetTopbar className="box-content pt-[var(--safe-top)] max-md:px-3">
 			<span
 				aria-busy={pending}
 				className="min-w-0 flex-1 truncate text-body text-foreground [header:has(#topbar-slot:not(:empty))_&]:hidden"
@@ -91,7 +91,7 @@ export function AppShell({ account, children }: { account: AccountSummary; child
 	return (
 		<ToastProvider>
 			<TopbarSlotProvider>
-				<div className="bg-surface-1">
+				<div className="bg-surface-1 pr-[var(--safe-right)] pl-[var(--safe-left)]">
 					<a
 						href="#content"
 						className="sr-only focus:not-sr-only focus:fixed focus:top-2 focus:left-2 focus:z-50 focus:rounded-lg focus:bg-surface-3 focus:px-4 focus:py-2 focus:text-body focus:text-foreground focus:shadow-surface-3"

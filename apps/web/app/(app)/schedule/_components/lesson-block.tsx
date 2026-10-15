@@ -9,8 +9,8 @@ import { cn } from '@/lib/utils'
 
 import type { CalendarEventView } from '@dv-lab/contracts'
 
-import { eventRange, eventStatus, eventTitle } from './calendar-event-details'
 import type { BlockLayout } from './calendar-layout'
+import { eventRange, eventStatus, eventTitle } from './event-summary'
 import type { BlockMark } from './optimistic-writes'
 
 const MARKER_MIN_HEIGHT = 24

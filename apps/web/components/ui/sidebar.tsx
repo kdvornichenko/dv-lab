@@ -107,7 +107,7 @@ function SidebarSheet({ side, open, onClose, children }: SidebarSheetProps) {
 								data-mobile="true"
 								data-side={side}
 								className={cn(
-									'fixed inset-y-0 z-50 flex flex-col overflow-hidden outline-none',
+									'fixed inset-y-0 z-50 flex flex-col overflow-hidden pt-[var(--safe-top)] pb-[var(--safe-bottom)] outline-none',
 									!visible && 'pointer-events-none',
 									side === 'left' ? 'left-0' : 'right-0',
 									surfaceClasses(level, 3)

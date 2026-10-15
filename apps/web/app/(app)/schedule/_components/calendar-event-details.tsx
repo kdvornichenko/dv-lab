@@ -2,13 +2,12 @@
 
 import { useEffect, useState } from 'react'
 
-import { Info, MapPin, Pencil, Repeat, Text, Trash2 } from 'lucide-react'
+import { Info, MapPin, Pencil, Text, Trash2 } from 'lucide-react'
 import Link from 'next/link'
 
 import { useCalendarCommands } from '@/components/app/calendar-command-provider'
 import { ConfirmDialog } from '@/components/app/confirm-dialog'
 import { READ_ISSUES } from '@/components/app/google-calendar-state'
-import { TimePair } from '@/components/app/time-pair'
 import { useGoogleSync } from '@/components/app/use-google-sync'
 import { Banner, BannerTitle } from '@/components/ui/banner'
 import { Button } from '@/components/ui/button'
@@ -24,15 +23,7 @@ import { ScrollArea } from '@/components/ui/scroll-area'
 import { useIsMobile } from '@/hooks/use-mobile'
 import { eventPaint } from '@/lib/event-colors'
 import { canChangePlainEvent } from '@/lib/lesson-actions'
-import {
-	formatDate,
-	formatFullDate,
-	formatRange,
-	formatWhen,
-	mainRange,
-	secondRange,
-	weekdayName,
-} from '@/lib/schedule-format'
+import { formatDate, formatWhen, weekdayName } from '@/lib/schedule-format'
 import { zoneLabel, zoneName } from '@/lib/time-zones'
 import { cn } from '@/lib/utils'
 
@@ -45,11 +36,12 @@ import {
 	type CalendarIssue,
 	type GoogleScheduleWindow,
 } from '@dv-lab/contracts'
-import { addDays, scheduleDate } from '@dv-lab/core'
+import { scheduleDate } from '@dv-lab/core'
 
 import { useToast } from '../../_components/toasts'
 import { ManualAssign, SuggestionBox, type AssignBusy, type AssignFailure } from './event-assign'
 import { EventEditForm, type DirectState } from './event-form'
+import { EventTime } from './event-summary'
 import { EventDescription, EventPlace } from './event-text'
 import type { WriteRunner } from './optimistic-writes'
 import { ignoreEvent, useScheduleMutation } from './schedule-mutations'
@@ -57,119 +49,6 @@ import { detailsKey, dropCache, keepCache, peekCache, readDetails } from './sche
 import { ScopeDialog } from './scope-dialog'
 import type { MoveSeed } from './use-lesson-drag'
 import type { StudentsState } from './use-lesson-students'
-
-export function eventTitle(event: CalendarEventView): string {
-	return event.title?.trim() || 'Busy'
-}
-
-export function eventStatus(event: CalendarEventView): string {
-	if (event.status === 'cancelled') return 'Cancelled'
-	if (event.status === 'tentative') return 'Tentative'
-	return event.binding.kind === 'lesson' ? 'Planned' : 'Confirmed'
-}
-
-export function eventRange(event: CalendarEventView, timeZone: string): string {
-	if (event.when.kind === 'all_day') return 'All day'
-	const start = new Date(event.when.startsAt)
-	const minutes = (Date.parse(event.when.endsAt) - start.getTime()) / 60000
-	return formatRange(start, minutes, timeZone)
-}
-
-function RepeatMark({ repeats }: { repeats: string | null }) {
-	if (repeats === null) return null
-	return (
-		<span
-			role="img"
-			aria-label={repeats}
-			title={repeats}
-			data-slot="event-repeat"
-			className="ml-1.5 inline-flex align-[-2px] text-muted-foreground"
-		>
-			<Repeat size={14} aria-hidden />
-		</span>
-	)
-}
-
-export function EventTime({
-	event,
-	timeZone,
-	secondZone,
-	currentYear,
-	repeats = null,
-}: {
-	event: CalendarEventView
-	timeZone: string
-	secondZone: string | null
-	currentYear: number
-	repeats?: string | null
-}) {
-	if (event.when.kind === 'all_day') {
-		const last = addDays(event.when.endsBefore, -1)
-		return (
-			<>
-				<span>All day</span>
-				<span className="text-muted-foreground">
-					{event.when.startsOn}
-					{last !== event.when.startsOn ? ` – ${last}` : ''}
-					<RepeatMark repeats={repeats} />
-				</span>
-				<span className="text-caption text-muted-foreground">{event.when.timeZone}</span>
-			</>
-		)
-	}
-	const start = new Date(event.when.startsAt)
-	const end = new Date(event.when.endsAt)
-	const minutes = (end.getTime() - start.getTime()) / 60000
-	const firstDay = formatFullDate(start, timeZone, currentYear)
-	const lastDay = formatFullDate(end, timeZone, currentYear)
-	return (
-		<>
-			<span className="text-muted-foreground">
-				{firstDay}
-				{lastDay !== firstDay ? ` – ${lastDay}` : ''}
-				<RepeatMark repeats={repeats} />
-			</span>
-			<TimePair
-				as="span"
-				main={mainRange(start, minutes, timeZone, null)}
-				second={secondRange(start, minutes, timeZone, secondZone)}
-				mainClassName="text-body tabular-nums"
-			/>
-		</>
-	)
-}
-
-export function CalendarEventDetails({
-	editable = false,
-	event,
-	timeZone,
-	secondZone,
-	currentYear,
-}: {
-	editable?: boolean
-	event: CalendarEventView
-	timeZone: string
-	secondZone: string | null
-	currentYear: number
-}) {
-	return (
-		<div className="flex min-w-0 flex-col gap-1 text-body wrap-anywhere" data-slot="calendar-event-details">
-			<EventTime event={event} timeZone={timeZone} secondZone={secondZone} currentYear={currentYear} />
-			<span>{eventStatus(event)}</span>
-			<span>{event.blocksTime ? 'Busy' : 'Available'}</span>
-			<span className="text-muted-foreground">Google Calendar event</span>
-			<span className="text-muted-foreground">{editable ? 'Editable' : 'Read-only'}</span>
-			{event.binding.kind === 'transition' ? (
-				<p className="text-muted-foreground">
-					This change has not been confirmed. Check its status before trying again.{' '}
-					<Link href="/settings?tab=calendar" className="underline underline-offset-2">
-						Check status
-					</Link>
-				</p>
-			) : null}
-		</div>
-	)
-}
 
 type DetailsState =
 	{ kind: 'loading' } | { kind: 'ready'; data: EventDetailsData } | { kind: 'removed' } | { kind: 'error' }

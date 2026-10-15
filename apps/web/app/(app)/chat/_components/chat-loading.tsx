@@ -10,7 +10,7 @@ export function ChatLoading() {
 		<div
 			role="status"
 			aria-label="Loading chat"
-			className="flex min-h-0 flex-1 flex-col px-3 pt-4 pb-[max(0.75rem,env(safe-area-inset-bottom))] md:px-6 md:pb-6"
+			className="flex min-h-0 flex-1 flex-col px-3 pt-4 pb-[max(0.75rem,var(--safe-bottom))] md:px-6 md:pb-6"
 		>
 			<div className="mx-auto w-full max-w-180 pb-4">
 				<ChatHeader title="Chat" loadingTitle listOpen={false} disabled onToggleList={ignore} onCreate={ignore} />
