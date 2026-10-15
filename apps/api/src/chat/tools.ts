@@ -13,6 +13,7 @@ import {
 	CURRENCIES,
 	GENDERS,
 	LESSON_MINUTES_MIN,
+	STUDENT_TEXT_MAX_LENGTH,
 	type ChatActionLinkBlock,
 	type ChatBlock,
 	type ChatChange,
@@ -36,6 +37,7 @@ import { occurrenceStartsAt } from '../schedule/rows.ts'
 import { readTeacherSettings } from '../settings/settings.ts'
 import { readLessonRange } from '../today/today.ts'
 import { type ChatContext, type LocalRequest, executeIntent } from './actions.ts'
+import { LESSON_MINUTES_CHAT_MAX } from './change-cards.ts'
 import { paymentRecords } from './change-deletions.ts'
 import { type ChangeRequest, proposeChange } from './changes.ts'
 import { ESSAY_NOTE, ESSAY_TOOL_NAME, essayFeedbackInput } from './essay.ts'
@@ -58,7 +60,6 @@ const FIELD_MAX = 2000
 const SECTION_EXCERPT_MAX = 1200
 const CANDIDATES_MAX = 6
 const RANGE_DAYS_MAX = 31
-const LESSON_MINUTES_TOOL_MAX = 1440
 
 const id = z.uuid()
 const date = calendarDate
@@ -66,6 +67,7 @@ const time = z.string().regex(CLOCK_TIME_PATTERN)
 const nullable = <T extends z.ZodType>(schema: T) => schema.nullish().transform((value) => value ?? null)
 const WEEKDAYS = ['monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday', 'sunday'] as const
 const ZONE_TEXT_MAX = 64
+const CLEAR = 'clear'
 
 const inputs = {
 	find_students: z.strictObject({ query: z.string().min(1).max(200) }),
@@ -109,7 +111,7 @@ const inputs = {
 		display_name: z.string().min(1).max(200),
 		rate_text: nullable(z.string().min(1).max(40)),
 		currency: nullable(z.enum(CURRENCIES)),
-		lesson_minutes: nullable(z.number().int().min(LESSON_MINUTES_MIN).max(LESSON_MINUTES_TOOL_MAX)),
+		lesson_minutes: nullable(z.number().int().min(LESSON_MINUTES_MIN).max(LESSON_MINUTES_CHAT_MAX)),
 		gender: nullable(z.enum(GENDERS)),
 	}),
 	propose_rate: z.strictObject({
@@ -117,6 +119,18 @@ const inputs = {
 		rate_text: nullable(z.string().min(1).max(40)),
 		currency: nullable(z.enum(CURRENCIES)),
 		clear: z.boolean(),
+	}),
+	propose_details: z.strictObject({
+		student_id: id,
+		rate_text: nullable(z.string().min(1).max(40)),
+		currency: nullable(z.enum(CURRENCIES)),
+		lesson_minutes_text: nullable(z.string().min(1).max(20)),
+		no_show_deducts: nullable(z.boolean()),
+		gender: nullable(z.enum([...GENDERS, CLEAR])),
+		parent_text: nullable(z.string().min(1).max(STUDENT_TEXT_MAX_LENGTH)),
+		level_text: nullable(z.string().min(1).max(STUDENT_TEXT_MAX_LENGTH)),
+		goals_text: nullable(z.string().min(1).max(STUDENT_TEXT_MAX_LENGTH)),
+		time_zone: nullable(z.string().min(1).max(ZONE_TEXT_MAX)),
 	}),
 	propose_archive: z.strictObject({ student_id: id, requested_deletion: z.boolean() }),
 	student_payments: z.strictObject({ student_id: id }),
@@ -803,6 +817,52 @@ export const CHAT_TOOL_ENTRIES: readonly ChatToolEntry[] = [
 				rateText: input.rate_text,
 				currency: input.currency,
 				clear: input.clear,
+			}),
+	}),
+	chatTool({
+		name: 'propose_details',
+		description:
+			"Propose changing the details of a student in one card: the rate, the lesson length, whether a no-show takes a lesson off the balance, the gender, the parent, the level, the goals and the time zone. Pass only the fields the teacher asked to change and omit the others. rate_text, lesson_minutes_text (the number of minutes only), parent_text, level_text and goals_text are copied exactly as the teacher wrote them; currency only when the teacher named it. gender is female or male, or clear to remove it. time_zone is an IANA time zone id such as Europe/Moscow, or clear when the student follows the teacher's time zone. When the gender or the time zone the teacher named is not clear, ask one short question and do not call this tool. For the rate alone use propose_rate. The name, the status, the sign-in account and the opening balance are not changed here. Nothing changes until the teacher confirms in the chat.",
+		input: inputs.propose_details,
+		properties: {
+			student_id: string,
+			rate_text: string,
+			currency: { type: 'string', enum: [...CURRENCIES] },
+			lesson_minutes_text: string,
+			no_show_deducts: boolean,
+			gender: { type: 'string', enum: [...GENDERS, CLEAR] },
+			parent_text: string,
+			level_text: string,
+			goals_text: string,
+			time_zone: string,
+		},
+		optional: [
+			'rate_text',
+			'currency',
+			'lesson_minutes_text',
+			'no_show_deducts',
+			'gender',
+			'parent_text',
+			'level_text',
+			'goals_text',
+			'time_zone',
+		],
+		strict: false,
+		effect: 'propose',
+		step: studentStep,
+		run: (context, input) =>
+			propose(context, {
+				operation: 'set_details',
+				studentId: input.student_id,
+				rateText: input.rate_text,
+				currency: input.currency,
+				lessonMinutesText: input.lesson_minutes_text,
+				noShowDeducts: input.no_show_deducts,
+				gender: input.gender,
+				parentText: input.parent_text,
+				levelText: input.level_text,
+				goalsText: input.goals_text,
+				timeZone: input.time_zone,
 			}),
 	}),
 	chatTool({

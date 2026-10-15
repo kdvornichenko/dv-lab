@@ -113,6 +113,14 @@ function wordsOf(change: ChatChange): Words {
 				busy: 'Moving lessons…',
 				icon: Info,
 			}
+		case 'set_details':
+			return {
+				question: `Change ${change.studentName}'s details?`,
+				confirm: 'Save changes',
+				decline: 'Keep details',
+				busy: 'Saving changes…',
+				icon: Pencil,
+			}
 	}
 }
 
@@ -317,6 +325,7 @@ function Rows({ change }: { change: ChatChange }) {
 				</>
 			)
 		case 'bulk_move':
+		case 'set_details':
 			return null
 	}
 }
@@ -356,6 +365,7 @@ function Notes({ change }: { change: ChatChange }) {
 		case 'remove_comment':
 			return <Caption>Later comments stay.</Caption>
 		case 'bulk_move':
+		case 'set_details':
 			return null
 	}
 }
@@ -412,6 +422,8 @@ function appliedTitle(change: ChatChange): string {
 			return 'Comment removed.'
 		case 'bulk_move':
 			return 'Lessons moved.'
+		case 'set_details':
+			return 'Details changed.'
 	}
 }
 
@@ -423,6 +435,7 @@ function receiptLabel(change: ChatChange): { label: string; icon: LucideIcon } {
 		case 'archive_card':
 			return { label: 'Open student', icon: ArrowRight }
 		case 'set_rate':
+		case 'set_details':
 			return { label: 'Edit details', icon: Pencil }
 		case 'delete_payment':
 			return { label: 'View payments', icon: ArrowRight }

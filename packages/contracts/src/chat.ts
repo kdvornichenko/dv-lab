@@ -403,6 +403,7 @@ export const CHAT_CHANGE_OPERATIONS = [
 	'remove_note',
 	'remove_comment',
 	'bulk_move',
+	'set_details',
 ] as const
 
 export const CHAT_CHANGE_STATES = [
@@ -474,6 +475,45 @@ export const chatSetRateChange = z.strictObject({
 	studentName: z.string(),
 	before: chatCardRate,
 	after: chatCardRate,
+})
+
+const CHAT_DETAIL_FIELDS = [
+	'rate',
+	'lessonMinutes',
+	'noShowDeducts',
+	'gender',
+	'parent',
+	'level',
+	'goals',
+	'timeZone',
+] as const
+
+const detailText = z.string().min(1).nullable()
+
+const chatDetailChange = z.discriminatedUnion('field', [
+	z.strictObject({ field: z.literal('rate'), before: chatCardRate, after: chatCardRate }),
+	z.strictObject({ field: z.literal('lessonMinutes'), before: lessonLength, after: lessonLength }),
+	z.strictObject({ field: z.literal('noShowDeducts'), before: z.boolean(), after: z.boolean() }),
+	z.strictObject({
+		field: z.literal('gender'),
+		before: z.enum(GENDERS).nullable(),
+		after: z.enum(GENDERS).nullable(),
+	}),
+	z.strictObject({ field: z.literal('parent'), before: detailText, after: detailText }),
+	z.strictObject({ field: z.literal('level'), before: detailText, after: detailText }),
+	z.strictObject({ field: z.literal('goals'), before: detailText, after: detailText }),
+	z.strictObject({
+		field: z.literal('timeZone'),
+		before: z.string().min(1).nullable(),
+		after: calendarTimeZone.nullable(),
+	}),
+])
+
+export const chatSetDetailsChange = z.strictObject({
+	operation: z.literal('set_details'),
+	studentId: z.uuid(),
+	studentName: z.string(),
+	fields: z.array(chatDetailChange).min(1).max(CHAT_DETAIL_FIELDS.length),
 })
 
 export const chatArchiveCardChange = z.strictObject({
@@ -559,6 +599,7 @@ export const chatChange = z.discriminatedUnion('operation', [
 	chatRemoveNoteChange,
 	chatRemoveCommentChange,
 	chatBulkMoveChange,
+	chatSetDetailsChange,
 ])
 
 export const chatChangeReceipt = z.strictObject({ studentId: z.uuid(), paymentId: z.uuid().optional() })
@@ -778,6 +819,7 @@ export type ChatChangeState = (typeof CHAT_CHANGE_STATES)[number]
 export type ChatChangeIssue = z.infer<typeof chatChangeIssue>
 export type ChatChangeOperation = (typeof CHAT_CHANGE_OPERATIONS)[number]
 export type ChatBulkMoveChange = z.infer<typeof chatBulkMoveChange>
+export type ChatDetailChange = z.infer<typeof chatDetailChange>
 export type ChatCalendarIssue = z.infer<typeof chatCalendarIssue>
 export type ChatUndoState = (typeof CHAT_UNDO_STATES)[number]
 
@@ -796,6 +838,7 @@ export const CHAT_STEP_TOOLS = [
 	'propose_payment',
 	'propose_student',
 	'propose_rate',
+	'propose_details',
 	'propose_archive',
 	'student_payments',
 	'propose_payment_delete',

@@ -62,6 +62,7 @@ export function changeReceiptHref(block: ChatChangeProposalBlock): string | null
 		case 'archive_card':
 			return studentHref(receipt.studentId)
 		case 'set_rate':
+		case 'set_details':
 			return studentHref(receipt.studentId, { dialog: 'details' })
 		case 'delete_payment':
 			return studentHref(receipt.studentId, { tab: 'payments' })
