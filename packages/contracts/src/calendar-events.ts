@@ -149,3 +149,62 @@ export const googleCalendarList = z.strictObject({
 export type GoogleCalendarList = z.infer<typeof googleCalendarList>
 
 export const googleEventKeyParams = z.strictObject({ eventKey })
+
+function isPlaceBreak(c: number) {
+	return (
+		c <= 0x20 ||
+		(c >= 0x7f && c <= 0xa0) ||
+		c === 0x1680 ||
+		(c >= 0x2000 && c <= 0x200a) ||
+		c === 0x2028 ||
+		c === 0x2029 ||
+		c === 0x202f ||
+		c === 0x205f ||
+		c === 0x3000 ||
+		c === 0xfeff
+	)
+}
+
+function placeScheme(value: string) {
+	for (const prefix of ['https://', 'http://']) {
+		if (value.length < prefix.length) continue
+		let same = true
+		for (let i = 0; i < prefix.length && same; i += 1) {
+			const c = value.charCodeAt(i)
+			same = (c >= 65 && c <= 90 ? c + 32 : c) === prefix.charCodeAt(i)
+		}
+		if (same) return prefix.length
+	}
+	return 0
+}
+
+function firstOf(value: string, from: number, stops: string) {
+	for (let i = from; i < value.length; i += 1) if (stops.includes(value[i] ?? '')) return i
+	return value.length
+}
+
+export function placeView(
+	location: string | null
+): { kind: 'address'; href: string; label: string } | { kind: 'text'; text: string } | null {
+	if (location === null) return null
+	let start = 0
+	let end = location.length
+	while (start < end && isPlaceBreak(location.charCodeAt(start))) start += 1
+	while (end > start && isPlaceBreak(location.charCodeAt(end - 1))) end -= 1
+	if (start === end) return null
+	const value = location.slice(start, end)
+	const scheme = placeScheme(value)
+	let clean = scheme > 0
+	for (let i = 0; i < value.length && clean; i += 1) clean = !isPlaceBreak(value.charCodeAt(i))
+	if (clean) {
+		const hostEnd = firstOf(value, scheme, '/?#')
+		const authority = value.slice(scheme, hostEnd)
+		const host = authority.slice(authority.lastIndexOf('@') + 1)
+		if (host) {
+			const path = value[hostEnd] === '/' ? value.slice(hostEnd, firstOf(value, hostEnd, '?#')) : ''
+			return { kind: 'address', href: value, label: path === '/' ? host : host + path }
+		}
+	}
+	return { kind: 'text', text: location }
+}
+export type PlaceView = ReturnType<typeof placeView>

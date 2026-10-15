@@ -3,7 +3,7 @@ import { readFileSync } from 'node:fs'
 import { parseEnv } from 'node:util'
 
 import { ROOT, SYNTHETIC_CALENDAR_ID, calendarSql, targetEnvFile } from './calendar-env.mjs'
-import { descriptionFixtures, hugeFixtures } from './event-description-fixtures.mjs'
+import { descriptionFixtures, hugeFixtures, placeFixtures } from './event-description-fixtures.mjs'
 
 const TARGET = 'test'
 const DETAIL_EVENTS = [
@@ -81,6 +81,28 @@ async function parse() {
 	}
 }
 
+function place() {
+	for (const fixture of placeFixtures) {
+		const view = contracts.placeView(fixture.raw)
+		const expect = fixture.expect
+		if (expect === null) {
+			record(`place ${fixture.id} none`, view === null, JSON.stringify(view))
+			continue
+		}
+		if (expect.kind === 'text') {
+			record(`place ${fixture.id} text`, view?.kind === 'text' && view.text === fixture.raw, view?.kind)
+			continue
+		}
+		const label = view?.kind === 'address' ? view.label : ''
+		record(`place ${fixture.id} label`, label === expect.label, JSON.stringify(label))
+		record(
+			`place ${fixture.id} label hides query and credentials`,
+			Boolean(label) && !['?', '#', 'pwd', '@', '://', 'secret'].some((part) => label.includes(part)) && !/^https?/i.test(label)
+		)
+		record(`place ${fixture.id} href`, view?.kind === 'address' && view.href === fixture.raw.trim())
+	}
+}
+
 function rows(text) {
 	return calendarSql(TARGET, 'migrator', text).rows
 }
@@ -137,7 +159,7 @@ where connection_id = ${quote(connection.id)} and event_id = ${quote(eventId)}`
 	}
 }
 
-const SECTIONS = { parse, details }
+const SECTIONS = { parse, place, details }
 const requested = process.argv[2]
 if (requested && !SECTIONS[requested]) {
 	console.log(`usage: node scripts/dev-checks/event-description.mjs [${Object.keys(SECTIONS).join('|')}]`)
