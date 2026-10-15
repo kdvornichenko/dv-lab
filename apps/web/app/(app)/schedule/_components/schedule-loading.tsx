@@ -1,27 +1,23 @@
 'use client'
 
+import { useSyncExternalStore } from 'react'
 import { createPortal } from 'react-dom'
 
-import { CalendarPlus } from 'lucide-react'
-
-import { PageHeader, PageScroll, WorkspacePage } from '@/components/app/layout-parts'
+import { WorkspacePage } from '@/components/app/layout-parts'
 import { useTopbarSlot } from '@/components/app/topbar-slot'
-import { Button } from '@/components/ui/button'
 import { Skeleton } from '@/components/ui/skeleton'
 import { Elevated } from '@/lib/elevated'
-import { weekRange } from '@/lib/schedule-format'
 
 import { DAY_START_MINUTES, SCHEDULE_TIME_ZONE, lessonDay, mondayOf } from '@dv-lab/core'
 
 import { useMinuteNow } from '../../_components/use-minute-now'
-import { AgendaSkeleton } from './agenda-skeleton'
 import { ScheduleBar } from './schedule-toolbar'
 import { WeekGrid, type GridPlaceholder } from './week-grid'
 
-export const NOTICE_SLOT = 'min-h-44 sm:min-h-26'
 export const WORKSPACE_BODY = 'flex min-h-0 flex-1 flex-col px-2 pt-1 pb-2'
-export const STRIP = 'flex min-h-7 flex-wrap items-center gap-2 pointer-coarse:gap-4'
-export const STRIP_TOOLS = 'ml-auto flex items-center gap-2 pointer-coarse:gap-4'
+export const PHONE_BODY = 'flex min-h-0 flex-1 flex-col'
+export const PHONE_ROW = 'flex h-9 shrink-0 items-center gap-1 px-3 pt-0.5 pb-1.5'
+const PHONE_QUERY = '(max-width: 1023px)'
 
 const FIRST_HOUR = DAY_START_MINUTES / 60
 
@@ -40,6 +36,20 @@ export const LOADING_BLOCKS: readonly GridPlaceholder[] = [
 	block(5, 12, 60),
 ]
 
+function subscribePhone(onChange: () => void) {
+	const query = window.matchMedia(PHONE_QUERY)
+	query.addEventListener('change', onChange)
+	return () => query.removeEventListener('change', onChange)
+}
+
+export function usePhoneGrid() {
+	return useSyncExternalStore(
+		subscribePhone,
+		() => window.matchMedia(PHONE_QUERY).matches,
+		() => false
+	)
+}
+
 export function useLaptop() {
 	const left = useTopbarSlot('left')
 	const right = useTopbarSlot('right')
@@ -54,7 +64,7 @@ function never() {
 
 function LoadingSlots() {
 	return (
-		<div className={STRIP_TOOLS}>
+		<div className="flex items-center gap-1">
 			<Skeleton className="size-7 rounded-md" />
 			<Skeleton className="size-7 rounded-md" />
 			<Skeleton className="size-7 rounded-md" />
@@ -65,18 +75,20 @@ function LoadingSlots() {
 export function ScheduleLoading() {
 	const now = useMinuteNow()
 	const laptop = useLaptop()
+	const phone = usePhoneGrid()
 	const today = now === null ? null : lessonDay(now, SCHEDULE_TIME_ZONE)
 	const monday = today === null ? null : mondayOf(today)
 	const grid =
 		now === null || today === null || monday === null ? (
-			<>
-				<AgendaSkeleton />
+			phone ? (
+				<div className="min-h-0 flex-1" />
+			) : (
 				<Elevated
 					offset={1}
 					shadowLevel={2}
-					className="relative hidden min-h-90 flex-1 flex-col overflow-hidden rounded-2xl lg:flex"
+					className="relative flex min-h-90 flex-1 flex-col overflow-hidden rounded-2xl"
 				/>
-			</>
+			)
 		) : (
 			<WeekGrid
 				monday={monday}
@@ -92,43 +104,36 @@ export function ScheduleLoading() {
 				onMove={ignore}
 				placeholders={LOADING_BLOCKS}
 				zoneKnown={false}
+				phone={phone}
 			/>
 		)
 	if (laptop === null)
 		return (
-			<PageScroll>
-				<PageHeader
-					title={monday === null ? ' ' : weekRange(monday)}
-					actions={
-						<Button leadingIcon={CalendarPlus} disabled>
-							New event
-						</Button>
-					}
-				/>
-				<div className={STRIP}>
-					{today !== null && monday !== null ? (
-						<ScheduleBar
-							monday={monday}
-							currentMonday={monday}
-							today={today}
-							onToday={ignore}
-							onPrevious={ignore}
-							onNext={ignore}
-							onWeek={ignore}
-							summary={null}
-							titleRef={null}
-							heading={false}
-						/>
-					) : (
-						<span />
-					)}
-					<LoadingSlots />
-				</div>
-				<div aria-busy className="space-y-4">
-					<div data-slot="calendar-read-slot" className={NOTICE_SLOT} />
+			<WorkspacePage>
+				<div aria-busy className={PHONE_BODY}>
+					<div className={PHONE_ROW}>
+						{today !== null && monday !== null ? (
+							<ScheduleBar
+								compact
+								monday={monday}
+								currentMonday={monday}
+								today={today}
+								onToday={ignore}
+								onPrevious={ignore}
+								onNext={ignore}
+								onWeek={ignore}
+								summary={null}
+								titleRef={null}
+								heading={false}
+							/>
+						) : (
+							<span className="flex-1" />
+						)}
+						<LoadingSlots />
+					</div>
 					{grid}
 				</div>
-			</PageScroll>
+			</WorkspacePage>
 		)
 	return (
 		<>
@@ -157,7 +162,7 @@ export function ScheduleLoading() {
 				laptop.right
 			)}
 			<WorkspacePage>
-				<div aria-busy className={WORKSPACE_BODY}>
+				<div aria-busy className={phone ? PHONE_BODY : WORKSPACE_BODY}>
 					{grid}
 				</div>
 			</WorkspacePage>

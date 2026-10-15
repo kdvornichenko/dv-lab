@@ -11,6 +11,7 @@ import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover
 import { Tooltip, TooltipProvider } from '@/components/ui/tooltip'
 import { calendarLesson } from '@/lib/lesson-actions'
 import { dayNumber, weekTitle } from '@/lib/schedule-format'
+import { cn } from '@/lib/utils'
 
 import type { CalendarEventView } from '@dv-lab/contracts'
 import { addDays, lessonDay, mondayOf } from '@dv-lab/core'
@@ -107,7 +108,15 @@ function isoDate(value: Date) {
 	return `${value.getFullYear()}-${m}-${d}`
 }
 
-function WeekPicker({ monday, onWeek }: { monday: string; onWeek: (monday: string) => void }) {
+function WeekPicker({
+	monday,
+	onWeek,
+	compact,
+}: {
+	monday: string
+	onWeek: (monday: string) => void
+	compact: boolean
+}) {
 	const [open, setOpen] = useState(false)
 	const week = { from: localDate(monday), to: localDate(addDays(monday, 6)) }
 	return (
@@ -120,7 +129,10 @@ function WeekPicker({ monday, onWeek }: { monday: string; onWeek: (monday: strin
 							size="compact"
 							aria-label={`Choose week, ${weekTitle(monday)}`}
 							data-slot="schedule-week-picker"
-							className="w-44 shrink-0 text-title font-semibold whitespace-nowrap text-foreground tabular-nums"
+							className={cn(
+								'font-semibold whitespace-nowrap text-foreground tabular-nums',
+								compact ? 'w-auto min-w-0 px-1.5 text-[13px]' : 'w-44 shrink-0 text-title'
+							)}
 						>
 							{weekTitle(monday)}
 						</Button>
@@ -156,16 +168,50 @@ export function ScheduleBar({
 	summary,
 	titleRef,
 	heading = true,
+	compact = false,
 }: WeekNavigation & {
 	today: string
 	summary: ReactNode
 	titleRef: Ref<HTMLHeadingElement>
 	heading?: boolean
+	compact?: boolean
 	onWeek: (monday: string) => void
 }) {
+	const week = (
+		<>
+			<BarTip name="Previous week" shortcut="K">
+				<Button variant="tertiary" size="icon-compact" aria-label="Previous week" onClick={onPrevious}>
+					<ChevronLeft />
+				</Button>
+			</BarTip>
+			{heading ? (
+				<h1
+					ref={titleRef}
+					tabIndex={-1}
+					aria-label={weekTitle(monday)}
+					data-slot="schedule-period"
+					className="shrink-0 outline-none"
+				>
+					<WeekPicker monday={monday} onWeek={onWeek} compact={false} />
+				</h1>
+			) : (
+				<div data-slot="schedule-period" className="min-w-0 shrink">
+					<WeekPicker monday={monday} onWeek={onWeek} compact={compact} />
+				</div>
+			)}
+			<BarTip name="Next week" shortcut="J">
+				<Button variant="tertiary" size="icon-compact" aria-label="Next week" onClick={onNext}>
+					<ChevronRight />
+				</Button>
+			</BarTip>
+		</>
+	)
 	return (
 		<TooltipProvider>
-			<div data-slot="schedule-toolbar" className="flex min-w-0 items-center gap-2 pointer-coarse:gap-4">
+			<div
+				data-slot="schedule-toolbar"
+				className={cn('flex min-w-0 items-center', compact ? 'flex-1 gap-1' : 'gap-2 pointer-coarse:gap-4')}
+			>
 				<BarTip name="Today" shortcut="T">
 					<Button
 						variant="tertiary"
@@ -177,31 +223,13 @@ export function ScheduleBar({
 						<TodayIcon today={dayNumber(today)} />
 					</Button>
 				</BarTip>
-				<BarTip name="Previous week" shortcut="K">
-					<Button variant="tertiary" size="icon-compact" aria-label="Previous week" onClick={onPrevious}>
-						<ChevronLeft />
-					</Button>
-				</BarTip>
-				{heading ? (
-					<h1
-						ref={titleRef}
-						tabIndex={-1}
-						aria-label={weekTitle(monday)}
-						data-slot="schedule-period"
-						className="shrink-0 outline-none"
-					>
-						<WeekPicker monday={monday} onWeek={onWeek} />
-					</h1>
-				) : (
-					<div data-slot="schedule-period" className="shrink-0">
-						<WeekPicker monday={monday} onWeek={onWeek} />
+				{compact ? (
+					<div data-slot="schedule-week-group" className="mx-1 flex min-w-0 items-center gap-0.5">
+						{week}
 					</div>
+				) : (
+					week
 				)}
-				<BarTip name="Next week" shortcut="J">
-					<Button variant="tertiary" size="icon-compact" aria-label="Next week" onClick={onNext}>
-						<ChevronRight />
-					</Button>
-				</BarTip>
 				{summary ? (
 					<span
 						data-slot="schedule-summary"

@@ -1,13 +1,21 @@
 'use client'
 
-import { useCallback, useLayoutEffect, useRef, useState, type MouseEvent, type PointerEvent } from 'react'
+import {
+	useCallback,
+	useLayoutEffect,
+	useRef,
+	useState,
+	type ComponentPropsWithoutRef,
+	type MouseEvent,
+	type PointerEvent,
+	type ReactNode,
+} from 'react'
 
-import { TimePair } from '@/components/app/time-pair'
 import { Skeleton } from '@/components/ui/skeleton'
 import { TooltipProvider } from '@/components/ui/tooltip'
 import { Elevated } from '@/lib/elevated'
 import { eventPaint } from '@/lib/event-colors'
-import { dayNumber, formatDate, gutterLabel, hourLabel, secondRange, weekdayCaps } from '@/lib/schedule-format'
+import { dayNumber, formatDate, gutterLabel, hourLabel, weekdayCaps } from '@/lib/schedule-format'
 import { zoneLabel } from '@/lib/time-zones'
 import { cn } from '@/lib/utils'
 
@@ -17,13 +25,13 @@ import {
 	addDays,
 	lessonDayMinutes,
 	lessonDayPlace,
+	lessonDaySlot,
 	scheduleDate,
 	zonedInstant,
 	zonedParts,
 } from '@dv-lab/core'
 
-import { AgendaSkeleton } from './agenda-skeleton'
-import { eventRange, eventTitle } from './calendar-event-details'
+import { eventTitle } from './calendar-event-details'
 import { COLUMN_STRIP, eventsOn, placeDay } from './calendar-layout'
 import { EventTooltip } from './event-tooltip'
 import type { BlockMark } from './optimistic-writes'
@@ -36,6 +44,8 @@ export const OPEN_SCROLL_TOP = 5 * HOUR_HEIGHT
 const MINUTE_HEIGHT = HOUR_HEIGHT / 60
 const HOURS = Array.from({ length: 24 }, (_, hour) => hour)
 const COLUMNS = 'grid grid-cols-[100px_repeat(7,minmax(0,1fr))]'
+const PHONE_COLUMNS = 'grid grid-cols-[36px_repeat(7,minmax(0,1fr))]'
+const PHONE_FOOT = 16
 const DAY_MINUTES = 24 * 60
 const CHIP_BELOW_MINUTES = 30
 const FIRST_HOUR = DAY_START_MINUTES / 60
@@ -87,9 +97,11 @@ interface WeekGridProps {
 	scrollTopRef?: { current: number }
 	placeholders?: readonly GridPlaceholder[]
 	zoneKnown?: boolean
+	phone?: boolean
 }
 
 function AllDayBand({
+	columns,
 	canEdit,
 	dates,
 	events,
@@ -98,6 +110,7 @@ function AllDayBand({
 	currentYear,
 	onOpen,
 }: {
+	columns: string
 	canEdit: (event: CalendarEventView) => boolean
 	dates: string[]
 	events: readonly CalendarEventView[]
@@ -112,11 +125,11 @@ function AllDayBand({
 		<div data-slot="calendar-all-day" className="shrink-0 border-b border-gcal-line">
 			<div
 				className={cn(
-					COLUMNS,
+					columns,
 					'scroll-fade max-h-36 [scrollbar-gutter:stable] overflow-y-auto [--scroll-fade-size:var(--scroll-fade-size-compact)]'
 				)}
 			>
-				<span className="px-2 py-1 text-right text-caption text-muted-foreground">All day</span>
+				<span className="px-1 py-1 text-right text-micro text-muted-foreground md:px-2 md:text-caption">All day</span>
 				{dates.map((date) => (
 					<div key={date} data-date={date} className="min-w-0 space-y-1 border-l border-gcal-line p-1">
 						{eventsOn(allDay, date, mainTimeZone).map((event) => (
@@ -134,118 +147,6 @@ function AllDayBand({
 					</div>
 				))}
 			</div>
-		</div>
-	)
-}
-
-function AgendaRow({
-	event,
-	mainTimeZone,
-	secondZone,
-	onOpen,
-}: {
-	event: CalendarEventView
-	mainTimeZone: string
-	secondZone: string | null
-	onOpen: (event: CalendarEventView) => void
-}) {
-	const second =
-		event.when.kind === 'timed'
-			? secondRange(
-					new Date(event.when.startsAt),
-					(Date.parse(event.when.endsAt) - Date.parse(event.when.startsAt)) / 60000,
-					mainTimeZone,
-					secondZone
-				)
-			: null
-	return (
-		<button
-			type="button"
-			data-event-key={event.eventKey}
-			data-binding={event.binding.kind}
-			onClick={() => onOpen(event)}
-			className={cn(
-				'flex w-full min-w-0 items-start gap-3 rounded-xl p-2 text-left text-body focus-visible:ring-2 focus-visible:ring-focus-ring focus-visible:outline-none',
-				event.status === 'cancelled' && 'text-muted-foreground line-through'
-			)}
-		>
-			<span
-				aria-hidden
-				className="mt-1.5 size-2 shrink-0 rounded-full bg-selected"
-				style={{ background: eventPaint(event.color)?.fill }}
-			/>
-			<TimePair
-				as="span"
-				main={eventRange(event, mainTimeZone)}
-				second={second}
-				mainClassName="text-body tabular-nums"
-			/>
-			<span className="min-w-0 flex-1 wrap-anywhere">{eventTitle(event)}</span>
-		</button>
-	)
-}
-
-function CalendarAgenda({
-	dates,
-	events,
-	today,
-	mainTimeZone,
-	secondZone,
-	emptyNote,
-	onOpen,
-}: {
-	dates: string[]
-	events: readonly CalendarEventView[]
-	today: string
-	mainTimeZone: string
-	secondZone: string | null
-	emptyNote: string | null
-	onOpen: (event: CalendarEventView) => void
-}) {
-	return (
-		<div
-			data-slot="calendar-agenda"
-			className="scroll-fade space-y-4 md:min-h-0 md:flex-1 md:overflow-y-auto lg:hidden"
-		>
-			{emptyNote !== null ? (
-				<div data-slot="calendar-agenda-empty" className="flex justify-center py-8">
-					<p className="rounded-lg bg-surface-2 px-3 py-1 text-center text-body text-muted-foreground">{emptyNote}</p>
-				</div>
-			) : null}
-			{dates.map((date) => {
-				const dayEvents = eventsOn(events, date, mainTimeZone)
-				if (dayEvents.length === 0) return null
-				return (
-					<section key={date} data-date={date} className="flex min-w-0 gap-3">
-						<div className="flex w-11 shrink-0 flex-col items-center gap-1">
-							<span className={cn('text-caption text-muted-foreground', date === today && 'text-gcal-today')}>
-								{weekdayCaps(date)}
-							</span>
-							<span
-								data-slot="agenda-date"
-								data-date={date}
-								className={cn(
-									'flex size-11 items-center justify-center rounded-full text-display tabular-nums',
-									date === today && 'bg-gcal-today text-gcal-today-ink'
-								)}
-							>
-								{dayNumber(date)}
-							</span>
-						</div>
-						<div className="min-w-0 flex-1">
-							{dayEvents.map((event) => (
-								<AgendaRow
-									key={event.eventKey}
-									event={event}
-									mainTimeZone={mainTimeZone}
-									secondZone={secondZone}
-									onOpen={onOpen}
-								/>
-							))}
-						</div>
-					</section>
-				)
-			})}
 		</div>
 	)
 }
@@ -390,23 +291,61 @@ function GutterPair({
 	second,
 	className,
 	top,
+	phone = false,
 }: {
 	local: string
 	second: string | null
 	className?: string
 	top?: number
+	phone?: boolean
 }) {
 	return (
 		<div
 			style={top === undefined ? undefined : { top }}
 			className={cn(
-				'flex justify-end gap-2 pr-2 pl-[12px] text-caption whitespace-nowrap text-muted-foreground tabular-nums',
+				'flex justify-end whitespace-nowrap text-muted-foreground tabular-nums',
+				phone ? 'pr-1 text-micro' : 'gap-2 pr-2 pl-[12px] text-caption',
 				className
 			)}
 		>
 			{second !== null ? <span className="w-[36px] text-right">{second}</span> : null}
-			<span className="w-[36px] text-right">{local}</span>
+			<span className={phone ? 'text-right' : 'w-[36px] text-right'}>{local}</span>
 		</div>
+	)
+}
+
+function tapSlot(event: MouseEvent<HTMLDivElement>, date: string) {
+	const rect = event.currentTarget.getBoundingClientRect()
+	const slot = Math.max(
+		0,
+		Math.min(
+			DAY_MINUTES / SLOT_MINUTES - 1,
+			Math.floor((event.clientY - rect.top) / ((HOUR_HEIGHT * SLOT_MINUTES) / 60))
+		)
+	)
+	return { ...lessonDaySlot(date, slot * SLOT_MINUTES), durationMinutes: 60, dragged: false }
+}
+
+function Frame({
+	phone,
+	children,
+	...props
+}: { phone: boolean; children: ReactNode } & Omit<ComponentPropsWithoutRef<'div'>, 'children'>) {
+	if (phone)
+		return (
+			<div {...props} className="relative flex min-h-0 flex-1 flex-col overflow-hidden">
+				{children}
+			</div>
+		)
+	return (
+		<Elevated
+			offset={1}
+			shadowLevel={2}
+			{...props}
+			className="relative flex min-h-90 flex-1 flex-col overflow-hidden rounded-2xl data-[dragging]:**:cursor-ns-resize! data-[moving]:**:cursor-grabbing! data-[resizing]:**:cursor-ns-resize!"
+		>
+			{children}
+		</Elevated>
 	)
 }
 
@@ -432,7 +371,10 @@ export function WeekGrid({
 	scrollTopRef,
 	placeholders = [],
 	zoneKnown = true,
+	phone = false,
 }: WeekGridProps) {
+	const columns = phone ? PHONE_COLUMNS : COLUMNS
+	const touchEditable = editable && !phone
 	const dates = Array.from({ length: 7 }, (_: undefined, index) => addDays(monday, index))
 	const nowParts = zonedParts(now, mainTimeZone)
 	const nowMinutes = lessonDayMinutes(now, mainTimeZone)
@@ -451,8 +393,8 @@ export function WeekGrid({
 	}, [monday])
 	const mainCaption = zoneLabel(mainTimeZone, zonedInstant(monday, '12:00', mainTimeZone))
 	const bodyRef = useRef<HTMLDivElement | null>(null)
-	const lessonDrag = useLessonDrag(bodyRef, HOUR_HEIGHT, events, mainTimeZone, editable, canMove, onMove)
-	const eventResize = useEventResize(bodyRef, HOUR_HEIGHT, events, mainTimeZone, editable, canMove, onMove)
+	const lessonDrag = useLessonDrag(bodyRef, HOUR_HEIGHT, events, mainTimeZone, touchEditable, canMove, onMove)
+	const eventResize = useEventResize(bodyRef, HOUR_HEIGHT, events, mainTimeZone, touchEditable, canMove, onMove)
 	const moving = lessonDrag.drag
 	const resizing = eventResize.resize
 	const live = moving ?? resizing
@@ -504,7 +446,7 @@ export function WeekGrid({
 		bodyRef,
 		HOUR_HEIGHT,
 		onSlot,
-		editable
+		touchEditable
 	)
 	const scroller = useCallback(
 		(node: HTMLDivElement | null) => {
@@ -516,31 +458,22 @@ export function WeekGrid({
 
 	return (
 		<TooltipProvider>
-			{placeholders.length > 0 ? (
-				<AgendaSkeleton />
-			) : (
-				<CalendarAgenda
-					dates={dates}
-					events={events}
-					today={today}
-					mainTimeZone={mainTimeZone}
-					secondZone={secondZone?.id ?? null}
-					emptyNote={emptyNote}
-					onOpen={onOpen}
-				/>
-			)}
-			<Elevated
-				offset={1}
-				shadowLevel={2}
+			<Frame
+				phone={phone}
 				data-slot="week-grid"
+				data-phone={phone ? '' : undefined}
 				data-dragging={dragging ? '' : undefined}
 				data-moving={moving !== null ? '' : undefined}
 				data-resizing={resizing !== null ? '' : undefined}
-				className="relative hidden min-h-90 flex-1 flex-col overflow-hidden rounded-2xl data-[dragging]:**:cursor-ns-resize! data-[moving]:**:cursor-grabbing! data-[resizing]:**:cursor-ns-resize! lg:flex"
 			>
-				<div data-slot="week-grid-head" className={cn(COLUMNS, '[scrollbar-gutter:stable] overflow-y-hidden')}>
-					<div data-slot="week-grid-corner" className="flex items-end justify-end pb-2">
-						{zoneKnown ? <GutterPair local={mainCaption} second={secondZone ? secondZone.caption : null} /> : null}
+				<div
+					data-slot="week-grid-head"
+					className={cn(columns, '[scrollbar-gutter:stable] overflow-y-hidden', phone && 'border-b border-gcal-line')}
+				>
+					<div data-slot="week-grid-corner" className={cn('flex items-end justify-end', phone ? 'pb-3' : 'pb-2')}>
+						{zoneKnown ? (
+							<GutterPair phone={phone} local={mainCaption} second={!phone && secondZone ? secondZone.caption : null} />
+						) : null}
 					</div>
 					{dates.map((date) => {
 						const isToday = date === today
@@ -549,11 +482,15 @@ export function WeekGrid({
 								key={date}
 								data-slot="week-grid-day"
 								data-date={date}
-								className="flex flex-col items-center gap-1 border-l border-gcal-line pt-2 pb-2"
+								className={cn(
+									'flex flex-col items-center border-l border-gcal-line',
+									phone ? 'h-16 justify-center gap-0.5' : 'gap-1 pt-2 pb-2'
+								)}
 							>
 								<span
 									className={cn(
-										'text-caption tracking-wider text-muted-foreground uppercase',
+										'tracking-wider text-muted-foreground uppercase',
+										phone ? 'text-micro' : 'text-caption',
 										isToday && 'text-gcal-today'
 									)}
 								>
@@ -562,7 +499,8 @@ export function WeekGrid({
 								<span
 									data-slot="week-grid-date"
 									className={cn(
-										'flex size-11 items-center justify-center rounded-full text-display font-normal tabular-nums',
+										'flex items-center justify-center rounded-full tabular-nums',
+										phone ? 'size-9 text-[18px] leading-none font-medium' : 'size-11 text-display font-normal',
 										isToday ? 'bg-gcal-today text-gcal-today-ink' : 'text-foreground'
 									)}
 								>
@@ -573,6 +511,7 @@ export function WeekGrid({
 					})}
 				</div>
 				<AllDayBand
+					columns={columns}
 					canEdit={canEdit}
 					dates={dates}
 					events={events}
@@ -590,14 +529,15 @@ export function WeekGrid({
 					}}
 					className="scroll-fade min-h-0 flex-1 [scrollbar-gutter:stable] overflow-y-auto"
 				>
-					<div className={cn(COLUMNS, 'relative')} style={{ height: HOUR_HEIGHT * 24 }}>
+					<div className={cn(columns, 'relative')} style={{ height: HOUR_HEIGHT * 24 + (phone ? PHONE_FOOT : 0) }}>
 						<div data-slot="week-grid-gutter" className="relative">
 							{(zoneKnown ? HOURS : []).map((hour) => (
 								<GutterPair
 									key={hour}
+									phone={phone}
 									local={hourLabel((hour + FIRST_HOUR) % 24)}
 									second={
-										secondZone
+										secondZone && !phone
 											? gutterLabel(
 													hour + FIRST_HOUR >= 24 ? addDays(monday, 1) : monday,
 													(hour + FIRST_HOUR) % 24,
@@ -631,6 +571,14 @@ export function WeekGrid({
 									onPointerMove={moveColumn}
 									onPointerUp={releaseColumn}
 									onPointerCancel={cancelDrag}
+									onClick={
+										phone
+											? (event) => {
+													if (!editable || !onSlot || event.target !== event.currentTarget) return
+													onSlot(tapSlot(event, date))
+												}
+											: undefined
+									}
 									className={cn(
 										'relative border-l border-gcal-line select-none',
 										isToday && 'bg-hover',
@@ -664,10 +612,17 @@ export function WeekGrid({
 												}}
 											/>
 										))}
-									{placeDay(events, date, mainTimeZone, HOUR_HEIGHT, columnWidth).map(({ event, layout }) => (
+									{placeDay(events, date, mainTimeZone, HOUR_HEIGHT, columnWidth, phone).map(({ event, layout }) => (
 										<EventTooltip
 											editable={canEdit(event)}
-											movable={canMove(event)}
+											movable={touchEditable && canMove(event)}
+											phone={phone}
+											needsMark={
+												phone &&
+												event.binding.kind === 'lesson' &&
+												event.when.kind === 'timed' &&
+												Date.parse(event.when.startsAt) <= now.getTime()
+											}
 											studentName={studentName}
 											ghost={event.eventKey === ghostKey}
 											mark={mark?.(event) ?? null}
@@ -715,7 +670,10 @@ export function WeekGrid({
 								key={hour}
 								data-slot="week-grid-line"
 								data-hour={hour}
-								className="pointer-events-none absolute right-0 left-[100px] h-px bg-gcal-line"
+								className={cn(
+									'pointer-events-none absolute right-0 h-px bg-gcal-line',
+									phone ? 'left-9' : 'left-[100px]'
+								)}
 								style={{ top: hour * HOUR_HEIGHT }}
 							/>
 						))}
@@ -729,7 +687,7 @@ export function WeekGrid({
 						<p className="rounded-lg bg-surface-2 px-3 py-1 text-center text-body text-muted-foreground">{emptyNote}</p>
 					</div>
 				) : null}
-			</Elevated>
+			</Frame>
 		</TooltipProvider>
 	)
 }

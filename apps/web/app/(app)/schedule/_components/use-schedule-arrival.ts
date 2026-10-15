@@ -42,9 +42,7 @@ function lessonParts(key: string): HTMLElement[] {
 
 function dayParts(date: string): MarkPart[] {
 	const parts: MarkPart[] = []
-	const circle = shownAll(
-		`[data-date="${date}"] [data-slot="week-grid-date"], [data-slot="agenda-date"][data-date="${date}"]`
-	)[0]
+	const circle = shownAll(`[data-date="${date}"] [data-slot="week-grid-date"]`)[0]
 	if (circle) parts.push({ el: circle, kind: 'ring', fill: false, raise: false })
 	const column = shownAll(`[data-slot="week-grid-column"][data-date="${date}"]`)[0]
 	if (column) parts.push({ el: column, kind: 'wash', fill: false, raise: false })
