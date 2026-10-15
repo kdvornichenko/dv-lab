@@ -526,6 +526,120 @@ async function tabletChecks(browser) {
 	}
 }
 
+async function designMetrics(browser) {
+	const context = await browser.newContext({ viewport: { width: 390, height: 844 }, hasTouch: true })
+	const page = await context.newPage()
+	try {
+		await openStubbed(page, context)
+		const read = (selector, props) =>
+			page
+				.locator(selector)
+				.first()
+				.evaluate((element, names) => {
+					const style = getComputedStyle(element)
+					return Object.fromEntries(names.map((name) => [name, style[name]]))
+				}, props)
+		const today = await read('button[aria-label="Today"]', ['opacity'])
+		check('metrics: Today is drawn at full strength like Previous and Next', today.opacity === '1', today.opacity)
+		const frames = await page.evaluate(() =>
+			['Today', 'Previous week', 'Next week'].map(
+				(label) =>
+					getComputedStyle(document.querySelector(`button[aria-label="${label}"] > span[aria-hidden]`)).boxShadow
+			)
+		)
+		check(
+			'metrics: Today, Previous and Next share the same frame',
+			frames[0] === frames[1] && frames[1] === frames[2] && frames[0] !== 'none',
+			frames[0]
+		)
+		const radius = await read('button[aria-label="Next week"]', ['borderRadius'])
+		check(
+			'metrics: toolbar buttons are rounded squares with an 8px radius',
+			radius.borderRadius === '8px',
+			radius.borderRadius
+		)
+		const heads = await page.evaluate(() =>
+			[...document.querySelectorAll('[data-page="current"] [data-slot="week-grid-day"]')].map(
+				(element) => getComputedStyle(element).borderLeftWidth
+			)
+		)
+		check(
+			'metrics: the day header has no vertical separators',
+			heads.every((width) => width === '0px'),
+			heads.join()
+		)
+		const weekday = await read(`${CURRENT} [data-slot="week-grid-day"] > span:first-child`, [
+			'fontSize',
+			'lineHeight',
+			'fontWeight',
+			'letterSpacing',
+		])
+		check(
+			'metrics: the weekday is 11/16 weight 500 with no tracking',
+			weekday.fontSize === '11px' &&
+				weekday.lineHeight === '16px' &&
+				weekday.fontWeight === '500' &&
+				weekday.letterSpacing === 'normal',
+			JSON.stringify(weekday)
+		)
+		const place = await page.evaluate(() => {
+			const day = document.querySelector('[data-page="current"] [data-slot="week-grid-day"]').getBoundingClientRect()
+			const circle = document
+				.querySelector('[data-page="current"] [data-slot="week-grid-date"]')
+				.getBoundingClientRect()
+			const word = document
+				.querySelector('[data-page="current"] [data-slot="week-grid-day"] > span:first-child')
+				.getBoundingClientRect()
+			return { word: word.top - day.top, circle: circle.top - day.top }
+		})
+		check(
+			'metrics: the weekday sits 4px from the top and the circle follows it',
+			place.word === 4 && place.circle === 20,
+			JSON.stringify(place)
+		)
+		const block = page.locator(`${CURRENT} [data-event-key="phone-long"]`)
+		const blockBox = await block.boundingBox()
+		const textBox = await block.locator('> span').first().boundingBox()
+		const blockStyle = await read(`${CURRENT} [data-event-key="phone-long"]`, [
+			'borderRadius',
+			'paddingLeft',
+			'paddingTop',
+		])
+		check(
+			'metrics: the block title starts 3px from the left and 2px from the top',
+			Math.abs(textBox.x - blockBox.x - 3) < 0.6 && Math.abs(textBox.y - blockBox.y - 2) < 0.6,
+			`${textBox.x - blockBox.x},${textBox.y - blockBox.y}`
+		)
+		check('metrics: the block has a 6px radius', blockStyle.borderRadius === '6px', blockStyle.borderRadius)
+		const column = await page.locator(`${CURRENT} [data-slot="week-grid-column"]`).first().boundingBox()
+		check(
+			'metrics: the block is 1px in from the hairline and 3px short of the next column',
+			Math.abs(blockBox.x - column.x - 1) < 0.6 && Math.abs(column.width - blockBox.width - 3) < 0.6,
+			`${blockBox.x - column.x},${column.width - blockBox.width}`
+		)
+		const now = await page.evaluate(() => {
+			const dot = document.querySelector('[data-slot="week-grid-now"] > span[aria-hidden]')
+			const line = document.querySelector('[data-slot="week-grid-now"]')
+			if (dot === null || line === null) return null
+			const box = dot.getBoundingClientRect()
+			return { size: box.width, offset: box.left - line.getBoundingClientRect().left }
+		})
+		check(
+			'metrics: the now dot is 8px, centred on the line start',
+			now?.size === 8 && now.offset === -4,
+			JSON.stringify(now)
+		)
+		const tint = await page.evaluate(() => {
+			const column = document.querySelector('[data-page="current"] [data-slot="week-grid-column"].bg-hover')
+			return column === null
+		})
+		check('metrics: today column has no tint on a phone', tint)
+	} finally {
+		await context.unrouteAll({ behavior: 'ignoreErrors' })
+		await context.close()
+	}
+}
+
 const { browser, context, page, problems } = await launch({ width: SIZES[0].width, height: SIZES[0].height })
 try {
 	await signIn(page)
@@ -536,6 +650,7 @@ try {
 		await tabStrips(page, size)
 	}
 	await desktopSmoke(page)
+	await designMetrics(browser)
 	await swipeChecks(browser)
 	await reducedMotionChecks(browser)
 	await tabletChecks(browser)
