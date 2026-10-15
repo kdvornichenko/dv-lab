@@ -37,7 +37,7 @@ import { studentGenders } from '../cards/cards.ts'
 import { readAssistantSettings, readTeacherSettings } from '../settings/settings.ts'
 import type { Admission, ChatContext, TurnStarter } from './actions.ts'
 import { markDispatched, markUnknown, release, reserveAttempt, settleAttempt, usageOf } from './budget.ts'
-import { ESSAY_COMMAND, ESSAY_FEEDBACK_TOOL, ESSAY_TASK, ESSAY_TOOL_NAME } from './essay.ts'
+import { ESSAY_COMMAND, ESSAY_TASK } from './essay.ts'
 import { lessonDatesPeriod } from './facts.ts'
 import { replyMentions, studentNames } from './mentions.ts'
 import { stepsOf, toMessages } from './messages.ts'
@@ -56,7 +56,8 @@ import {
 	sentenceSplitter,
 } from './publish-gate.ts'
 import { nameConversation, titleAnswered } from './title.ts'
-import { CHAT_TOOLS, type ToolContext, runTool, weekdayName } from './tools.ts'
+import { type ToolContext, stepRule } from './tool-registry.ts'
+import { CHAT_TOOLS, CHAT_TOOL_ENTRIES, ESSAY_TOOLS, runTool, weekdayName } from './tools.ts'
 import { type NewTurn, type TurnRow, isActive, insertTurn, readTurn, toTurn } from './turns.ts'
 
 export type ChatListener = (event: ChatStreamEvent) => void
@@ -144,7 +145,7 @@ function mentionLines(mentions: readonly MentionBinding[], genders?: ReadonlyMap
 	})
 }
 
-function blockNote(block: ChatBlock): string {
+function blockNote(block: Exclude<ChatBlock, { type: 'suggestions' }>): string {
 	switch (block.type) {
 		case 'action_result':
 			return `[Saved: ${block.kind}${block.mark ? ` ${block.mark}` : ''} for ${block.studentName}]`
@@ -170,8 +171,6 @@ function blockNote(block: ChatBlock): string {
 			return '[Showed the students who pay soon]'
 		case 'excerpt':
 			return `[Quoted a stored ${block.source}]`
-		case 'suggestions':
-			return '[Offered suggestions]'
 		case 'read_failed':
 			return '[Records could not be read]'
 		case 'lesson_dates':
@@ -189,7 +188,8 @@ function pastMessage(message: ChatMessage): Anthropic.MessageParam | null {
 		const text = lines.length === 0 ? message.body : `${message.body}\n\nMentioned:\n${lines.join('\n')}`
 		return { role: 'user', content: text }
 	}
-	const parts = [message.body.trim(), ...message.blocks.map(blockNote)].filter((part) => part !== '')
+	const notes = message.blocks.filter((block) => block.type !== 'suggestions').map(blockNote)
+	const parts = [message.body.trim(), ...notes].filter((part) => part !== '')
 	return parts.length === 0 ? null : { role: 'assistant', content: parts.join('\n') }
 }
 
@@ -416,24 +416,27 @@ export function createChat({ db, logger, provider, calendarCommands }: ChatDeps)
 	async function stepOf(run: Run, use: Anthropic.ToolUseBlock, zone: string, now: Date): Promise<ChatStep | null> {
 		const tool = CHAT_STEP_TOOLS.find((name) => name === use.name && name !== 'answer')
 		if (tool === undefined) return null
+		const rule = stepRule(CHAT_TOOL_ENTRIES, tool)
+		if (rule === null) return null
 		const input = use.input !== null && typeof use.input === 'object' ? (use.input as Record<string, unknown>) : {}
 		const step: ChatStep = { id: use.id.slice(0, 120), tool, state: 'running' }
-		if (isId(input.student_id)) {
-			const studentId = input.student_id
+		const studentId = rule.student === null ? undefined : input[rule.student]
+		if (isId(studentId)) {
 			const known = run.people.get(studentId) ?? (await studentNames(db, [studentId])).get(studentId)
 			if (known !== undefined) run.people.set(studentId, known)
 			step.studentId = studentId
 			if (known !== undefined) step.studentName = known.slice(0, 200)
 		}
-		if (tool === 'find_students' && typeof input.query === 'string') {
-			const query = input.query.trim()
+		const search = rule.search === null ? undefined : input[rule.search]
+		if (typeof search === 'string') {
+			const query = search.trim()
 			if (query !== '' && query.length <= STEP_NAME_MAX && !/\p{Nd}/u.test(query)) step.studentName = query
 		}
-		if (tool === 'lessons' && isDate(input.from) && isDate(input.to)) {
+		if (rule.period === 'range' && isDate(input.from) && isDate(input.to)) {
 			step.from = input.from
 			step.to = input.to
 		}
-		if (tool === 'lesson_dates' && input.scope !== 'since_payment') {
+		if (rule.period === 'month' && input.scope !== 'since_payment') {
 			const from = isDate(input.from) ? input.from : null
 			const to = isDate(input.to) ? input.to : null
 			const period = lessonDatesPeriod(from, to, now, zone)
@@ -591,7 +594,7 @@ export function createChat({ db, logger, provider, calendarCommands }: ChatDeps)
 			run.essay = true
 			gate.scores = true
 		}
-		const tools = run.essayTurn ? [ESSAY_FEEDBACK_TOOL] : CHAT_TOOLS
+		const tools = run.essayTurn ? ESSAY_TOOLS : CHAT_TOOLS
 		gate.dates.add(local.date)
 		gate.dates.add(lessonDay(start.now, zone))
 		gate.times.add(local.time)
@@ -743,7 +746,7 @@ export function createChat({ db, logger, provider, calendarCommands }: ChatDeps)
 		shownFacts: Set<string>,
 		zone: string
 	) {
-		if (run.essayTurn && use.name !== ESSAY_TOOL_NAME) {
+		if (run.essayTurn && !ESSAY_TOOLS.some((item) => item.name === use.name)) {
 			logger.info({ turnId: turn.id, tool: use.name, isError: true }, 'chat tool finished')
 			return { content: JSON.stringify({ error: 'read_only_essay' }), isError: true, block: null }
 		}
