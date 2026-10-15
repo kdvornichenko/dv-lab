@@ -13,6 +13,7 @@
 - Строки денег, уроков и дат оплат — `apps/web/components/app/ledger-text.tsx` поверх `packages/core`. Остаток и долг — `apps/web/components/app/student-balance.tsx` поверх core.
 - Затухание скроллеров без поддержки CSS — `apps/web/components/app/scroll-fade-fallback.tsx`.
 - Строка конфликта ревизии в формах — `apps/web/components/app/reload-notice.tsx`.
+- Уведомление о новой версии (UpdateNotice) — `apps/web/app/(app)/_components/version-watch.tsx` (`VersionWatch`, у учителя и ученика): при открытии, возврате на вкладку и раз в 10 минут сверяет `sha` из `GET /healthz` с `GIT_SHA` сервера web, который передаёт `(app)/layout.tsx`. Закрытое уведомление возвращается только при возврате на вкладку или с более новой версией. Сама страница не перезагружается; Reload при набранном и не отправленном тексте (поля, в которые печатали с загрузки страницы и где остался текст) спрашивает подтверждение. Вне `(app)` (вход) проверки нет. Без версии (`unknown`, локальная разработка) проверка выключена.
 
 ## Даты и зоны
 

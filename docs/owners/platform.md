@@ -6,7 +6,7 @@
 - `apps/api` — Hono на `@hono/node-server`, отдельный процесс за прокси. Сборка `tsdown` в `apps/api/dist/server.mjs`, `apps/api/dist/migrate.mjs`, `apps/api/dist/bootstrap-teacher.mjs` (CLI первого учителя и восстановления его пароля) и `apps/api/dist/import-vault.mjs` (импорт vault: команды `parse` и `apply`); `@dv-lab/*` вшиваются в бандл, миграции копируются в `apps/api/drizzle`.
 - `packages/core`, `packages/contracts` и `packages/db` — JIT-пакеты: экспортируют исходники `src/index.ts`, своей сборки нет.
 - `packages/contracts` — типы, схемы zod и константы общего контракта web и api: запросы, ответы, коды ошибок, имя cookie сессии, пределы логина и пароля, `CHAT_FOLLOW_UP_TEXT`, `REVIEW_COMMAND_TEXT`. Исключения — чистые функции без зависимостей, общие для api и web: строители адресов `links.ts` (`encodeLessonRef`, `lessonLink`, `studentPaymentsLink`) и `placeView` в `calendar-events.ts` (метка места-адреса без схемы, учётных данных, query и fragment).
-- `apps/web/Dockerfile`, `apps/api/Dockerfile` — multi-stage сборка образов. Образы собирает и публикует в GHCR GitHub Actions, на сервере сборки нет.
+- `apps/web/Dockerfile`, `apps/api/Dockerfile` — multi-stage сборка образов. Образы собирает и публикует в GHCR GitHub Actions, на сервере сборки нет. Оба образа получают build-arg `GIT_SHA` (sha коммита) и несут его в окружении: api отдаёт его в `/healthz`, web — клиенту для уведомления о новой версии.
 - В `deploy/compose.yaml` `API_INTERNAL_URL` задан у сервиса `web`.
 
 ## CI

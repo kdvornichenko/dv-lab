@@ -5,7 +5,7 @@ import { createConnection } from 'node:net'
 
 import { ROOT, STAND_ID, STAND_LAST, STAND_STATE, STATE_DIR } from './paths.mjs'
 
-const usage = 'usage: node scripts/dev-checks/stand.mjs up [--api-port N] [--web-port N] | down | status'
+const usage = 'usage: node scripts/dev-checks/stand.mjs up [--api-port N] [--web-port N] [--git-sha V] | down | status'
 const STATE = STAND_STATE
 const API_LOG = `${STATE_DIR}/stand-${STAND_ID}-api.log`
 const WEB_LOG = `${STATE_DIR}/stand-${STAND_ID}-web.log`
@@ -23,6 +23,17 @@ function option(args, name, fallback) {
 		process.exit(2)
 	}
 	return value
+}
+
+function gitSha(args) {
+	const index = args.indexOf('--git-sha')
+	if (index === -1) return {}
+	const value = args[index + 1] ?? ''
+	if (!/^[0-9a-z-]{1,64}$/.test(value)) {
+		console.log('--git-sha needs a version made of lowercase letters, digits and dashes')
+		process.exit(2)
+	}
+	return { GIT_SHA: value }
 }
 
 function readState() {
@@ -187,6 +198,7 @@ function describe(state) {
 async function up(args) {
 	const apiPort = option(args, '--api-port', 4100)
 	const webPort = option(args, '--web-port', 3000)
+	const version = gitSha(args)
 	const current = readState()
 	if (current && (groupAlive(current.apiPid) || groupAlive(current.webPid))) {
 		if (current.apiPort === apiPort && current.webPort === webPort) {
@@ -214,13 +226,13 @@ async function up(args) {
 	const apiPid = start(
 		process.execPath,
 		[`--env-file-if-exists=${ROOT}/.env`, `${ROOT}/apps/api/src/server.ts`],
-		cleanEnv({ PORT: String(apiPort), APP_ORIGIN: origin }),
+		cleanEnv({ PORT: String(apiPort), APP_ORIGIN: origin, ...version }),
 		API_LOG
 	)
 	const webPid = start(
 		'yarn',
 		['workspace', '@dv-lab/web', 'dev', '-p', String(webPort)],
-		cleanEnv({ PORT: String(webPort), API_DEV_PROXY_URL: apiUrl, API_INTERNAL_URL: apiUrl }),
+		cleanEnv({ PORT: String(webPort), API_DEV_PROXY_URL: apiUrl, API_INTERNAL_URL: apiUrl, ...version }),
 		WEB_LOG
 	)
 	const state = {
