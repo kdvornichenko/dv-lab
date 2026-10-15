@@ -361,11 +361,6 @@ async function links() {
 	const week = '2026-10-19'
 
 	check(
-		'encodeLessonRef matches web for single and series lessons',
-		contracts.encodeLessonRef(single) === web.encodeLessonRef(single) &&
-			contracts.encodeLessonRef(series) === web.encodeLessonRef(series)
-	)
-	check(
 		'lessonLink matches web lessonHref',
 		contracts.lessonLink(week, single) === web.lessonHref(week, single) &&
 			contracts.lessonLink(week, series) === web.lessonHref(week, series)

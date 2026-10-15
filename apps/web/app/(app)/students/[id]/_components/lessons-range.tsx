@@ -134,7 +134,7 @@ export function RangeControl({ choice, today, hasPayment, paidOn, resolved, onCh
 
 	const selected: DateRange | undefined =
 		first !== null
-				? { from: toDate(first), to: toDate(first) }
+			? { from: toDate(first), to: toDate(first) }
 			: shown === null
 				? undefined
 				: { from: toDate(shown.from), to: toDate(shown.to) }

@@ -120,9 +120,7 @@ export const descriptionFixtures = [
 		expect: {
 			formatted: true,
 			kinds: ['paragraph'],
-			plain: [
-				'Signs: & < > " \' A  X &unknown; &amp no semicolon � � � �',
-			],
+			plain: ['Signs: & < > " \' A  X &unknown; &amp no semicolon � � � �'],
 			hrefs: [],
 		},
 	},
@@ -169,7 +167,11 @@ export const placeFixtures = [
 	{ id: 'upper-root', raw: 'HTTPS://Example.test/', expect: { kind: 'address', label: 'Example.test' } },
 	{ id: 'bare-host', raw: 'https://example.test', expect: { kind: 'address', label: 'example.test' } },
 	{ id: 'padded', raw: '  https://example.test/room  ', expect: { kind: 'address', label: 'example.test/room' } },
-	{ id: 'host-query', raw: 'http://example.test?pwd=FixtureCode.1', expect: { kind: 'address', label: 'example.test' } },
+	{
+		id: 'host-query',
+		raw: 'http://example.test?pwd=FixtureCode.1',
+		expect: { kind: 'address', label: 'example.test' },
+	},
 	{ id: 'street', raw: 'Clinic room 4, 12 Example Street', expect: { kind: 'text' } },
 	{ id: 'with-space', raw: 'https://example.test/j/1 (Zoom)', expect: { kind: 'text' } },
 	{ id: 'javascript', raw: 'javascript:alert(1)', expect: { kind: 'text' } },

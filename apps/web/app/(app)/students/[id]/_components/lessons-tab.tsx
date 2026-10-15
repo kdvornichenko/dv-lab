@@ -191,12 +191,15 @@ export function LessonsTab({ student, mainTimeZone, asOf, refreshKey, onOpenPaym
 	const queryRef = useRef({ id: student.id, query })
 
 	const studentId = student.id
-	const load = useCallback(async (id: string, next: string) => {
-		const request = ++requests.current
-		const result = await readLessons(id, next)
-		if (request !== requests.current) return
-		setState({ query: next, result })
-	}, [setState])
+	const load = useCallback(
+		async (id: string, next: string) => {
+			const request = ++requests.current
+			const result = await readLessons(id, next)
+			if (request !== requests.current) return
+			setState({ query: next, result })
+		},
+		[setState]
+	)
 
 	useEffect(() => {
 		queryRef.current = { id: studentId, query }

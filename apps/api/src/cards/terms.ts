@@ -62,10 +62,6 @@ export async function listTerms(
 	return rows.map(toTerm)
 }
 
-export function listRemovedTerms(executor: DbExecutor, studentId: string): Promise<StudentTerm[] | null> {
-	return listTerms(executor, studentId, 'removed')
-}
-
 export async function addTerm(
 	executor: DbExecutor,
 	studentId: string,

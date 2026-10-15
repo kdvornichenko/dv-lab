@@ -51,7 +51,11 @@ function expectations(name, reading, expect) {
 	}
 	if (expect.hrefs) record(`${name} links`, hrefs.join('\n') === expect.hrefs.join('\n'), `${hrefs.length}`)
 	for (const text of expect.plain ?? [])
-		record(`${name} text`, texts.some((value) => value.includes(text)), JSON.stringify(text))
+		record(
+			`${name} text`,
+			texts.some((value) => value.includes(text)),
+			JSON.stringify(text)
+		)
 	for (const text of expect.absent ?? [])
 		record(`${name} absent`, !all.some((value) => value.includes(text)), JSON.stringify(text))
 	for (const flag of ['bold', 'italic', 'underline'])
@@ -97,7 +101,9 @@ function place() {
 		record(`place ${fixture.id} label`, label === expect.label, JSON.stringify(label))
 		record(
 			`place ${fixture.id} label hides query and credentials`,
-			Boolean(label) && !['?', '#', 'pwd', '@', '://', 'secret'].some((part) => label.includes(part)) && !/^https?/i.test(label)
+			Boolean(label) &&
+				!['?', '#', 'pwd', '@', '://', 'secret'].some((part) => label.includes(part)) &&
+				!/^https?/i.test(label)
 		)
 		record(`place ${fixture.id} href`, view?.kind === 'address' && view.href === fixture.raw.trim())
 	}
@@ -114,7 +120,9 @@ function seed(...args) {
 		timeout: 120000,
 	})
 	if (result.status !== 0)
-		throw new Error(`calendar-seed ${args.join(' ')} exited ${result.status}: ${(result.stdout ?? '').trim().split('\n').pop()}`)
+		throw new Error(
+			`calendar-seed ${args.join(' ')} exited ${result.status}: ${(result.stdout ?? '').trim().split('\n').pop()}`
+		)
 }
 
 async function details() {
@@ -151,7 +159,11 @@ where connection_id = ${quote(connection.id)} and event_id = ${quote(eventId)}`
 			)
 			record(`details ${eventId} raw description`, event.description === fixture.raw)
 			record(`details ${eventId} location`, event.location === fixture.location)
-			expectations(`details ${eventId}`, { blocks: event.descriptionBlocks, formatted: event.descriptionFormatted }, fixture.expect)
+			expectations(
+				`details ${eventId}`,
+				{ blocks: event.descriptionBlocks, formatted: event.descriptionFormatted },
+				fixture.expect
+			)
 		}
 	} finally {
 		if (app) await app.pool.end()

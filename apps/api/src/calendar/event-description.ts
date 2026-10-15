@@ -114,7 +114,9 @@ function isHrefBreak(c: number) {
 }
 
 function isDividerChar(c: number) {
-	return c === 45 || c === 95 || c === 61 || (c >= 0x2010 && c <= 0x2015) || c === 0x2212 || (c >= 0x2500 && c <= 0x257f)
+	return (
+		c === 45 || c === 95 || c === 61 || (c >= 0x2010 && c <= 0x2015) || c === 0x2212 || (c >= 0x2500 && c <= 0x257f)
+	)
 }
 
 function isWordChar(text: string, index: number) {
@@ -486,7 +488,9 @@ function build(input: string, tokens: Token[], markup: boolean, seen: Seen) {
 			return
 		}
 		if (line.length >= DESCRIPTION_RUNS_LIMIT) return
-		line.push(linkHref ? { kind: 'link', text: value, href: linkHref, ...marks } : { kind: 'text', text: value, ...marks })
+		line.push(
+			linkHref ? { kind: 'link', text: value, href: linkHref, ...marks } : { kind: 'text', text: value, ...marks }
+		)
 	}
 	const inline = (text: string) => {
 		if (!text) return

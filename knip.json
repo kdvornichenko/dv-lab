@@ -13,6 +13,7 @@
 			"ignoreDependencies": ["pg"]
 		},
 		"apps/web": {
+			"entry": ["public/sw.js"],
 			"ignore": [
 				"components/ui/**",
 				"components/sidebar-app/**",
@@ -34,11 +35,7 @@
 		},
 		"apps/api": {
 			"entry": ["src/server.ts", "src/migrate.ts", "src/bootstrap-teacher.ts", "src/import-vault.ts"],
-			"project": ["src/**/*.ts"],
-			"ignoreDependencies": ["@types/web-push", "web-push", "diff"],
-			"ignoreIssues": {
-				"src/cards/terms.ts": ["exports"]
-			}
+			"project": ["src/**/*.ts"]
 		},
 		"packages/contracts": {
 			"entry": ["src/index.ts"],
