@@ -6,7 +6,7 @@ import { MapPin } from 'lucide-react'
 
 import { Tooltip } from '@/components/ui/tooltip'
 
-import type { CalendarEventView } from '@dv-lab/contracts'
+import { placeView, type CalendarEventView } from '@dv-lab/contracts'
 
 import { CalendarEventDetails, EventTime, eventTitle } from './calendar-event-details'
 import type { BlockLayout } from './calendar-layout'
@@ -32,18 +32,23 @@ function PlainEventCard({
 	currentYear: number
 	suggested: string | null
 }) {
+	const place = placeView(event.location)
 	return (
 		<div data-slot="event-tooltip" data-variant="plain" className="flex flex-col gap-1">
 			<span className="text-body font-semibold wrap-anywhere">{eventTitle(event)}</span>
 			<div className="flex min-w-0 flex-col gap-1 text-body wrap-anywhere">
 				<EventTime event={event} timeZone={timeZone} secondZone={secondZone} currentYear={currentYear} />
 			</div>
-			{event.location !== null && event.location !== '' ? (
+			{place === null ? null : place.kind === 'address' ? (
+				<span data-slot="event-place-label" className="text-caption wrap-anywhere text-muted-foreground">
+					{place.label}
+				</span>
+			) : (
 				<span className="flex min-w-0 items-start gap-1 text-caption wrap-anywhere text-muted-foreground">
 					<MapPin size={16} className="shrink-0" aria-hidden />
-					<span className="min-w-0">{event.location}</span>
+					<span className="min-w-0">{place.text}</span>
 				</span>
-			) : null}
+			)}
 			{suggested !== null ? (
 				<span className="text-caption text-muted-foreground">May be {suggested}&apos;s lesson. Click to assign.</span>
 			) : null}
