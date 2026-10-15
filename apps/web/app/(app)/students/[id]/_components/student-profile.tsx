@@ -370,7 +370,7 @@ export function StudentProfile({ id, arrival }: { id: string; arrival: ProfileAr
 						/>
 					</TabPanel>
 					<TabPanel value="vocabulary" className="mt-4">
-						<VocabularyTab student={student} />
+						<VocabularyTab student={student} timeZone={mainTimeZone} asOf={asOf} />
 					</TabPanel>
 					<TabPanel value="payments" className="mt-4">
 						<PaymentsTab
