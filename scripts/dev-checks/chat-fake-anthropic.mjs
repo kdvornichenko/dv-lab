@@ -1,3 +1,31 @@
+import { registerHooks } from 'node:module'
+
+const FAKE_EVENT_TITLES = `
+const EVENTS = [
+	{ day: '2026-06-03', title: 'Екатерина', time: '18:00', durationMinutes: 60 },
+	{ day: '2026-06-10', title: 'Екатерина', time: '18:00', durationMinutes: 60 },
+	{ day: '2026-07-01', title: 'Яна', time: '09:00', durationMinutes: 60 },
+	{ day: '2026-07-08', title: 'Yekaterina IELTS 7.5', time: '10:00', durationMinutes: 90 },
+	{ day: '2026-07-15', title: 'Yekaterina IELTS 7.5', time: '10:00', durationMinutes: 90 },
+	{ day: '2026-08-05', title: 'Other event', time: '12:00', durationMinutes: 30 },
+]
+export function createEventTitles() {
+	return async (_accountId, range) => ({
+		timeZone: 'Asia/Ho_Chi_Minh',
+		events: EVENTS.filter((event) => event.day >= range.from && event.day <= range.to),
+	})
+}
+`
+
+if (process.env.CHAT_FAKE_EVENTS === '1')
+	registerHooks({
+		load(url, context, nextLoad) {
+			if (url.endsWith('/apps/api/src/calendar/event-titles.ts'))
+				return { format: 'module', source: FAKE_EVENT_TITLES, shortCircuit: true }
+			return nextLoad(url, context)
+		},
+	})
+
 const HOST = 'api.anthropic.com'
 const DELAY = Number.parseInt(process.env.CHAT_FAKE_DELAY_MS ?? '250', 10)
 const ANSWER = [
@@ -142,6 +170,20 @@ function proposalPlan(marker, content, continued, body) {
 			to_time: to?.[2] ?? null,
 			time_zone: zone,
 			from: null,
+		})
+	}
+	if (marker === 'calendar' || marker === 'calendar-merge') {
+		if (continued)
+			return say(
+				marker === 'calendar'
+					? 'I found the events with Екатерина from 3 June to 15 July, Yekaterina IELTS 7.5 runs 10:00–11:30.'
+					: 'Here are all these events in one list.'
+			)
+		return call('calendar_events', {
+			from: '2026-06-01',
+			to: '2026-08-31',
+			title: 'Екатерина',
+			...(marker === 'calendar-merge' ? { merge: true } : {}),
 		})
 	}
 	if (marker === 'end') {

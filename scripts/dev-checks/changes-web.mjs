@@ -3820,7 +3820,111 @@ async function sectionPrompts() {
 	}
 }
 
+const CALENDAR_PORT = 4257
+const CALENDAR_EVENTS = '[data-slot="chat-calendar-events"]'
+const CALENDAR_GROUP = '[data-slot="chat-calendar-group"]'
+const CALENDAR_COPY = '[data-slot="chat-calendar-copy"]'
+const WITHHELD = 'Could not verify this answer from the available records.'
+
+async function sectionCalendar() {
+	const apiOrigin = await detectApiOrigin()
+	const health = await fetch(`${BASE}/api/healthz`).catch(() => null)
+	if (!health || health.status !== 200)
+		throw new Error('the dev api does not answer through the web proxy: this section needs the dev stack')
+	process.env.CHAT_FAKE_EVENTS = '1'
+	const started = await startFakeModelApi(CALENDAR_PORT)
+	const conversations = []
+	const teacher = sql(`select id from accounts where role = 'teacher' and status = 'active'`).rows[0]?.id
+	const period = readBudget(teacher)
+	try {
+		await withBrowser(
+			{ width: 1440, height: 900 },
+			async ({ page, problems }) => {
+				await proposalsPrepare(page, apiOrigin, CALENDAR_PORT)
+				await page.addInitScript(() => {
+					window.__copied = []
+					Object.defineProperty(navigator, 'clipboard', {
+						configurable: true,
+						value: {
+							writeText: async (text) => {
+								window.__copied.push(text)
+							},
+							readText: async () => '',
+						},
+					})
+				})
+				await signIn(page)
+				await newChat(page)
+				await finishTurn(page, '[fake:calendar] find all events with Екатерина this summer')
+				const id = new URL(page.url()).searchParams.get('c')
+				if (id) conversations.push(id)
+				const blocks = page.locator(CALENDAR_EVENTS)
+				await blocks.first().waitFor({ timeout: 15000 })
+				const first = blocks.first()
+				const labels = await first.locator(`${CALENDAR_GROUP} p.font-semibold`).allInnerTexts()
+				check(
+					'the search shows one block with the Екатерина and Yekaterina groups and no Яна',
+					(await blocks.count()) === 1 &&
+						labels.join('|') === 'Екатерина|Yekaterina' &&
+						!(await first.innerText()).includes('Яна'),
+					JSON.stringify(labels)
+				)
+				check('each group has its own Copy dates button', (await first.locator(CALENDAR_COPY).count()) === 2)
+				await first.locator(CALENDAR_COPY).nth(0).click()
+				await first.locator(CALENDAR_COPY).nth(1).click()
+				const copied = await page.evaluate(() => window.__copied)
+				check(
+					'Copy dates copies the Count lessons format per group',
+					copied.join('||') === '3, 10 - June||8, 15 - July',
+					JSON.stringify(copied)
+				)
+				const answer = page.locator(ASSISTANT).last()
+				check(
+					'the answer with dates, an end time and a title with digits is published',
+					(await answer.innerText()).includes('Yekaterina IELTS 7.5 runs 10:00–11:30') &&
+						(await page.getByText(WITHHELD).count()) === 0,
+					(await answer.innerText()).slice(0, 300)
+				)
+				await first.getByRole('button', { name: 'Show times and titles' }).first().click()
+				await page.waitForTimeout(400)
+				const rows = first.locator(CALENDAR_GROUP).first().locator('li')
+				const listHeight = await rows.first().evaluate((node) => node.parentElement.getBoundingClientRect().height)
+				check(
+					'the opened group lists the date, time and title of each event',
+					(await rows.count()) === 2 && listHeight > 20 && (await rows.first().innerText()).includes('18:00'),
+					String(listHeight)
+				)
+				await shot(page, 'changes-calendar', 'groups')
+
+				await finishTurn(page, '[fake:calendar-merge] объедини их одним списком')
+				await page.waitForFunction((selector) => document.querySelectorAll(selector).length === 2, CALENDAR_EVENTS, {
+					timeout: 15000,
+				})
+				const merged = blocks.nth(1)
+				check(
+					'the merge request shows one group with all four events',
+					(await merged.locator(CALENDAR_GROUP).count()) === 1 &&
+						(await merged.locator(CALENDAR_COPY).count()) === 1 &&
+						(await merged.locator(`${CALENDAR_GROUP} p.font-semibold`).innerText()) === 'Екатерина'
+				)
+				await merged.locator(CALENDAR_COPY).click()
+				const all = await page.evaluate(() => window.__copied.at(-1))
+				check('the merged Copy dates has every date', all === '3, 10 - June\n8, 15 - July', JSON.stringify(all))
+				check('no answer is withheld', (await page.getByText(WITHHELD).count()) === 0)
+				await shot(page, 'changes-calendar', 'merged')
+				const unexpected = problems.filter((line) => !EXPECTED_NOISE.test(line))
+				check('no unexpected console problems', unexpected.length === 0, unexpected.slice(0, 3).join(' | '))
+			},
+			() => removeConversations([...new Set(conversations)]),
+			() => restoreBudget(period)
+		)
+	} finally {
+		await stopFakeModelApi(started)
+	}
+}
+
 const sections = {
+	calendar: sectionCalendar,
 	notes: sectionNotes,
 	review: sectionReview,
 	prompts: sectionPrompts,
