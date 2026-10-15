@@ -149,12 +149,14 @@ export function ChatProgress({
 					className="-ml-2 self-start text-caption whitespace-nowrap text-muted-foreground pointer-coarse:h-8"
 					onClick={() => setExpanded((value) => !value)}
 				>
-					{expanded ? 'Hide steps' : 'Show steps'}
-					<ChevronDown
-						size={14}
-						aria-hidden
-						className={cn('shrink-0 transition-transform duration-120', expanded && 'rotate-180')}
-					/>
+					<span className="inline-flex flex-nowrap items-center gap-1 whitespace-nowrap">
+						{expanded ? 'Hide steps' : 'Show steps'}
+						<ChevronDown
+							size={12}
+							aria-hidden
+							className={cn('shrink-0 transition-transform duration-120', expanded && 'rotate-180')}
+						/>
+					</span>
 				</Button>
 			) : null}
 			<div
