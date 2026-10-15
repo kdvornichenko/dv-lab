@@ -426,7 +426,9 @@ export function ChatScreen({
 										onAsk: () => later(() => input.current?.focus()),
 										onCheckStatus: chat.checkStatus,
 										onFollowUp: (student) => followUp(student),
+										onCommand: command,
 										busy: chat.sending || chat.reply !== null,
+										commandsOff: composer.draft.text !== '' || chat.sending || chat.reply !== null,
 									}}
 									active={
 										chat.reply === null
