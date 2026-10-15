@@ -204,7 +204,6 @@ function LoadedSchedule({ now, arrival }: { now: Date; arrival: ArrivalParams })
 			mark={writes.mark}
 			monday={monday}
 			mainTimeZone={mainTimeZone}
-			today={today}
 			now={now}
 			secondZone={secondZone}
 			events={events}

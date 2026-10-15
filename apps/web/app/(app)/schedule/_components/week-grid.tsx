@@ -12,6 +12,7 @@ import {
 } from 'react'
 
 import { motion } from 'framer-motion'
+import { ChevronLeft, ChevronRight } from 'lucide-react'
 
 import { Skeleton } from '@/components/ui/skeleton'
 import { TooltipProvider } from '@/components/ui/tooltip'
@@ -72,7 +73,6 @@ export interface SlotFrame {
 
 interface WeekGridProps {
 	monday: string
-	today: string
 	now: Date
 	mainTimeZone: string
 	secondZone: SecondZone | null
@@ -281,6 +281,28 @@ function MoveFrameBlock({
 	)
 }
 
+function EdgeZone({ side, shown, width }: { side: 'left' | 'right'; shown: boolean; width: number }) {
+	const Chevron = side === 'left' ? ChevronLeft : ChevronRight
+	return (
+		<div
+			aria-hidden
+			data-slot="week-grid-edge"
+			data-side={side}
+			data-shown={shown ? '' : undefined}
+			className={cn(
+				'pointer-events-none absolute inset-y-0 z-40 flex items-center opacity-0 transition-opacity duration-80',
+				side === 'left'
+					? 'left-0 justify-start bg-linear-to-r from-foreground/10 to-transparent'
+					: 'right-0 justify-end bg-linear-to-l from-foreground/10 to-transparent',
+				shown && 'opacity-100'
+			)}
+			style={{ width }}
+		>
+			<Chevron className="size-4 text-foreground" />
+		</div>
+	)
+}
+
 function GutterPair({
 	local,
 	second,
@@ -334,7 +356,6 @@ function Frame({
 
 export function WeekGrid({
 	monday,
-	today,
 	now,
 	mainTimeZone,
 	secondZone,
@@ -516,7 +537,7 @@ export function WeekGrid({
 	}
 	const heads = (page: GridPage) =>
 		page.dates.map((date) => {
-			const isToday = date === today
+			const isToday = date === nowParts.date
 			return (
 				<div
 					key={date}
@@ -551,7 +572,7 @@ export function WeekGrid({
 		})
 	const cells = (page: GridPage) =>
 		page.dates.map((date, dayIndex) => {
-			const isToday = date === today
+			const isToday = date === nowParts.date
 			const slotDrag = drag !== null && drag.date === date ? drag : null
 			const framePlace =
 				frame === null ? undefined : gridPlaces(frame.date, frame.time).find((place) => place.day === date)
@@ -728,49 +749,57 @@ export function WeekGrid({
 						</div>
 					</div>
 				) : null}
-				<div
-					{...handlers}
-					ref={scroller}
-					data-slot="week-grid-body"
-					onScroll={(event) => {
-						if (scrollTopRef) scrollTopRef.current = event.currentTarget.scrollTop
-					}}
-					className={cn(
-						'scroll-fade min-h-0 flex-1 [scrollbar-gutter:stable] overflow-y-auto [-webkit-touch-callout:none]',
-						paged && 'touch-pan-y'
-					)}
-				>
-					<div className={cn(columns, 'relative')} style={{ height: bodyHeight }}>
-						<div data-slot="week-grid-gutter" className="relative">
-							{(zoneKnown ? HOURS : []).map((hour) => (
-								<GutterPair
+				<div className="relative flex min-h-0 flex-1 flex-col">
+					<div
+						{...handlers}
+						ref={scroller}
+						data-slot="week-grid-body"
+						onScroll={(event) => {
+							if (scrollTopRef) scrollTopRef.current = event.currentTarget.scrollTop
+						}}
+						className={cn(
+							'scroll-fade min-h-0 flex-1 [scrollbar-gutter:stable] overflow-y-auto [-webkit-touch-callout:none]',
+							paged && 'touch-pan-y'
+						)}
+					>
+						<div className={cn(columns, 'relative')} style={{ height: bodyHeight }}>
+							<div data-slot="week-grid-gutter" className="relative">
+								{(zoneKnown ? HOURS : []).map((hour) => (
+									<GutterPair
+										key={hour}
+										phone={phone}
+										local={hourLabel(hour % 24)}
+										second={
+											secondZone && !phone
+												? gutterLabel(hour >= 24 ? addDays(monday, 1) : monday, hour % 24, mainTimeZone, secondZone.id)
+												: null
+										}
+										top={hour * HOUR_HEIGHT}
+										className={cn('absolute inset-x-0', hour > 0 && '-translate-y-1/2')}
+									/>
+								))}
+							</div>
+							{place(cells, false, bodyHeight)}
+							{HOURS.map((hour) => (
+								<div
 									key={hour}
-									phone={phone}
-									local={hourLabel(hour % 24)}
-									second={
-										secondZone && !phone
-											? gutterLabel(hour >= 24 ? addDays(monday, 1) : monday, hour % 24, mainTimeZone, secondZone.id)
-											: null
-									}
-									top={hour * HOUR_HEIGHT}
-									className={cn('absolute inset-x-0', hour > 0 && '-translate-y-1/2')}
+									data-slot="week-grid-line"
+									data-hour={hour}
+									className={cn(
+										'pointer-events-none absolute right-0 h-px bg-gcal-line',
+										phone ? 'left-9' : 'left-[100px]'
+									)}
+									style={{ top: hour * HOUR_HEIGHT }}
 								/>
 							))}
 						</div>
-						{place(cells, false, bodyHeight)}
-						{HOURS.map((hour) => (
-							<div
-								key={hour}
-								data-slot="week-grid-line"
-								data-hour={hour}
-								className={cn(
-									'pointer-events-none absolute right-0 h-px bg-gcal-line',
-									phone ? 'left-9' : 'left-[100px]'
-								)}
-								style={{ top: hour * HOUR_HEIGHT }}
-							/>
-						))}
 					</div>
+					{moving !== null ? (
+						<>
+							<EdgeZone side="left" shown={moving.edge === -1} width={phone ? 36 : 100} />
+							<EdgeZone side="right" shown={moving.edge === 1} width={Math.max(12, Math.min(32, columnWidth / 4))} />
+						</>
+					) : null}
 				</div>
 				{emptyNote !== null ? (
 					<div

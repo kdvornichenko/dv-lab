@@ -90,7 +90,6 @@ export function ScheduleLoading() {
 		) : (
 			<WeekGrid
 				monday={monday}
-				today={today}
 				now={now}
 				mainTimeZone={SCHEDULE_TIME_ZONE}
 				secondZone={null}

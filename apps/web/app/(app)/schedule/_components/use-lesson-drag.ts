@@ -33,7 +33,7 @@ type Press = {
 	edge: -1 | 0 | 1
 	edgeSince: number
 }
-export type LessonDrag = { eventKey: string; event: CalendarEventView; frame: SlotFrame | null }
+export type LessonDrag = { eventKey: string; event: CalendarEventView; frame: SlotFrame | null; edge: -1 | 0 | 1 }
 
 export const RESIZE_STRIP_SELECTOR = '[data-slot="calendar-event-resize"]'
 export const CURRENT_COLUMNS = '[data-slot="week-grid-column"][data-page="current"]'
@@ -170,6 +170,7 @@ export function useLessonDrag(
 				if (edge !== current.edge) {
 					current.edge = edge
 					current.edgeSince = now
+					setDrag((previous) => (previous === null ? previous : { ...previous, edge }))
 				} else if (edge !== 0 && now - current.edgeSince >= TURN_MS) {
 					current.edgeSince = now
 					edgeRef.current?.(edge)
@@ -195,6 +196,7 @@ export function useLessonDrag(
 			eventKey: current.event.eventKey,
 			event: current.event,
 			frame: destination(current.lastX, current.lastY, current),
+			edge: 0,
 		})
 	}
 
