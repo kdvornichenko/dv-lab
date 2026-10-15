@@ -235,6 +235,7 @@ async function sectionOrder(page, problems) {
 			(await fresh.getByPlaceholder('Write notes in Markdown.').count()) === 1
 	)
 	check('Add block waits while a new block is open', await page.getByRole('button', { name: 'Add block' }).isDisabled())
+	await page.waitForTimeout(800)
 	await shot(page, 'notes-order', 'new')
 	await fresh.getByRole('textbox', { name: 'Block name' }).fill('goals')
 	await fresh.getByRole('button', { name: 'Save', exact: true }).click()
@@ -417,6 +418,7 @@ async function sectionOrder(page, problems) {
 		JSON.stringify(await titles(page)) === JSON.stringify(orderNow) &&
 			(await page.getByRole('button', { name: 'Try again' }).count()) === 1
 	)
+	await page.waitForTimeout(800)
 	await shot(page, 'notes-order', 'failed')
 	await page.unroute('**/api/students/*/blocks/order')
 	await page.getByRole('button', { name: 'Try again' }).click()
