@@ -181,9 +181,9 @@ async function scheduleChecks(page, size) {
 		check(`${tag}: the toolbar is in the top bar`, toolbar !== null && toolbar.y + toolbar.height <= (bar ?? 60) + 1)
 		check(`${tag}: the grid starts right under the top bar`, grid.y <= 58, String(grid.y))
 	}
-	const day = await page.locator('[data-slot="week-grid-day"]').first().boundingBox()
+	const day = await page.locator('[data-page="current"] [data-slot="week-grid-day"]').first().boundingBox()
 	check(`${tag}: the day header is 64px`, Math.abs(day.height - 64) < 0.6, String(day.height))
-	const circle = await page.locator('[data-slot="week-grid-date"]').first().boundingBox()
+	const circle = await page.locator('[data-page="current"] [data-slot="week-grid-date"]').first().boundingBox()
 	check(`${tag}: the date circle is 36px`, Math.abs(circle.width - 36) < 0.6 && Math.abs(circle.height - 36) < 0.6)
 	const lines = await page.evaluate(() => {
 		const top = (hour) =>
@@ -193,7 +193,7 @@ async function scheduleChecks(page, size) {
 	check(`${tag}: an hour is 48px`, Math.abs(lines - 48) < 0.6, String(lines))
 	const gutter = await page.locator('[data-slot="week-grid-gutter"]').boundingBox()
 	check(`${tag}: the gutter is 36px`, Math.abs(gutter.width - 36) < 0.6, String(gutter.width))
-	const long = page.locator('[data-event-key="phone-long"]')
+	const long = page.locator('[data-page="current"] [data-event-key="phone-long"]')
 	const longStyle = await long.evaluate((element) => {
 		const text = element.firstElementChild
 		const style = getComputedStyle(text)
@@ -215,14 +215,16 @@ async function scheduleChecks(page, size) {
 		JSON.stringify(longStyle)
 	)
 	const half = await page
-		.locator('[data-event-key="phone-half"]')
+		.locator('[data-page="current"] [data-event-key="phone-half"]')
 		.evaluate((element) => element.firstElementChild?.getBoundingClientRect().height ?? 0)
 	check(`${tag}: a half-hour block shows one line`, Math.abs(half - 14) < 0.6, String(half))
-	const quickText = await page.locator('[data-event-key="phone-quick"]').evaluate((element) => element.textContent)
+	const quickText = await page
+		.locator('[data-page="current"] [data-event-key="phone-quick"]')
+		.evaluate((element) => element.textContent)
 	check(`${tag}: a block under 30 minutes is colour only`, quickText === '', JSON.stringify(quickText))
 	const pairs = await page.evaluate(() =>
 		['a', 'b', 'c'].map((id) => {
-			const block = document.querySelector(`[data-event-key="phone-pair-${id}"]`)
+			const block = document.querySelector(`[data-page="current"] [data-event-key="phone-pair-${id}"]`)
 			return { width: block.getBoundingClientRect().width, text: block.textContent }
 		})
 	)
@@ -239,9 +241,9 @@ async function scheduleChecks(page, size) {
 		)
 	)
 	check(`${tag}: no floating new-event button`, (await page.locator('[data-slot="new-event-fab"]').count()) === 0)
-	await page.locator(`[data-event-key="phone-long"]`).click()
+	await page.locator(`[data-page="current"] [data-event-key="phone-long"]`).click()
 	check(`${tag}: a tap on a block opens its dialog`, await dialogOpens(page))
-	const column = await page.locator('[data-slot="week-grid-column"]').nth(3).boundingBox()
+	const column = await page.locator('[data-page="current"] [data-slot="week-grid-column"]').nth(3).boundingBox()
 	await page.mouse.click(column.x + column.width / 2, grid.y + 64 + 120)
 	check(`${tag}: a tap on an empty cell opens the new lesson dialog`, await dialogOpens(page))
 	if (size.width < 768) await shot(page, 'schedule-phone', size.name)
@@ -298,6 +300,232 @@ async function tabStrips(page, size) {
 	)
 }
 
+const CURRENT = '[data-page="current"]'
+const STRIP = '[data-slot="week-grid-body"] [data-page="current"]'
+
+const weekText = (page) => page.locator('[data-slot="schedule-week-picker"]').innerText()
+const firstDate = (page) => page.locator(`${CURRENT} [data-slot="week-grid-day"]`).first().getAttribute('data-date')
+const beforeDate = (page) =>
+	page.locator('[data-page="before"] [data-slot="week-grid-day"]').first().getAttribute('data-date')
+const shiftDate = (date, days) => {
+	const value = new Date(`${date}T00:00:00Z`)
+	value.setUTCDate(value.getUTCDate() + days)
+	return value.toISOString().slice(0, 10)
+}
+const translateX = (transform) => {
+	if (!transform || transform === 'none') return 0
+	const parts = transform
+		.match(/matrix\(([^)]+)\)/)?.[1]
+		.split(',')
+		.map(Number)
+	return parts ? parts[4] : 0
+}
+const stripNow = (page) =>
+	page.evaluate((selector) => {
+		const style = getComputedStyle(document.querySelector(selector).parentElement)
+		return { transform: style.transform, opacity: style.opacity }
+	}, STRIP)
+
+function sampleStrip(page, duration) {
+	return page.evaluate(
+		([selector, span]) =>
+			new Promise((resolve) => {
+				const strip = document.querySelector(selector).parentElement
+				const out = []
+				const start = performance.now()
+				const tick = () => {
+					const style = getComputedStyle(strip)
+					out.push({ at: performance.now() - start, transform: style.transform, opacity: Number(style.opacity) })
+					if (performance.now() - start < span) requestAnimationFrame(tick)
+					else resolve(out)
+				}
+				tick()
+			}),
+		[STRIP, duration]
+	)
+}
+
+const line = (from, to, y, steps) =>
+	Array.from({ length: steps + 1 }, (_, index) => ({ x: from + ((to - from) * index) / steps, y }))
+
+async function swipe(page, cdp, points, stepMs, { release = true } = {}) {
+	await cdp.send('Input.dispatchTouchEvent', { type: 'touchStart', touchPoints: [points[0]] })
+	for (const point of points.slice(1)) {
+		await page.waitForTimeout(stepMs)
+		await cdp.send('Input.dispatchTouchEvent', { type: 'touchMove', touchPoints: [point] })
+	}
+	if (release) await cdp.send('Input.dispatchTouchEvent', { type: 'touchEnd', touchPoints: [] })
+}
+
+async function settle(page) {
+	await page.waitForTimeout(650)
+}
+
+async function openStubbed(page, context) {
+	await signIn(page)
+	await stubWeek(context)
+	await page.goto(`${BASE}/schedule`, { timeout: 120000 })
+	await page.locator(`${CURRENT} ${BLOCK}`).first().waitFor({ timeout: 30000 })
+	await page.waitForTimeout(1200)
+}
+
+async function swipeChecks(browser) {
+	const context = await browser.newContext({ viewport: { width: 390, height: 844 }, hasTouch: true })
+	const page = await context.newPage()
+	try {
+		await openStubbed(page, context)
+		const cdp = await context.newCDPSession(page)
+		const y = 500
+		const origin = await firstDate(page)
+		check(
+			'swipe: the weeks before and after are laid out beside the shown one',
+			(await beforeDate(page)) === shiftDate(origin, -7)
+		)
+		const heading = await weekText(page)
+
+		await swipe(page, cdp, line(300, 200, y, 10), 30, { release: false })
+		await page.waitForTimeout(80)
+		const dragged = translateX((await stripNow(page)).transform)
+		check('swipe: the strip follows the finger 1:1 while it is down', Math.abs(dragged + 100) < 3, String(dragged))
+		check('swipe: the bar keeps the shown week during the drag', (await weekText(page)) === heading)
+		await cdp.send('Input.dispatchTouchEvent', { type: 'touchEnd', touchPoints: [] })
+		await settle(page)
+		check('swipe: a slow drag of 25% or more turns to the next week', (await firstDate(page)) === shiftDate(origin, 7))
+		check('swipe: the week button shows the new week', (await weekText(page)) !== heading)
+		check('swipe: the strip is at rest after the settle', Math.abs(translateX((await stripNow(page)).transform)) < 0.5)
+		check('swipe: the previous week is now the old one', (await beforeDate(page)) === origin)
+
+		const week2 = await firstDate(page)
+		await swipe(page, cdp, line(300, 260, y, 8), 60)
+		await settle(page)
+		check('swipe: a short slow drag springs back', (await firstDate(page)) === week2)
+		check('swipe: the spring back ends at rest', Math.abs(translateX((await stripNow(page)).transform)) < 0.5)
+
+		await swipe(page, cdp, line(300, 250, y, 5), 10)
+		await settle(page)
+		check('swipe: a fast flick under 25% still turns the week', (await firstDate(page)) === shiftDate(week2, 7))
+
+		const week3 = await firstDate(page)
+		await swipe(page, cdp, line(10, -150, y, 10), 30)
+		await settle(page)
+		check('swipe: a swipe from the 24px screen edge does not page', (await firstDate(page)) === week3)
+
+		await swipe(page, cdp, line(200, 300, y, 10), 30)
+		await settle(page)
+		check('swipe: a right swipe turns to the previous week', (await firstDate(page)) === shiftDate(week3, -7))
+
+		const body = page.locator('[data-slot="week-grid-body"]')
+		const before = await body.evaluate((element) => element.scrollTop)
+		const turned = await firstDate(page)
+		await swipe(page, cdp, [{ x: 200, y: 600 }, ...line(200, 205, 560, 3), ...line(205, 210, 400, 6)], 25)
+		await page.waitForTimeout(400)
+		const after = await body.evaluate((element) => element.scrollTop)
+		check(
+			'swipe: a vertical swipe scrolls the grid and does not page',
+			after !== before && (await firstDate(page)) === turned,
+			`${before} -> ${after}`
+		)
+
+		await body.evaluate((element) => {
+			element.scrollTop = 0
+		})
+		await page.waitForTimeout(150)
+		const block = page.locator(`${CURRENT} [data-event-key="phone-long"]`)
+		const box = await block.boundingBox()
+		await page.mouse.move(box.x + box.width / 2, box.y + box.height / 2)
+		await page.mouse.down()
+		await page.mouse.move(box.x + box.width / 2 + 24, box.y + box.height / 2, { steps: 4 })
+		await page.mouse.move(box.x + box.width / 2, box.y + box.height / 2, { steps: 4 })
+		await page.mouse.up()
+		await page.waitForTimeout(700)
+		check('swipe: the click after a captured swipe is dropped', (await page.getByRole('dialog').count()) === 0)
+		const tapBox = await page.locator(`${CURRENT} [data-event-key="phone-long"]`).boundingBox()
+		await page.touchscreen.tap(tapBox.x + tapBox.width / 2, tapBox.y + tapBox.height / 2)
+		check('swipe: a tap on a block after the swipe opens it', await dialogOpens(page))
+
+		const here = await firstDate(page)
+		const sampling = sampleStrip(page, 500)
+		await page.getByRole('button', { name: 'Previous week' }).click()
+		const samples = await sampling
+		const offsets = samples.map((sample) => translateX(sample.transform))
+		const moving = offsets.filter((offset) => Math.abs(offset) > 1 && Math.abs(offset) < 350)
+		const running = samples.filter((sample) => Math.abs(translateX(sample.transform)) > 0.5)
+		check(
+			'arrow: Previous week animates the strip',
+			moving.length >= 2 && new Set(offsets.map(Math.round)).size > 3,
+			offsets.map(Math.round).join(',')
+		)
+		const length = running.length > 0 ? running[running.length - 1].at - running[0].at : 0
+		check('arrow: the turn takes about 0.24s', length > 100 && length < 450, String(Math.round(length)))
+		check('arrow: Previous week lands on the previous week', (await firstDate(page)) === shiftDate(here, -7))
+		check('arrow: the strip is at rest after the turn', Math.abs(translateX((await stripNow(page)).transform)) < 0.5)
+		const announced = await page.locator('[data-slot="week-grid-announce"]').innerText()
+		check('arrow: the screen reader line holds the new range', announced === (await weekText(page)), announced)
+
+		await page.getByRole('button', { name: 'Next week' }).click()
+		await settle(page)
+		await page.getByRole('button', { name: 'Next week' }).click()
+		await settle(page)
+		const farther = await firstDate(page)
+		await page.getByRole('button', { name: 'Today' }).click()
+		await settle(page)
+		check(
+			'arrow: Today from two weeks away crossfades to the current week',
+			(await firstDate(page)) === origin && farther === shiftDate(origin, 14)
+		)
+		await page.touchscreen.tap(200, 700)
+		check('swipe: the grid still takes taps on empty cells after the turns', await dialogOpens(page))
+	} finally {
+		await context.unrouteAll({ behavior: 'ignoreErrors' })
+		await context.close()
+	}
+}
+
+async function reducedMotionChecks(browser) {
+	const context = await browser.newContext({
+		viewport: { width: 390, height: 844 },
+		hasTouch: true,
+		reducedMotion: 'reduce',
+	})
+	const page = await context.newPage()
+	try {
+		await openStubbed(page, context)
+		const here = await firstDate(page)
+		const sampling = sampleStrip(page, 500)
+		await page.getByRole('button', { name: 'Next week' }).click()
+		const samples = await sampling
+		const slid = samples.some((sample) => Math.abs(translateX(sample.transform)) > 1)
+		const faded = samples.some((sample) => sample.opacity < 0.9)
+		check('reduced motion: the arrow crossfades and does not slide', faded && !slid, JSON.stringify({ faded, slid }))
+		await settle(page)
+		check('reduced motion: the crossfade lands on the next week', (await firstDate(page)) === shiftDate(here, 7))
+	} finally {
+		await context.unrouteAll({ behavior: 'ignoreErrors' })
+		await context.close()
+	}
+}
+
+async function tabletChecks(browser) {
+	const context = await browser.newContext({ viewport: { width: 768, height: 1024 } })
+	const page = await context.newPage()
+	try {
+		await openStubbed(page, context)
+		check('tablet: no pager at 768px', (await page.locator('[data-paged]').count()) === 0)
+		const here = await firstDate(page)
+		await page.getByRole('button', { name: 'Next week' }).click()
+		await page.waitForFunction(
+			(date) =>
+				document.querySelector('[data-page="current"] [data-slot="week-grid-day"]')?.getAttribute('data-date') !== date,
+			here,
+			{ timeout: 400 }
+		)
+		check('tablet: the week switches at once', (await firstDate(page)) === shiftDate(here, 7))
+	} finally {
+		await context.unrouteAll({ behavior: 'ignoreErrors' })
+		await context.close()
+	}
+}
+
 const { browser, context, page, problems } = await launch({ width: SIZES[0].width, height: SIZES[0].height })
 try {
 	await signIn(page)
@@ -308,6 +536,9 @@ try {
 		await tabStrips(page, size)
 	}
 	await desktopSmoke(page)
+	await swipeChecks(browser)
+	await reducedMotionChecks(browser)
+	await tabletChecks(browser)
 	const errors = problems.filter((entry) => entry.startsWith('pageerror') || /hydrat/i.test(entry))
 	check('no page errors or hydration warnings', errors.length === 0, errors.slice(0, 2).join(' | '))
 } finally {
