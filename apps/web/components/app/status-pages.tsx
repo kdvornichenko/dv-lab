@@ -44,7 +44,7 @@ export function NotFoundPage({ inShell = false }: { inShell?: boolean }) {
 			<PageScroll>
 				<PageHeader title={NOT_FOUND_TITLE} />
 				<Panel>
-					<div className="flex flex-col gap-4 p-6">
+					<div className="flex flex-col gap-4 p-unit-1.5">
 						<p className="text-body text-muted-foreground">{NOT_FOUND_TEXT}</p>
 						<div className="flex flex-wrap gap-2">
 							<HomeButton variant="primary" />

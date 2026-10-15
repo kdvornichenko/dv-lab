@@ -11,7 +11,7 @@ import { TabItem, TabPanel, Tabs, TabsList } from '@/components/ui/tabs'
 import { BackButton } from './back-button'
 import { HeldDates } from './held-dates'
 
-export const OVERVIEW_GRID = 'grid gap-4 md:gap-6 lg:grid-cols-[minmax(0,1fr)_21.25rem]'
+export const OVERVIEW_GRID = 'grid gap-unit-1.5 lg:grid-cols-[minmax(0,1fr)_21.25rem]'
 
 function ignore() {}
 
@@ -69,7 +69,7 @@ function VocabularyLoading() {
 
 export function OverviewLeftLoading({ studentName, mainTimeZone }: { studentName: string; mainTimeZone: string }) {
 	return (
-		<div className="flex min-w-0 flex-col gap-4 md:gap-6">
+		<div className="flex min-w-0 flex-col gap-unit-1.5">
 			<div className="grid gap-3 sm:grid-cols-3">
 				<FactLoading label="Lessons left" />
 				<FactLoading label="Next lesson" />
@@ -118,7 +118,7 @@ function OverviewLoading() {
 	return (
 		<div className={OVERVIEW_GRID}>
 			<OverviewLeftLoading studentName="" mainTimeZone="UTC" />
-			<div className="flex min-w-0 flex-col gap-4 md:gap-6">
+			<div className="flex min-w-0 flex-col gap-unit-1.5">
 				<Panel
 					id="student-details"
 					title="Details"

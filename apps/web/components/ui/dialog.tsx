@@ -162,7 +162,7 @@ const DialogContent = forwardRef<HTMLDivElement, DialogContentProps>(
 									'left-1/2 z-50 w-[calc(100%-2rem)]',
 									position === 'top' ? 'top-[12dvh]' : 'top-1/2',
 									surfaceClasses(dialogLevel),
-									'max-h-[calc(100dvh-1rem)] overflow-y-auto p-6 focus:outline-none',
+									'max-h-[calc(100dvh-1rem)] overflow-y-auto p-unit-1.5 focus:outline-none',
 									size === 'sm' && (compact ? 'max-w-[360px]' : 'max-w-[400px]'),
 									size === 'lg' && (compact ? 'max-w-[480px]' : 'max-w-[540px]'),
 									size === 'xl' && (compact ? 'max-w-[800px]' : 'max-w-[880px]'),

@@ -9,6 +9,37 @@
 	}
 }
 
+@utility p-unit {
+	padding: var(--unit);
+}
+@utility p-unit-* {
+	padding: calc(var(--unit) * --value(number));
+}
+@utility px-unit {
+	padding-inline: var(--unit);
+}
+@utility px-unit-* {
+	padding-inline: calc(var(--unit) * --value(number));
+}
+@utility py-unit {
+	padding-block: var(--unit);
+}
+@utility py-unit-* {
+	padding-block: calc(var(--unit) * --value(number));
+}
+@utility gap-unit {
+	gap: var(--unit);
+}
+@utility gap-unit-* {
+	gap: calc(var(--unit) * --value(number));
+}
+@utility top-unit {
+	top: var(--unit);
+}
+@utility top-unit-* {
+	top: calc(var(--unit) * --value(number));
+}
+
 @utility hit-slop {
 	@media (pointer: coarse) {
 		&::after {
@@ -324,6 +355,14 @@
 	--gcal-event-11: #dc2127;
 	--scroll-fade-size: 48px;
 	--scroll-fade-size-compact: 24px;
+	--unit-mult: 2;
+	--unit: calc(var(--spacing) * var(--unit-mult));
+}
+
+@media (min-width: 768px) {
+	:root {
+		--unit-mult: 4;
+	}
 }
 
 .dark {
