@@ -21,7 +21,8 @@ import {
 	standardBlock,
 } from '../cards/blocks.ts'
 import { noteHunks, noteText } from '../cards/note-diff.ts'
-import { addTerm, deleteTerm, findLiveTerm, lockTerms, removeTerms, restoreTerm } from '../cards/terms.ts'
+import { restoreStudentNote } from '../cards/notes.ts'
+import { addTerm, deleteTerm, findLiveTerm, lockTerms, removeTerms, restoreTerm, updateTerm } from '../cards/terms.ts'
 import type { ActionSource, ChatContext } from './actions.ts'
 import { insertAction } from './messages.ts'
 import type { ToolContext } from './tool-registry.ts'
@@ -347,6 +348,42 @@ export async function appendNoteLine(
 	return appendToBlock(executor, context, source, card, block, current === '' ? added : `${current}\n${added}`)
 }
 
+const REVIEW_CHANGED: NoteUndo = { ok: false, issue: 'block_changed' }
+
+async function undoReview(
+	executor: DbExecutor,
+	studentId: string,
+	before: ReviewRecord['before'],
+	after: ReviewRecord['after']
+): Promise<NoteUndo> {
+	const blockRevisions = new Map(after.blocks.map((block) => [block.blockId, block.revision]))
+	for (const block of before.blocks) {
+		const revision = blockRevisions.get(block.blockId)
+		if (revision === undefined) return REVIEW_CHANGED
+		const saved = await saveBlockText(executor, studentId, block.blockId, block.body, revision)
+		if (saved.kind !== 'ok') return REVIEW_CHANGED
+	}
+	const written = new Map(after.words.map((word) => [word.termId, word]))
+	for (const word of before.words) {
+		const current = written.get(word.termId)
+		if (current === undefined) return REVIEW_CHANGED
+		const expected = { term: current.term, note: current.note, removedAt: null }
+		const reverted = await updateTerm(executor, studentId, word.termId, { term: word.term, note: word.note }, expected)
+		if (reverted.kind !== 'ok') return REVIEW_CHANGED
+	}
+	const removed = await lockTerms(executor, studentId, after.removedWords)
+	const stillRemoved =
+		removed.length === after.removedWords.length &&
+		removed.every((term) => term.removedAt !== null && term.removedBy === 'review')
+	if (!stillRemoved) return REVIEW_CHANGED
+	for (const termId of after.removedWords)
+		if ((await restoreTerm(executor, studentId, termId)).kind !== 'restored') return REVIEW_CHANGED
+	for (const entry of after.entries)
+		if ((await restoreStudentNote(executor, entry.entryId, entry.revision, studentId)).kind !== 'restored')
+			return REVIEW_CHANGED
+	return { ok: true }
+}
+
 export function reviewAction(
 	executor: DbExecutor,
 	context: ChatContext,
@@ -379,7 +416,8 @@ export async function undoNoteWrite(
 	if (target.op === 'words_add') return undoWordsAdded(executor, target.studentId, wordsAdded.parse(action.after))
 	if (target.op === 'words_remove')
 		return undoWordsRemoved(executor, target.studentId, wordsRemoved.parse(action.after))
-	if (target.op === 'review') return { ok: false, issue: 'block_changed' }
+	if (target.op === 'review')
+		return undoReview(executor, target.studentId, reviewBefore.parse(action.before), reviewAfter.parse(action.after))
 	const after = revisionAfter.parse(action.after)
 	const outcome =
 		target.op === 'block_text'

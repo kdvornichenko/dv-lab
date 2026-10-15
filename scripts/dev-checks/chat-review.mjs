@@ -9,7 +9,7 @@ import { removeCards } from './ledger-api/context.ts'
 
 const PORT = 4259
 const PREFIX = 'Alex Example 259'
-const SECTIONS = { run: sectionRun }
+const SECTIONS = { run: sectionRun, undo: sectionUndo }
 
 let failures = 0
 
@@ -509,6 +509,86 @@ async function sectionRun(h, ctx) {
 			!h.fake.calls.at(-1).tools.some((tool) => tool.name === 'apply_review')
 	)
 	return { line: 'CHAT_REVIEW_RUN_OK', fixture: f }
+}
+
+async function reviewed(h, ctx, f) {
+	const conversation = await ctx.fresh()
+	await ctx.review(conversation, f.studentId, f.name, [
+		h.use('review_read', { student_id: f.studentId }),
+		h.use('apply_review', fullApply(f)),
+		h.say('Done.'),
+	])
+	const block = (await ctx.blocksOfType(conversation, 'review_result'))[0]
+	if (block?.undo !== 'available') throw new Error('the review left no Undo')
+	return { conversation, block }
+}
+
+async function sectionUndo(h, ctx) {
+	const f = await seed(ctx, `${PREFIX}5 Undo`)
+	const before = snapshot(f.studentId)
+	const first = await reviewed(h, ctx, f)
+	const stamped = reviewRow(f.studentId)?.reviewed_at
+	const requestId = randomUUID()
+	const undone = await ctx.undo(first.block.actionId, requestId)
+	check(
+		'Undo right after the review puts back every block text, the corrected word and the removed word',
+		undone.status === 200 &&
+			undone.block?.type === 'review_result' &&
+			undone.block.undo === 'undone' &&
+			blockBody(f.general.id).body === 'Likes chess.\nLikes chess.\nWorks as a nurse.' &&
+			blockBody(f.interests.id).body === 'Plays the gutiar.\nReads novels.' &&
+			termRow(f.typo).term === 'recieve' &&
+			termRow(f.twin).removed_at === null,
+		JSON.stringify({ status: undone.status, undo: undone.block?.undo })
+	)
+	const notes = await ctx.as('GET', `/students/${f.studentId}/notes`)
+	check(
+		'Undo brings the merged older entry back into the notes list',
+		entryRow(f.entry).retracted_at === null && notes.status === 200 && JSON.stringify(notes.json).includes(f.entry)
+	)
+	const restored = JSON.parse(snapshot(f.studentId))
+	const original = JSON.parse(before)
+	check(
+		'after Undo the texts, words and entries are as before the review',
+		JSON.stringify(restored.blocks.map((block) => [block.id, block.body])) ===
+			JSON.stringify(original.blocks.map((block) => [block.id, block.body])) &&
+			JSON.stringify(restored.terms.map((term) => [term.id, term.term, term.note, term.removed_at])) ===
+				JSON.stringify(original.terms.map((term) => [term.id, term.term, term.note, term.removed_at])) &&
+			restored.notes.every((note) => note.retracted_at === null)
+	)
+	check(
+		'Undo keeps the review date',
+		stamped != null && String(reviewRow(f.studentId)?.reviewed_at) === String(stamped)
+	)
+	const again = await ctx.undo(first.block.actionId, requestId)
+	check(
+		'a repeated Undo with the same request id gives the same answer and writes nothing',
+		again.status === 200 && again.block?.undo === 'undone' && snapshot(f.studentId) === JSON.stringify(restored)
+	)
+	check(
+		'after a reload the review result reads as undone',
+		(await ctx.blocksOfType(first.conversation, 'review_result'))[0]?.undo === 'undone'
+	)
+
+	const g = await seed(ctx, `${PREFIX}5 Undo Edited`)
+	const second = await reviewed(h, ctx, g)
+	await setBlock(ctx, g.studentId, 'interests', 'Plays the guitar.\nReads novels.\nTeacher line.')
+	const edited = snapshot(g.studentId)
+	const refused = await ctx.undo(second.block.actionId)
+	check(
+		'Undo after the teacher changed one block is unavailable and changes nothing',
+		refused.status === 200 &&
+			refused.block?.type === 'review_result' &&
+			refused.block.undo === 'unavailable' &&
+			refused.block.issue === 'block_changed' &&
+			snapshot(g.studentId) === edited,
+		JSON.stringify({ status: refused.status, undo: refused.block?.undo })
+	)
+	check(
+		'after a reload the review result reads as unavailable',
+		(await ctx.blocksOfType(second.conversation, 'review_result'))[0]?.undo === 'unavailable'
+	)
+	return { line: 'CHAT_REVIEW_UNDO_OK' }
 }
 
 function setBlockSql(blockId, body) {

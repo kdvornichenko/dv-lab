@@ -11,6 +11,7 @@ import {
 	type ChatLessonIntent,
 	type ChatMessage,
 	type ChatNoteChangeBlock,
+	type ChatReviewResultBlock,
 	type ChatNoteIssue,
 	type ChatRecordsKey,
 	type ChatRefusalCode,
@@ -76,7 +77,7 @@ export type SendOutcome =
 	| { kind: 'busy' }
 
 export type UndoOutcome =
-	| { kind: 'ok'; block: ChatActionResultBlock | ChatCalendarProposalBlock | ChatNoteChangeBlock }
+	| { kind: 'ok'; block: ChatActionResultBlock | ChatCalendarProposalBlock | UndoBlock }
 	| { kind: 'not_found' }
 	| { kind: 'not_undoable' }
 	| { kind: 'conflict' }
@@ -554,7 +555,10 @@ export async function sendMessage(
 	return outcome
 }
 
-type UndoBlock = ChatActionResultBlock | ChatNoteChangeBlock
+type UndoBlock = ChatActionResultBlock | ChatNoteChangeBlock | ChatReviewResultBlock
+
+const isUndoBlock = (block: ChatBlock | undefined): block is UndoBlock =>
+	block?.type === 'action_result' || block?.type === 'note_change' || block?.type === 'review_result'
 
 async function originalBlock(
 	executor: DbExecutor,
@@ -563,10 +567,8 @@ async function originalBlock(
 ): Promise<UndoBlock | null> {
 	const reply = await replyOf(executor, accountId, action.messageId)
 	if (reply === null) return null
-	const block = blocksOf(reply).find(
-		(item) => (item.type === 'action_result' || item.type === 'note_change') && item.actionId === action.id
-	)
-	return block?.type === 'action_result' || block?.type === 'note_change' ? block : null
+	const block = blocksOf(reply).find((item) => isUndoBlock(item) && item.actionId === action.id)
+	return isUndoBlock(block) ? block : null
 }
 
 async function inverse(
@@ -625,9 +627,7 @@ async function undo(
 			[block],
 			new Map([[action.id, { id: action.id, state, result: action.result, after: action.after, undoResult }]])
 		)
-		return shown?.type === 'action_result' || shown?.type === 'note_change'
-			? { kind: 'ok', block: shown }
-			: { kind: 'not_undoable' }
+		return isUndoBlock(shown) ? { kind: 'ok', block: shown } : { kind: 'not_undoable' }
 	}
 	if (action.undoRequestId !== null) return view(action.state, action.undoResult)
 	if (action.state !== 'applied') return { kind: 'not_undoable' }
