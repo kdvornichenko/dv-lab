@@ -35,6 +35,7 @@ v2.0 replaces the Supabase-era CRM with a new workspace on the own VPS. The orde
 - [x] **Phase 25.1: Google Calendar Core** - Any event created, moved, resized, edited and deleted in the app; push and incremental sync rewritten as one task per connection; calendar choice; Google wins
 - [ ] **Phase 25.2: Polish before IELTS** - Dialog kinds, Firefox fade, chat fixes, notes/vocabulary/review from chat, card edits from chat, Students table, student profile tabs, installable PWA with push
 - [ ] **Phase 25.3: Chat Command Builder** - Commands stored in the database and edited in Settings, `/edvibe` (waits for the owner's Edvibe template examples)
+- [ ] **Phase 25.4: Local Database** - IndexedDB read copy of the teacher's data, server change journal with SSE deltas, read-only calendar history archive (all except chat)
 - [ ] **Phase 26: IELTS Section** - ielts ported under `/ielts` with its data moved from Neon and Blob
 
 ## Phase Details
@@ -599,6 +600,7 @@ Superseded by Phase 25.1 (owner decisions D5-D10, 2026-10-12). Its research and 
 - [x] 25.2-27-PLAN.md — push: scheduler (lesson soon, pays soon), presence suppression, web-push delivery
 - [x] 25.2-28-PLAN.md — Google event description parsed on the server into blocks, safe links, URL location label (design v104)
 - [x] 25.2-29-PLAN.md — event description blocks, links and one-line URL location in EventDetails (web, design v104)
+
 **UI hint**: yes
 **Notes**: `/edvibe` and the command builder are Phase 25.3 and wait for the owner's template examples.
 
@@ -608,6 +610,21 @@ Superseded by Phase 25.1 (owner decisions D5-D10, 2026-10-12). Its research and 
 **Depends on**: Phase 25.2
 **Plans**: not planned; waits for the owner's list of Edvibe templates with examples
 **UI hint**: yes
+
+### Phase 25.4: Local Database
+
+**Goal**: Every screen except chat opens at once and without a network from a copy of the teacher's data in the browser (IndexedDB); the server sends only what changed after the copy's sync number, and any past week of the calendar opens from a read-only history archive.
+**Depends on**: Phase 25.2
+**Requirements**: TBD
+**Plans**: not planned; discuss first
+**UI hint**: no
+**Notes**: Owner decisions 2026-10-15, before discuss-phase:
+- Writes stay on the server: the local database is a read copy, writes go through the api with the optimistic block, the confirmed result comes back as a delta; Google and confirmation rules do not change. A Linear-style local write queue is rejected (conflicts and rollbacks for money and the schedule).
+- Deltas: one change journal per account on the server with a growing number; every write, Google sync passes included, appends a row. The app asks for everything after N on open and keeps an SSE stream while open. Re-reading sections by revision is rejected.
+- Calendar history older than the sync window (8 weeks back): a read-only archive on the server, filled once from Google and extended by the weeks that leave the window; the sync window and the rules for old lessons do not change. Reading Google on demand and widening the window are rejected.
+- Scope: everything except chat (schedule and events, students and cards, payments, lessons and marks, notes and vocabulary, comments, settings, Today). Sign out wipes the local database.
+- Open for discuss: the stream on a phone, local schema version and reset, several tabs, Safari eviction, first load as an NDJSON stream, rollout order by screen, journal rows from the nightly full Google pass.
+- PR 44 already keeps a device copy of the current weeks (`apps/web/lib/device-store.ts`); this phase replaces it.
 
 ### Phase 26: IELTS Section
 

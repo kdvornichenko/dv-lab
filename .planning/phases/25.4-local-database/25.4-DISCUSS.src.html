@@ -1,0 +1,253 @@
+<!doctype html>
+<html lang="ru">
+<meta charset="utf-8">
+<title>Фаза 25.4 · вопросы</title>
+<link rel="stylesheet" href="htmlplan.css">
+<script src="htmlplan.js" defer></script>
+<style data-mock-shared>
+  .ui { font: 13px/1.4 -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; color: #1c1b19; background: #fff; border: 1px solid #ddd8cc; border-radius: 10px; overflow: hidden; }
+  .ui .bar { display: flex; gap: 8px; align-items: center; padding: 8px 12px; border-bottom: 1px solid #eee9dd; }
+  .ui .bar b { font-weight: 650; } .ui .sp { flex: 1; }
+  .ui .ic { width: 26px; height: 26px; border-radius: 7px; border: 1px solid #ddd8cc; display: grid; place-items: center; font-size: 12px; }
+  .ui .ic.warn { background: #fdf3e2; border-color: #e9c27a; }
+  .ui .pop { margin: 8px 12px 12px auto; width: 270px; border: 1px solid #ddd8cc; border-radius: 9px; box-shadow: 0 6px 18px rgba(0,0,0,.12); padding: 10px 12px; color: #5f5a4f; }
+  .ui .pop b { color: #1c1b19; }
+  .ui .btn { font-weight: 600; font-size: 12.5px; padding: 6px 10px; border-radius: 7px; border: 1px solid #ddd8cc; background: #f3f1ec; color: #a8a396; }
+  .ui .row { padding: 8px 12px; border-bottom: 1px solid #f3efe6; display: flex; gap: 8px; align-items: center; }
+  .ui .dim { color: #8a8578; }
+</style>
+<body>
+
+<header>
+  <h1>Фаза 25.4: локальная база</h1>
+  <details class="thread"><summary>Почему · цель и решения владельца</summary>
+    <doc-quote via="doc" from="ROADMAP.md, Phase 25.4">Every screen except chat opens at once and without a network from a copy of the teacher's data in the browser (IndexedDB); the server sends only what changed after the copy's sync number, and any past week of the calendar opens from a read-only history archive.</doc-quote>
+    <doc-quote via="doc" from="ROADMAP.md, решения владельца 2026-10-15">Writes stay on the server … Deltas: one change journal per account with a growing number … Calendar history older than the sync window: a read-only archive on the server … Scope: everything except chat … Sign out wipes the local database.</doc-quote>
+    <doc-quote via="doc" from="25.1-CONTEXT.md, D-19">Sync window: 8 weeks back and 53 weeks forward; weeks outside the window are read-only. … Reads use only SQL over the projection, never Google</doc-quote>
+    <doc-quote via="doc" from="25.2-CONTEXT.md, D-40">Installable PWA, no offline.</doc-quote>
+    <doc-quote via="meeting" from="замер Server guy, 2026-10-15">api и база быстрые … время уходит на сеть до Канады … /auth/me вызывается в ~3,5 раза чаще /schedule/week</doc-quote>
+  </details>
+</header>
+
+<main>
+<doc-plan>
+
+<!-- ═════ 1 ═════ -->
+<doc-claim>
+  <p>Устройство хранит ответы сервера по экранам, а не сырые строки базы.</p>
+  <doc-code src="apps/api/src/today/today.ts" lines="44-70" caption="Today собирается на сервере: прошлое из уроков, будущее из Google, разрез по now.">
+    <doc-pin line="44" tone="info" title="Сборка ответа живёт в api">Её же используют /students/:id и подсчёт уроков.</doc-pin>
+  </doc-code>
+  <doc-note tone="info">Осмотр AR-03: одна оплата меняет пять ответов, а сборка остатка, Today и недели лежит в api поверх core. Если хранить строки, браузеру понадобится третья копия этой сборки.</doc-note>
+
+  <doc-claim>
+    <p>Журнал называет, какие ответы задела запись, и устройство перечитывает только их.</p>
+    <doc-ask id="store">
+      <p>Что лежит в локальной базе?</p>
+      <label><input type="radio" name="store" value="answers" checked> Ответы экранов <small>сборка остаётся одна, на сервере</small></label>
+      <label><input type="radio" name="store" value="rows"> Строки таблиц <small>сборку повторить в браузере через core</small></label>
+      <label><input type="radio" name="store" value="custom"> Свой вариант</label>
+      <input type="text" name="store-custom">
+    </doc-ask>
+    <div data-if="store=rows"><doc-note tone="warn">Тогда остаток, Today и неделя считаются в браузере. Это перенос сборки из api в core и отдельные планы.</doc-note></div>
+  </doc-claim>
+
+  <doc-claim>
+    <p>Без сети Today показывается как был, с временем обновления.</p>
+    <doc-ask id="stale">
+      <p>Что показывать, если день сменился, а сети нет?</p>
+      <label><input type="radio" name="stale" value="mark" checked> Последний ответ с временем обновления <small>честно, без пересчёта</small></label>
+      <label><input type="radio" name="stale" value="hide"> Пустой экран «нужна сеть» <small>без старых данных</small></label>
+      <label><input type="radio" name="stale" value="custom"> Свой вариант</label>
+      <input type="text" name="stale-custom">
+    </doc-ask>
+  </doc-claim>
+</doc-claim>
+
+<!-- ═════ 2 ═════ -->
+<doc-claim>
+  <p>Пока приложение на экране, изменения приходят потоком; без сети видно, что данные на устройстве.</p>
+  <doc-mock frame="none" w="420"><template>
+<div class="ui">
+  <div class="bar"><b>Schedule</b><span class="sp"></span><span class="ic warn" data-ref="status">⟳</span><span class="ic">◎</span></div>
+  <div class="pop" data-ref="pop"><b>Offline</b> · data on this device as of Thu 15 Oct, 21:52. Changes need a network.</div>
+  <div class="row"><span class="btn" data-ref="save">Add lesson</span><span class="dim">disabled</span></div>
+</div></template>
+    <doc-pin ref="status" title="Значок статуса чтения">Уже есть в тулбаре расписания.</doc-pin>
+    <doc-pin ref="save" anchor="r" title="Запись без сети">Кнопка выключена.</doc-pin>
+  </doc-mock>
+  <doc-note tone="info">Записи остаются серверными (решение владельца), поэтому без сети их нельзя подтвердить. D-40 «PWA без офлайна» эта фаза меняет только для чтения. Вид офлайн-состояния нужно запросить у Design dude.</doc-note>
+
+  <doc-claim>
+    <p>Поток SSE открыт, пока приложение видно; при возврате приложение просит «всё после N».</p>
+    <doc-ask id="stream">
+      <p>Держать поток, когда приложение свёрнуто?</p>
+      <label><input type="radio" name="stream" value="visible" checked> Только пока видно <small>телефон всё равно рвёт фон</small></label>
+      <label><input type="radio" name="stream" value="always"> Всегда, пока вкладка жива <small>больше батареи и соединений</small></label>
+      <label><input type="radio" name="stream" value="custom"> Свой вариант</label>
+      <input type="text" name="stream-custom">
+    </doc-ask>
+  </doc-claim>
+
+  <doc-claim>
+    <p>Без сети кнопки записи выключены, а значок статуса объясняет почему.</p>
+    <doc-ask id="offwrite">
+      <p>Как вести себя кнопкам записи без сети?</p>
+      <label><input type="radio" name="offwrite" value="disabled" checked> Выключены с пояснением <small>нельзя потерять ввод</small></label>
+      <label><input type="radio" name="offwrite" value="fail"> Включены, ошибка при Save <small>форма открывается, но не сохраняет</small></label>
+      <label><input type="radio" name="offwrite" value="custom"> Свой вариант</label>
+      <input type="text" name="offwrite-custom">
+    </doc-ask>
+  </doc-claim>
+</doc-claim>
+
+<!-- ═════ 3 ═════ -->
+<doc-claim>
+  <p>После входа весь аккаунт загружается в фоне, и каждый экран открывается, как только пришла его часть.</p>
+  <doc-code src="apps/web/lib/api-client.ts" lines="13-30" caption="Сегодня каждый экран сам ходит в api при открытии.">
+    <doc-pin line="25" tone="info" title="cache: no-store">Ничего не хранится между переходами.</doc-pin>
+  </doc-code>
+  <doc-note tone="info">Данных мало: один учитель, 25 учеников, около 2,7 тыс. событий календаря. Полная загрузка — несколько мегабайт, поэтому её можно сделать один раз потоком.</doc-note>
+
+  <doc-claim>
+    <p>Первая загрузка идёт одним потоком сразу после входа.</p>
+    <doc-ask id="boot">
+      <p>Когда наполнять локальную базу?</p>
+      <label><input type="radio" name="boot" value="all" checked> Всё сразу после входа <small>первый вход дольше, дальше всё мгновенно</small></label>
+      <label><input type="radio" name="boot" value="lazy"> По мере открытия экранов <small>непосещённый экран без сети пуст</small></label>
+      <label><input type="radio" name="boot" value="custom"> Свой вариант</label>
+      <input type="text" name="boot-custom">
+    </doc-ask>
+  </doc-claim>
+
+  <doc-claim>
+    <p>Новая версия формата базы стирает её молча и загружает заново.</p>
+    <doc-ask id="schema">
+      <p>Что делать при смене формата локальной базы?</p>
+      <label><input type="radio" name="schema" value="wipe" checked> Стереть и загрузить заново <small>просто, данных немного</small></label>
+      <label><input type="radio" name="schema" value="migrate"> Миграции на устройстве <small>быстрее, но больше кода</small></label>
+      <label><input type="radio" name="schema" value="custom"> Свой вариант</label>
+      <input type="text" name="schema-custom">
+    </doc-ask>
+  </doc-claim>
+
+  <doc-claim>
+    <p>Приложение просит браузер не стирать базу и ничего об этом не показывает.</p>
+    <doc-ask id="persist">
+      <p>Защищать базу от очистки Safari?</p>
+      <label><input type="radio" name="persist" value="silent" checked> Запросить постоянное хранилище молча <small>у установленного PWA и так долго живёт</small></label>
+      <label><input type="radio" name="persist" value="hint"> Плюс подсказка «установите приложение» <small>новый элемент дизайна</small></label>
+      <label><input type="radio" name="persist" value="custom"> Свой вариант</label>
+      <input type="text" name="persist-custom">
+    </doc-ask>
+  </doc-claim>
+</doc-claim>
+
+<!-- ═════ 4 ═════ -->
+<doc-claim>
+  <p>Архив хранит всю историю календаря, и любая прошлая неделя открывается сразу.</p>
+  <doc-code src="apps/api/src/calendar/sync-store.ts" lines="339-351" caption="Сегодня неделя, ушедшая из окна, просто удаляется.">
+    <doc-pin line="339" tone="warn" title="Удаление вместо архива">Привязанные к урокам строки остаются.</doc-pin>
+  </doc-code>
+  <doc-note tone="info">Окно синхронизации и правила старых уроков не меняются (решение владельца). Осмотр AR-05: архиву нужен свой момент «неделя ушла из окна».</doc-note>
+
+  <doc-claim>
+    <p>Архив начинается с первого события календаря.</p>
+    <doc-ask id="depth">
+      <p>Насколько глубоко хранить историю?</p>
+      <div class="opts-row">
+        <label><input type="radio" name="depth" value="all" checked> Всю</label>
+        <label><input type="radio" name="depth" value="2y"> 2 года</label>
+        <label><input type="radio" name="depth" value="1y"> 1 год</label>
+        <label><input type="radio" name="depth" value="custom"> Свой вариант</label>
+      </div>
+      <input type="text" name="depth-custom">
+    </doc-ask>
+  </doc-claim>
+
+  <doc-claim>
+    <p>Раз в неделю архив перечитывается целиком, чтобы поймать правки старых событий в Google.</p>
+    <doc-ask id="refresh">
+      <p>Как архив узнаёт о правках прошлого в Google?</p>
+      <label><input type="radio" name="refresh" value="weekly" checked> Полное перечитывание раз в неделю <small>несколько тысяч событий, дёшево</small></label>
+      <label><input type="radio" name="refresh" value="frozen"> Никак, архив застывает <small>правки старого в Google не видны</small></label>
+      <label><input type="radio" name="refresh" value="button"> Кнопка «обновить неделю» <small>новый элемент дизайна</small></label>
+      <label><input type="radio" name="refresh" value="custom"> Свой вариант</label>
+      <input type="text" name="refresh-custom">
+    </doc-ask>
+  </doc-claim>
+</doc-claim>
+
+<!-- ═════ 5 ═════ -->
+<doc-claim>
+  <p>Четыре слабых места чинятся в этой фазе отдельными планами.</p>
+  <doc-code src="apps/web/lib/api-client.ts" lines="115-135" caption="Сегодня клиент сам угадывает, какой POST поменял данные.">
+    <doc-pin line="117" tone="warn" title="Сигнал без содержимого">Каждый экран решает сам, что перечитать.</doc-pin>
+  </doc-code>
+  <doc-note tone="info">Подробности и файлы — 25.4-ARCH-REVIEW.md. AR-03 решается в вопросе 1.</doc-note>
+
+  <doc-claim>
+    <p>AR-01: пять механизмов «данные изменились» заменяются журналом и потоком.</p>
+    <doc-ask id="ar01">
+      <p>Сигналы «данные изменились» в web?</p>
+      <div class="opts-row">
+        <label><input type="radio" name="ar01" value="now" checked> В этой фазе</label>
+        <label><input type="radio" name="ar01" value="defer"> Отложить</label>
+        <label><input type="radio" name="ar01" value="reject"> Отклонить</label>
+      </div>
+    </doc-ask>
+  </doc-claim>
+
+  <doc-claim>
+    <p>AR-02: у чтения данных в web появляется один владелец вместо 52 разрозненных вызовов.</p>
+    <doc-ask id="ar02">
+      <p>Владелец чтения в web?</p>
+      <div class="opts-row">
+        <label><input type="radio" name="ar02" value="now" checked> В этой фазе</label>
+        <label><input type="radio" name="ar02" value="defer"> Отложить</label>
+        <label><input type="radio" name="ar02" value="reject"> Отклонить</label>
+      </div>
+    </doc-ask>
+  </doc-claim>
+
+  <doc-claim>
+    <p>AR-04: строку журнала добавляет одно место, через которое проходят все писатели, фоновые тоже.</p>
+    <doc-ask id="ar04">
+      <p>Одно место записи в журнал?</p>
+      <div class="opts-row">
+        <label><input type="radio" name="ar04" value="now" checked> В этой фазе</label>
+        <label><input type="radio" name="ar04" value="defer"> Отложить</label>
+        <label><input type="radio" name="ar04" value="reject"> Отклонить</label>
+      </div>
+    </doc-ask>
+  </doc-claim>
+
+  <doc-claim>
+    <p>AR-05: уход недели из окна становится событием, которое принимает архив.</p>
+    <doc-ask id="ar05">
+      <p>Событие «неделя ушла из окна»?</p>
+      <div class="opts-row">
+        <label><input type="radio" name="ar05" value="now" checked> В этой фазе</label>
+        <label><input type="radio" name="ar05" value="defer"> Отложить</label>
+        <label><input type="radio" name="ar05" value="reject"> Отклонить</label>
+      </div>
+    </doc-ask>
+  </doc-claim>
+</doc-claim>
+
+<doc-claim aux="scope">
+  <p>Не меняется в этой фазе: чат, правила записи, окно синхронизации.</p>
+  <ul>
+    <li>Чат остаётся серверным, без локальной копии.</li>
+    <li>Записи и их подтверждение (Google, Confirm в чате, оптимистичный блок) не меняются.</li>
+    <li>Окно синхронизации 8 недель назад и 53 вперёд и правила старых уроков не меняются.</li>
+    <li>Запись без сети с очередью отвергнута владельцем.</li>
+    <li>Решает планировщик, без вопросов: несколько вкладок (пишет одна), порядок экранов, формат потока, повтор соединения.</li>
+    <li>Ленивые диалоги, облегчённый framer-motion и перенос VPS ближе к Вьетнаму — отдельная работа вне фазы.</li>
+  </ul>
+</doc-claim>
+
+</doc-plan>
+</main>
+</body>
+</html>

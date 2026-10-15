@@ -6,16 +6,16 @@ current_phase: 23
 current_phase_name: Confirmed Chat Changes and Entry Points
 status: executing
 stopped_at: Phase 25.1 executed, live-checked on the test account and accepted by the owner (2026-10-13); PR open, merge by the owner
-last_updated: "2026-10-14T03:58:03.738Z"
+last_updated: "2026-10-15T15:33:08.199Z"
 last_activity: 2026-10-14
 last_activity_desc: Phase 23 execution started
-state_head: a9a49652625902e9943b84dfba1bfb010a8f7699
+state_head: c499380f9feb67f35897a05683b1d3c854ffbd18
 progress:
-  total_phases: 12
+  total_phases: 15
   completed_phases: 6
-  total_plans: 188
-  completed_plans: 133
-  percent: 50
+  total_plans: 217
+  completed_plans: 176
+  percent: 40
 ---
 
 # Project State
@@ -34,7 +34,7 @@ Plan: 1 of 14
 Status: Executing Phase 23
 Last activity: 2026-10-14 — Phase 23 execution started
 
-Progress: [█████░░░░░] 50%
+Progress: [████░░░░░░] 40%
 
 ## Deferred Verification
 
@@ -118,6 +118,7 @@ Count lessons by range, one week at a time, dialog v42 and Copy icon (10, 11, 13
 - Phase 25 is replaced by Phase 25.1 Google Calendar Core after the code review of integrate/calendar (2026-10-12); 25 documents are archived; CONTEXT for 25.1 is written.
 
 - Phase 21.1 inserted after Phase 21: Default Time Zone before Google Calendar; parallel planning authorized 2026-10-11
+- Phase 25.4 inserted after Phase 25.3: Local Database: IndexedDB read copy, change journal with SSE deltas, calendar history archive (owner 2026-10-15)
 
 ## Deferred Items
 
