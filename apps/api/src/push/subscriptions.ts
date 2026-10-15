@@ -3,7 +3,8 @@ import { and, asc, eq, isNull, sql } from 'drizzle-orm'
 import type { PushDevice, PushSubscribeRequest } from '@dv-lab/contracts'
 import { type DbExecutor, pushSubscriptions } from '@dv-lab/db'
 
-export type SaveSubscriptionResult = { kind: 'created'; id: string } | { kind: 'updated'; id: string } | { kind: 'taken' }
+export type SaveSubscriptionResult =
+	{ kind: 'created'; id: string } | { kind: 'updated'; id: string } | { kind: 'taken' }
 
 export type ActiveSubscription = {
 	id: string

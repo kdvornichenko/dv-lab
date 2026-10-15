@@ -100,7 +100,11 @@ async function routes(ctx) {
 		deviceLabel: 'Check device',
 		secondTimeZone: 'Europe/Moscow',
 	})
-	check('a new subscription answers 201 with an id', created.status === 201 && UUID.test(created.json?.id ?? ''), String(created.status))
+	check(
+		'a new subscription answers 201 with an id',
+		created.status === 201 && UUID.test(created.json?.id ?? ''),
+		String(created.status)
+	)
 	const id = created.json?.id
 	const repeated = await send(api, 'POST', '/push/subscriptions', cookie, { endpoint, keys })
 	check(
@@ -193,7 +197,9 @@ async function links() {
 	)
 	const roundTrip = (ref) => {
 		const params = new URL(contracts.lessonLink(week, ref), 'http://localhost').searchParams
-		return params.get('week') === week && JSON.stringify(web.parseLessonRef(params.get('lesson'))) === JSON.stringify(ref)
+		return (
+			params.get('week') === week && JSON.stringify(web.parseLessonRef(params.get('lesson'))) === JSON.stringify(ref)
+		)
 	}
 	check('web parses the lesson ref of lessonLink back', roundTrip(single) && roundTrip(series))
 	check(
@@ -237,7 +243,9 @@ async function settings(ctx) {
 		const readMinutes = (await send(api, 'GET', '/settings', cookie)).json?.settings
 		check(
 			'minutes 45 are saved and returned by GET /settings',
-			minutes.status === 200 && minutes.json?.settings?.notifyLessonMinutes === 45 && readMinutes?.notifyLessonMinutes === 45,
+			minutes.status === 200 &&
+				minutes.json?.settings?.notifyLessonMinutes === 45 &&
+				readMinutes?.notifyLessonMinutes === 45,
 			String(minutes.status)
 		)
 		const flags = await send(api, 'PATCH', '/settings', cookie, { notifyLessonSoon: false, notifyPaysSoon: false })
@@ -313,7 +321,10 @@ async function presence(ctx) {
 
 	const foreign = foreignSubscription(await otherAccountId(api))
 	const foreignSignal = await send(api, 'POST', '/push/presence', cookie, { endpoint: foreign, screen: 'schedule' })
-	const unknownSignal = await send(api, 'POST', '/push/presence', cookie, { endpoint: newEndpoint(), screen: 'schedule' })
+	const unknownSignal = await send(api, 'POST', '/push/presence', cookie, {
+		endpoint: newEndpoint(),
+		screen: 'schedule',
+	})
 	check(
 		'a foreign or unknown endpoint answers 404',
 		foreignSignal.status === 404 && unknownSignal.status === 404,
@@ -343,13 +354,11 @@ async function presence(ctx) {
 		'a fresh schedule signal is present for its device only',
 		isPresent(device, 'schedule', null, at(1000)) === true && isPresent(other, 'schedule', null, at(1000)) === false
 	)
-	check(
-		'the schedule signal does not cover payments',
-		isPresent(device, 'payments', studentA, at(1000)) === false
-	)
+	check('the schedule signal does not cover payments', isPresent(device, 'payments', studentA, at(1000)) === false)
 	check(
 		'a signal older than 90 s is not present',
-		isPresent(device, 'schedule', null, at(90_000)) === true && isPresent(device, 'schedule', null, at(91_000)) === false
+		isPresent(device, 'schedule', null, at(90_000)) === true &&
+			isPresent(device, 'schedule', null, at(91_000)) === false
 	)
 	recordPresence(account, device, 'payments', studentA, at(0))
 	check(
@@ -382,7 +391,11 @@ async function spawnApi(push) {
 		LOG_LEVEL: 'info',
 	}
 	delete env.MIGRATOR_DATABASE_URL
-	const child = spawn(process.execPath, ['apps/api/src/server.ts'], { cwd: ROOT, env, stdio: ['ignore', 'pipe', 'pipe'] })
+	const child = spawn(process.execPath, ['apps/api/src/server.ts'], {
+		cwd: ROOT,
+		env,
+		stdio: ['ignore', 'pipe', 'pipe'],
+	})
 	let output = ''
 	let exit = null
 	child.stdout.on('data', (chunk) => (output += chunk))
@@ -437,7 +450,10 @@ async function config(ctx) {
 			withPair.json.publicKey === fileEnv.PUSH_VAPID_PUBLIC_KEY,
 		`status ${withPair.status} enabled ${withPair.json?.enabled}`
 	)
-	check('GET /push/config never carries the private key', !JSON.stringify(withPair.json).includes(fileEnv.PUSH_VAPID_PRIVATE_KEY ?? '\u0000'))
+	check(
+		'GET /push/config never carries the private key',
+		!JSON.stringify(withPair.json).includes(fileEnv.PUSH_VAPID_PRIVATE_KEY ?? '\u0000')
+	)
 
 	const off = await spawnApi({})
 	try {

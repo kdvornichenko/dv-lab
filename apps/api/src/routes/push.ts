@@ -38,7 +38,8 @@ export function pushRoutes({ db, push }: PushRouteDeps) {
 		const input = await readJson(c, pushSubscribeRequest)
 		if (!input) return invalidRequest(c)
 		const result = await saveSubscription(db, c.get('session').account.id, input)
-		if (result.kind === 'taken') return c.json(errorBody('forbidden', 'This device is registered to another account'), 409)
+		if (result.kind === 'taken')
+			return c.json(errorBody('forbidden', 'This device is registered to another account'), 409)
 		return c.json({ id: result.id } satisfies PushSubscribeResponse, result.kind === 'created' ? 201 : 200)
 	})
 

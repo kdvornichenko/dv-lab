@@ -34,7 +34,10 @@ const settingsColumns = {
 }
 
 export async function readTeacherSettings(executor: DbExecutor, accountId: string): Promise<TeacherSettings> {
-	const [row] = await executor.select(settingsColumns).from(teacherSettings).where(eq(teacherSettings.accountId, accountId))
+	const [row] = await executor
+		.select(settingsColumns)
+		.from(teacherSettings)
+		.where(eq(teacherSettings.accountId, accountId))
 	return (
 		row ?? {
 			paysSoonLessons: PAYS_SOON_LESSONS_DEFAULT,
