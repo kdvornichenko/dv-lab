@@ -8,8 +8,8 @@ import { Tooltip } from '@/components/ui/tooltip'
 
 import { placeView, type CalendarEventView } from '@dv-lab/contracts'
 
-import { CalendarEventDetails, EventTime, eventTitle } from './calendar-event-details'
 import type { BlockLayout } from './calendar-layout'
+import { CalendarEventDetails, EventTime, eventTitle } from './event-summary'
 import { LessonBlock } from './lesson-block'
 import { SYNCING_LINE, type BlockMark } from './optimistic-writes'
 

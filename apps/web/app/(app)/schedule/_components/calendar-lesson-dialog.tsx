@@ -34,9 +34,9 @@ import type {
 import { addDays, canChange, scheduleDate, weekdayOf, zonedInstant } from '@dv-lab/core'
 
 import { useToast } from '../../_components/toasts'
-import { EventTime, eventTitle } from './calendar-event-details'
 import { EndSeriesDialog } from './end-series-dialog'
 import type { DirectState } from './event-form'
+import { EventTime, eventTitle } from './event-summary'
 import { LessonDetails } from './lesson-details'
 import { LessonFooter } from './lesson-footer'
 import { LessonMarkRow } from './lesson-mark-row'

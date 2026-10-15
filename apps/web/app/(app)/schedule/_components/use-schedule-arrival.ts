@@ -19,7 +19,7 @@ import { isCalendarDay, parseLessonRef } from '@/lib/schedule-links'
 import type { CalendarEventView } from '@dv-lab/contracts'
 import { addDays, mondayOf } from '@dv-lab/core'
 
-import { eventTitle } from './calendar-event-details'
+import { eventTitle } from './event-summary'
 
 export type ArrivalParams = { week: string | null; lesson: string | null; day: string | null }
 
