@@ -3,7 +3,7 @@ import { Tooltip as TooltipPrimitive } from '@base-ui/react/tooltip'
 
 import { createContext, useContext, useEffect, useState, type ReactNode } from 'react'
 
-import { motion, useMotionValue } from 'framer-motion'
+import { m, useMotionValue } from 'motion/react'
 
 import { fontWeights } from '@/lib/font-weight'
 import { useShape } from '@/lib/shape-context'
@@ -114,14 +114,14 @@ function Tooltip({
 								...rest
 							} = props as React.HTMLAttributes<HTMLDivElement>
 							return (
-								<motion.div
+								<m.div
 									{...rest}
 									style={{
 										...(baseStyle as React.CSSProperties | undefined),
 										...(followCursor === 'y' ? { y: followOffset } : followCursor === 'x' ? { x: followOffset } : {}),
 									}}
 								>
-									<motion.div
+									<m.div
 										className={cn(
 											'bg-foreground px-2 py-1 text-[length:var(--fs-caption,12px)] leading-[var(--lh-caption,16px)] text-background',
 											'[text-box:trim-both_cap_alphabetic] supports-[text-box:trim-both]:py-2',
@@ -134,8 +134,8 @@ function Tooltip({
 										transition={exiting ? spring.fast.exit : spring.fast}
 									>
 										{contentChildren}
-									</motion.div>
-								</motion.div>
+									</m.div>
+								</m.div>
 							)
 						}}
 					/>

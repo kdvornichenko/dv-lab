@@ -4,7 +4,7 @@ import { Select as SelectPrimitive } from '@base-ui/react/select'
 
 import { forwardRef, useEffect, useMemo, useRef, useState, type ReactNode } from 'react'
 
-import { AnimatePresence, motion } from 'framer-motion'
+import { AnimatePresence, m } from 'motion/react'
 
 import { FluidHoverHighlight } from '@/components/fluid-hover-highlight'
 import { ScrollArea } from '@/components/ui/scroll-area'
@@ -101,7 +101,7 @@ const SelectContent = forwardRef<HTMLDivElement, SelectContentProps>(({ classNam
 				alignItemWithTrigger={false}
 				className="z-50 outline-none"
 			>
-				<motion.div
+				<m.div
 					className={popupMotionClass}
 					initial={{ opacity: 0, y: 'var(--popup-enter-y)', scaleY: 0.96 }}
 					animate={open ? { opacity: 1, y: 0, scaleY: 1 } : { opacity: 0, y: 'var(--popup-enter-y)', scaleY: 0.96 }}
@@ -153,7 +153,7 @@ const SelectContent = forwardRef<HTMLDivElement, SelectContentProps>(({ classNam
 									{open && (
 										<AnimatePresence>
 											{checkedRect && (
-												<motion.div
+												<m.div
 													className={`absolute ${shape.bg} pointer-events-none bg-active`}
 
 													initial={false}
@@ -179,7 +179,7 @@ const SelectContent = forwardRef<HTMLDivElement, SelectContentProps>(({ classNam
 									{open && (
 										<AnimatePresence>
 											{focusRect && (
-												<motion.div
+												<m.div
 													className={`absolute ${shape.focusRing} pointer-events-none z-20 border border-[color:var(--focus-ring,#6B97FF)]`}
 													initial={false}
 													animate={{
@@ -203,7 +203,7 @@ const SelectContent = forwardRef<HTMLDivElement, SelectContentProps>(({ classNam
 							</ScrollArea>
 						</SelectPrimitive.Popup>
 					</SelectContentContext.Provider>
-				</motion.div>
+				</m.div>
 			</SelectPrimitive.Positioner>
 		</SelectPrimitive.Portal>
 	)

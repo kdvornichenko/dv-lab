@@ -15,13 +15,13 @@ import {
 	AnimatePresence,
 	PresenceContext,
 	animate,
-	motion,
+	m,
 	useMotionValue,
 	usePresence,
 	useReducedMotion,
 	useTransform,
 	type ValueAnimationTransition,
-} from 'framer-motion'
+} from 'motion/react'
 
 import { Button, type ButtonProps } from '@/components/ui/button'
 import { fontWeights } from '@/lib/font-weight'
@@ -196,15 +196,15 @@ function BannerMotion({ fixed, reduceMotion, config, children }: BannerMotionPro
 		}
 	}, [isPresent, reduceMotion, fixed, scaled, slides, row, shown, scale, overflow])
 	return (
-		<motion.div
+		<m.div
 			ref={measure}
 			style={{ gridTemplateRows, marginBottom, overflow }}
 			className={cn('grid w-full', fixed && 'sticky top-0 z-40')}
 		>
 			<div className="min-h-0">
-				<motion.div style={{ opacity: shown, scale, y, pointerEvents, transformOrigin: 'top' }}>{children}</motion.div>
+				<m.div style={{ opacity: shown, scale, y, pointerEvents, transformOrigin: 'top' }}>{children}</m.div>
 			</div>
-		</motion.div>
+		</m.div>
 	)
 }
 interface BannerProps extends HTMLAttributes<HTMLDivElement> {

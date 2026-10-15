@@ -375,8 +375,8 @@ __metadata:
     clsx: "npm:2.1.1"
     eslint: "npm:10.12.0"
     eslint-config-next: "npm:16.4.0"
-    framer-motion: "npm:14.0.0"
     lucide-react: "npm:1.53.0"
+    motion: "npm:14.0.0"
     next: "npm:16.4.0"
     next-themes: "npm:0.4.6"
     nuqs: "npm:2.10.1"
@@ -6283,6 +6283,24 @@ __metadata:
   version: 14.0.0
   resolution: "motion-utils@npm:14.0.0"
   checksum: 10c0/02c3d67bfacedddb91f9a69944eb5b89cd9b15ed7aae968d9d65ec804be63197adfacc7d364586b679999b7573196b8cc6f300cb932ba6dd8e5a4b1760da33c1
+  languageName: node
+  linkType: hard
+
+"motion@npm:14.0.0":
+  version: 14.0.0
+  resolution: "motion@npm:14.0.0"
+  dependencies:
+    framer-motion: "npm:14.0.0"
+    tslib: "npm:^2.4.0"
+  peerDependencies:
+    react: ^18.0.0 || ^19.0.0
+    react-dom: ^18.0.0 || ^19.0.0
+  peerDependenciesMeta:
+    react:
+      optional: true
+    react-dom:
+      optional: true
+  checksum: 10c0/2bdbfd36a20013e3e3d072e9edfcfd261e3553a7950697e77cabc3c4607b39a9e73c218fb750b83cda4eac1a8de409b62bcc7d680eb3687209758801829e6d5c
   languageName: node
   linkType: hard
 

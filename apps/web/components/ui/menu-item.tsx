@@ -11,7 +11,7 @@ import {
 	type ReactNode,
 } from 'react'
 
-import { motion, AnimatePresence } from 'framer-motion'
+import { m, AnimatePresence } from 'motion/react'
 
 import { useRegisterFluidHoverItem } from '@/hooks/use-fluid-hover'
 import { fontWeights } from '@/lib/font-weight'
@@ -139,7 +139,7 @@ const MenuItem = forwardRef<HTMLDivElement, MenuItemProps>(
 
 				<AnimatePresence initial={false}>
 					{checked && (
-						<motion.svg
+						<m.svg
 							key="check"
 							width={sizeClasses.icon}
 							height={sizeClasses.icon}
@@ -154,7 +154,7 @@ const MenuItem = forwardRef<HTMLDivElement, MenuItemProps>(
 							animate={{ opacity: 1 }}
 							exit={{ opacity: 1 }}
 						>
-							<motion.path
+							<m.path
 								d="M4 12L9 17L20 6"
 								initial={{ pathLength: 0 }}
 								animate={{
@@ -166,7 +166,7 @@ const MenuItem = forwardRef<HTMLDivElement, MenuItemProps>(
 									transition: { duration: 0.04, ease: 'easeIn' },
 								}}
 							/>
-						</motion.svg>
+						</m.svg>
 					)}
 				</AnimatePresence>
 			</>

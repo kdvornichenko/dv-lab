@@ -4,7 +4,7 @@ import { Combobox as ComboboxPrimitive } from '@base-ui/react/combobox'
 
 import { forwardRef, useCallback, useRef } from 'react'
 
-import { AnimatePresence, animate, motion, useMotionValue } from 'framer-motion'
+import { AnimatePresence, animate, m, useMotionValue } from 'motion/react'
 
 import { useIcons } from '@/lib/icon-context'
 import { useShape } from '@/lib/shape-context'
@@ -77,7 +77,7 @@ const ComboboxChips = forwardRef<HTMLInputElement, ComboboxChipsProps>(
 				<ComboboxPrimitive.Chips
 					ref={anchorRef}
 
-					render={<motion.div style={{ height: chipRowsHeight }} />}
+					render={<m.div style={{ height: chipRowsHeight }} />}
 
 					data-disabled={disabled || undefined}
 					data-popup-open={open || undefined}
@@ -119,7 +119,7 @@ const ComboboxChips = forwardRef<HTMLInputElement, ComboboxChipsProps>(
 										{(selected ?? []).map((item) => {
 											const label = itemLabel(item)
 											return (
-												<motion.span
+												<m.span
 													key={itemValue(item)}
 													layout
 													initial={{ opacity: 0, scale: 0.9 }}
@@ -152,7 +152,7 @@ const ComboboxChips = forwardRef<HTMLInputElement, ComboboxChipsProps>(
 															<XIcon size={compact ? 10 : 12} strokeWidth={2} />
 														</ComboboxPrimitive.ChipRemove>
 													</ComboboxPrimitive.Chip>
-												</motion.span>
+												</m.span>
 											)
 										})}
 									</AnimatePresence>

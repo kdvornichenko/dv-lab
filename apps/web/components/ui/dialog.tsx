@@ -10,7 +10,7 @@ import {
 	type HTMLAttributes,
 } from 'react'
 
-import { motion, useReducedMotion } from 'framer-motion'
+import { m, useReducedMotion } from 'motion/react'
 
 import { Button } from '@/components/ui/button'
 import { useIsMobile } from '@/hooks/use-mobile'
@@ -137,7 +137,7 @@ const DialogContent = forwardRef<HTMLDivElement, DialogContentProps>(
 							...rest
 						} = backdropProps as React.HTMLAttributes<HTMLDivElement>
 						return (
-							<motion.div
+							<m.div
 								{...rest}
 								className={cn(
 									container ? 'absolute' : 'fixed',
@@ -166,7 +166,7 @@ const DialogContent = forwardRef<HTMLDivElement, DialogContentProps>(
 							...rest
 						} = popupProps as React.HTMLAttributes<HTMLDivElement>
 						return (
-							<motion.div
+							<m.div
 								{...rest}
 								{...(props as Omit<
 									React.HTMLAttributes<HTMLDivElement>,
@@ -243,7 +243,7 @@ const DialogContent = forwardRef<HTMLDivElement, DialogContentProps>(
 										/>
 									)}
 								</SurfaceProvider>
-							</motion.div>
+							</m.div>
 						)
 					}}
 				/>

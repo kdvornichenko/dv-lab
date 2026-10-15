@@ -12,7 +12,7 @@ import {
 	type ReactNode,
 } from 'react'
 
-import { AnimatePresence, motion } from 'framer-motion'
+import { AnimatePresence, m } from 'motion/react'
 
 import { FluidHoverHighlight } from '@/components/fluid-hover-highlight'
 import { DropdownSearchHostContext, useDropdownSearchHost } from '@/components/ui/dropdown-search'
@@ -190,7 +190,7 @@ const DropdownContent = forwardRef<HTMLDivElement, DropdownContentProps>(
 					alignOffset={alignOffset}
 					className="z-50 outline-none"
 				>
-					<motion.div
+					<m.div
 						className={popupMotionClass}
 						initial={{ opacity: 0, y: 'var(--popup-enter-y)', scaleY: 0.96 }}
 						animate={open ? { opacity: 1, y: 0, scaleY: 1 } : { opacity: 0, y: 'var(--popup-enter-y)', scaleY: 0.96 }}
@@ -255,7 +255,7 @@ const DropdownContent = forwardRef<HTMLDivElement, DropdownContentProps>(
 
 											<AnimatePresence>
 												{checkedRect && (
-													<motion.div
+													<m.div
 														className={`absolute ${shape.bg} pointer-events-none bg-active`}
 														initial={false}
 														animate={{
@@ -288,7 +288,7 @@ const DropdownContent = forwardRef<HTMLDivElement, DropdownContentProps>(
 								</Menu.Popup>
 							</DropdownSearchHostContext.Provider>
 						</DropdownContext.Provider>
-					</motion.div>
+					</m.div>
 				</Menu.Positioner>
 			</Menu.Portal>
 		)

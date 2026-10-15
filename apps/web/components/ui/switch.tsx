@@ -13,7 +13,7 @@ import {
 	type PointerEvent as ReactPointerEvent,
 } from 'react'
 
-import { animate, motion, useMotionValue, type Transition } from 'framer-motion'
+import { animate, m, useMotionValue, type Transition } from 'motion/react'
 
 import { useSize, type SizeVariant } from '@/lib/size-context'
 import { spring } from '@/lib/springs'
@@ -57,8 +57,8 @@ const Switch = forwardRef<HTMLDivElement, SwitchProps>(
 		const [hovered, setHovered] = useState(false)
 		const [pressed, setPressed] = useState(false)
 		const sizeClasses = useSize(size)
-		const m = METRICS[sizeClasses.variant]
-		const thumbTravel = m.trackWidth - m.thumbSize - THUMB_OFFSET * 2
+		const metrics = METRICS[sizeClasses.variant]
+		const thumbTravel = metrics.trackWidth - metrics.thumbSize - THUMB_OFFSET * 2
 
 		const dragging = useRef(false)
 		const didDrag = useRef(false)
@@ -70,10 +70,14 @@ const Switch = forwardRef<HTMLDivElement, SwitchProps>(
 			hasMounted.current = true
 		}, [])
 
-		const thumbWidth = pressed ? m.thumbSize + m.pressExtend : hovered ? m.thumbSize + m.pillExtend : m.thumbSize
-		const thumbHeight = pressed ? m.thumbSize - m.pressShrink : m.thumbSize
-		const thumbY = pressed ? THUMB_OFFSET + m.pressShrink / 2 : THUMB_OFFSET
-		const extraWidth = thumbWidth - m.thumbSize
+		const thumbWidth = pressed
+			? metrics.thumbSize + metrics.pressExtend
+			: hovered
+				? metrics.thumbSize + metrics.pillExtend
+				: metrics.thumbSize
+		const thumbHeight = pressed ? metrics.thumbSize - metrics.pressShrink : metrics.thumbSize
+		const thumbY = pressed ? THUMB_OFFSET + metrics.pressShrink / 2 : THUMB_OFFSET
+		const extraWidth = thumbWidth - metrics.thumbSize
 		const thumbX = checked ? THUMB_OFFSET + thumbTravel - extraWidth : THUMB_OFFSET
 
 		useEffect(() => {
@@ -107,12 +111,12 @@ const Switch = forwardRef<HTMLDivElement, SwitchProps>(
 					dragging.current = true
 				}
 				const dragMin = THUMB_OFFSET
-				const pressedThumbWidth = m.thumbSize + m.pressExtend
-				const dragMax = m.trackWidth - THUMB_OFFSET - pressedThumbWidth
+				const pressedThumbWidth = metrics.thumbSize + metrics.pressExtend
+				const dragMax = metrics.trackWidth - THUMB_OFFSET - pressedThumbWidth
 				const rawX = pointerStart.current.originX + delta
 				motionX.set(Math.max(dragMin, Math.min(dragMax, rawX)))
 			},
-			[motionX, m]
+			[motionX, metrics]
 		)
 
 		const handlePointerUp = useCallback(() => {
@@ -123,8 +127,8 @@ const Switch = forwardRef<HTMLDivElement, SwitchProps>(
 				dragging.current = false
 				const currentX = motionX.get()
 				const dragMin = THUMB_OFFSET
-				const pressedThumbWidth = m.thumbSize + m.pressExtend
-				const dragMax = m.trackWidth - THUMB_OFFSET - pressedThumbWidth
+				const pressedThumbWidth = metrics.thumbSize + metrics.pressExtend
+				const dragMax = metrics.trackWidth - THUMB_OFFSET - pressedThumbWidth
 				const midpoint = (dragMin + dragMax) / 2
 				const shouldBeOn = currentX > midpoint
 				if (shouldBeOn !== checked) {
@@ -138,7 +142,7 @@ const Switch = forwardRef<HTMLDivElement, SwitchProps>(
 				})
 			}
 			pointerStart.current = null
-		}, [checked, onToggle, motionX, thumbTransition, m, thumbTravel])
+		}, [checked, onToggle, motionX, thumbTransition, metrics, thumbTravel])
 
 		const handlePointerCancel = useCallback(() => {
 			if (!pointerStart.current) return
@@ -191,8 +195,8 @@ const Switch = forwardRef<HTMLDivElement, SwitchProps>(
 						'focus-visible:ring-1 focus-visible:ring-[color:var(--focus-ring,#6B97FF)] focus-visible:ring-offset-2 focus-visible:ring-offset-background'
 					)}
 					style={{
-						width: m.trackWidth,
-						height: m.trackHeight,
+						width: metrics.trackWidth,
+						height: metrics.trackHeight,
 						backgroundColor: checked
 							? hovered
 								? '#5C89F2'
@@ -216,7 +220,7 @@ const Switch = forwardRef<HTMLDivElement, SwitchProps>(
 								...rest
 							} = thumbProps as React.HTMLAttributes<HTMLSpanElement>
 							return (
-								<motion.span
+								<m.span
 									{...rest}
 									className="absolute top-0 left-0 block rounded-full bg-white shadow-sm"
 									initial={false}

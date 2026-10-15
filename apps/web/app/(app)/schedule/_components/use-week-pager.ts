@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useLayoutEffect, useRef, useState, type MouseEvent, type PointerEvent } from 'react'
 
-import { animate, useMotionValue, useReducedMotion, type AnimationPlaybackControls } from 'framer-motion'
+import { animate, useMotionValue, useReducedMotion, type AnimationPlaybackControls } from 'motion/react'
 
 import { spring } from '@/lib/springs'
 

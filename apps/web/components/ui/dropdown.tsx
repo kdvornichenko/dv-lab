@@ -2,7 +2,7 @@
 
 import { forwardRef, useMemo, useRef, useState, type HTMLAttributes, type ReactNode } from 'react'
 
-import { AnimatePresence, motion } from 'framer-motion'
+import { AnimatePresence, m } from 'motion/react'
 
 import { FluidHoverHighlight } from '@/components/fluid-hover-highlight'
 import { DropdownEmpty, DropdownSearch, type DropdownSearchProps } from '@/components/ui/dropdown-search'
@@ -118,7 +118,7 @@ const Dropdown = forwardRef<HTMLDivElement, DropdownProps>(
 
 					<AnimatePresence>
 						{checkedRect && (
-							<motion.div
+							<m.div
 								className={`absolute ${shape.bg} pointer-events-none bg-active`}
 								initial={false}
 								animate={{
@@ -141,7 +141,7 @@ const Dropdown = forwardRef<HTMLDivElement, DropdownProps>(
 
 					<AnimatePresence>
 						{focusRect && (
-							<motion.div
+							<m.div
 								className={`absolute ${shape.focusRing} pointer-events-none z-20 border border-[color:var(--focus-ring,#6B97FF)]`}
 								initial={false}
 								animate={{

@@ -11,7 +11,7 @@ import {
 	type ReactNode,
 } from 'react'
 
-import { Reorder, useDragControls, useReducedMotion } from 'framer-motion'
+import { Reorder, useDragControls, useReducedMotion } from 'motion/react'
 import { Check, GripVertical, LoaderCircle, Pencil, Plus } from 'lucide-react'
 
 import { EFFORT_LABEL, clampEffort } from '@/components/app/effort-slider'

@@ -2,7 +2,7 @@
 
 import { useEffect, useRef } from 'react'
 
-import { motion, useReducedMotion } from 'framer-motion'
+import { m, useReducedMotion } from 'motion/react'
 import { AlertCircle, RefreshCw, Users } from 'lucide-react'
 
 import { Button } from '@/components/ui/button'
@@ -106,7 +106,7 @@ export function MentionPopup({
 	const reduceMotion = useReducedMotion() ?? false
 
 	return (
-		<motion.div
+		<m.div
 			className="absolute bottom-full left-0 z-20 mb-2 w-80 max-w-full"
 			initial={reduceMotion ? false : { opacity: 0, y: 4 }}
 			animate={{ opacity: 1, y: 0 }}
@@ -161,6 +161,6 @@ export function MentionPopup({
 					</div>
 				) : null}
 			</Elevated>
-		</motion.div>
+		</m.div>
 	)
 }

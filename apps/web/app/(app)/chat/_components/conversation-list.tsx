@@ -1,6 +1,6 @@
 'use client'
 
-import { motion, useReducedMotion } from 'framer-motion'
+import { m, useReducedMotion } from 'motion/react'
 import { MoreHorizontal, Pencil, Trash2 } from 'lucide-react'
 
 import { Panel } from '@/components/app/layout-parts'
@@ -110,7 +110,7 @@ function Row({
 	onDelete: (conversation: ChatConversation) => void
 }) {
 	return (
-		<motion.li
+		<m.li
 			className="group/row relative min-w-0"
 			initial={reduceMotion ? false : { opacity: 0, y: 12 }}
 			animate={{ opacity: 1, y: 0 }}
@@ -169,7 +169,7 @@ function Row({
 			>
 				<RowMenu conversation={conversation} onRename={onRename} onDelete={onDelete} />
 			</div>
-		</motion.li>
+		</m.li>
 	)
 }
 
@@ -223,7 +223,7 @@ export function ConversationList({
 		)
 	if (rail) return <div className="flex min-h-0 flex-1 flex-col p-2">{body}</div>
 	return (
-		<motion.div
+		<m.div
 			className="absolute inset-x-0 top-0 z-10"
 			initial={reduceMotion ? false : { opacity: 0, y: -12 }}
 			animate={{ opacity: 1, y: 0 }}
@@ -231,6 +231,6 @@ export function ConversationList({
 			transition={{ type: 'spring', duration: spring.moderate.duration, bounce: 0 }}
 		>
 			<Panel className="p-2">{body}</Panel>
-		</motion.div>
+		</m.div>
 	)
 }

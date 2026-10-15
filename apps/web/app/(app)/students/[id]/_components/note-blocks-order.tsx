@@ -2,7 +2,7 @@
 
 import { useEffect, useRef, useState, type FocusEvent, type KeyboardEvent, type ReactNode } from 'react'
 
-import { Reorder, useDragControls, useReducedMotion } from 'framer-motion'
+import { Reorder, useDragControls, useReducedMotion } from 'motion/react'
 import { GripVertical } from 'lucide-react'
 
 import { Banner, BannerAction, BannerActions, BannerTitle } from '@/components/ui/banner'
