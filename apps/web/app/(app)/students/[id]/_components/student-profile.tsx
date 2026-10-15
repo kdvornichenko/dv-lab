@@ -320,7 +320,7 @@ export function StudentProfile({ id, arrival }: { id: string; arrival: ProfileAr
 					<div className="flex w-fit max-w-full min-w-0 rounded-xl bg-muted">
 						<TabsList
 							aria-label="Student sections"
-							className="scroll-fade-x bg-transparent [--scroll-fade-size:var(--scroll-fade-size-compact)] max-sm:min-w-0 max-sm:flex-1 max-sm:overflow-x-auto pointer-coarse:max-sm:-my-2 pointer-coarse:max-sm:py-2"
+							className="scroll-fade-x no-scrollbar bg-transparent [--scroll-fade-size:var(--scroll-fade-size-compact)] max-sm:min-w-0 max-sm:flex-1 max-sm:overflow-x-auto pointer-coarse:max-sm:-my-2 pointer-coarse:max-sm:py-2"
 						>
 							<TabItem value="overview" label="Overview" />
 							<TabItem value="lessons" label="Lessons" />
