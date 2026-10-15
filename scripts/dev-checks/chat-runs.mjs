@@ -1322,7 +1322,7 @@ async function main() {
 	check(
 		'the tool result carries cite markers and ids for the kept records',
 		noteView.records?.some((record) => record.cite === `[[note:${quotedId}]]`) &&
-			noteView.sections?.some((record) => record.cite === `[[section:${studentId}:goals]]`)
+			noteView.blocks?.some((record) => record.cite === `[[section:${studentId}:goals]]`)
 	)
 	check(
 		'a cite of an issued note and section is replaced by blocks with the stored text, once each',

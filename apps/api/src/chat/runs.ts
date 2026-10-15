@@ -165,6 +165,10 @@ function blockNote(block: Exclude<ChatBlock, { type: 'suggestions' }>): string {
 			return `[Proposed calendar change: ${block.operation} for ${block.studentName}]`
 		case 'change_proposal':
 			return `[Proposed: ${block.change.operation} for ${block.change.operation === 'create_card' ? block.change.displayName : block.change.studentName}]`
+		case 'note_change':
+			return block.mode === 'proposal'
+				? `[Proposed notes change: ${block.change} for ${block.studentName}]`
+				: `[Notes: ${block.change} for ${block.studentName}]`
 		case 'clarify':
 			return `[Asked which lesson of ${block.studentName}]`
 		case 'refused':

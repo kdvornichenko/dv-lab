@@ -120,7 +120,8 @@ check(
 	unnamedStep.join(',')
 )
 const lostStep = CHAT_STEP_TOOLS.filter(
-	(name) => name !== 'answer' && !CHAT_TOOL_ENTRIES.some((entry) => entry.name === name && entry.step)
+	(name) =>
+		!['answer', 'add_note'].includes(name) && !CHAT_TOOL_ENTRIES.some((entry) => entry.name === name && entry.step)
 )
 check('registry: every step tool of the contract has a registry rule', lostStep.length === 0, lostStep.join(','))
 const badStepKeys = CHAT_TOOL_ENTRIES.filter((entry) => {

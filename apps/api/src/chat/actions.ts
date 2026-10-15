@@ -10,6 +10,8 @@ import {
 	type ChatEffort,
 	type ChatLessonIntent,
 	type ChatMessage,
+	type ChatNoteChangeBlock,
+	type ChatNoteIssue,
 	type ChatRecordsKey,
 	type ChatRefusalCode,
 	type ChatStep,
@@ -40,16 +42,8 @@ import { lockConversation, readConversation, touchConversation } from './convers
 import { readChatRecords } from './facts.ts'
 import { resolveLessonTarget } from './lesson-target.ts'
 import { typedMentions, validateMentions } from './mentions.ts'
-import {
-	blocksOf,
-	findRequest,
-	insertAction,
-	insertMessage,
-	replyOf,
-	toMessages,
-	undoState,
-	withUndo,
-} from './messages.ts'
+import { blocksOf, findRequest, insertAction, insertMessage, replyOf, toMessages, withUndo } from './messages.ts'
+import { type NoteUndo, isNoteWrite, undoNoteWrite } from './note-writes.ts'
 import { parseNoteCommand, parseQuickCommand } from './quick-command.ts'
 import { type NewTurn, type TurnRow, activeTurn, toTurn, turnOfMessage } from './turns.ts'
 
@@ -81,7 +75,7 @@ export type SendOutcome =
 	| { kind: 'busy' }
 
 export type UndoOutcome =
-	| { kind: 'ok'; block: ChatActionResultBlock | ChatCalendarProposalBlock }
+	| { kind: 'ok'; block: ChatActionResultBlock | ChatCalendarProposalBlock | ChatNoteChangeBlock }
 	| { kind: 'not_found' }
 	| { kind: 'not_undoable' }
 	| { kind: 'conflict' }
@@ -578,18 +572,31 @@ export async function sendMessage(
 	return outcome
 }
 
+type UndoBlock = ChatActionResultBlock | ChatNoteChangeBlock
+
 async function originalBlock(
 	executor: DbExecutor,
 	accountId: string,
 	action: { id: string; messageId: string }
-): Promise<ChatActionResultBlock | null> {
+): Promise<UndoBlock | null> {
 	const reply = await replyOf(executor, accountId, action.messageId)
 	if (reply === null) return null
-	const block = blocksOf(reply).find((item) => item.type === 'action_result' && item.actionId === action.id)
-	return block?.type === 'action_result' ? block : null
+	const block = blocksOf(reply).find(
+		(item) => (item.type === 'action_result' || item.type === 'note_change') && item.actionId === action.id
+	)
+	return block?.type === 'action_result' || block?.type === 'note_change' ? block : null
 }
 
 async function inverse(
+	executor: DbExecutor,
+	context: ChatContext,
+	action: typeof chatActions.$inferSelect
+): Promise<NoteUndo> {
+	if (isNoteWrite(action)) return undoNoteWrite(executor, action)
+	return (await legacyInverse(executor, context, action)) ? { ok: true } : { ok: false }
+}
+
+async function legacyInverse(
 	executor: DbExecutor,
 	context: ChatContext,
 	action: typeof chatActions.$inferSelect
@@ -630,16 +637,28 @@ async function undo(
 	if (action.kind === 'calendar') return { kind: 'calendar' }
 	const block = await originalBlock(tx, context.accountId, action)
 	if (block === null) return { kind: 'not_undoable' }
-	if (action.undoRequestId !== null) {
-		return { kind: 'ok', block: { ...block, undo: undoState(action) } }
+	const view = (state: string, undoResult: unknown): UndoOutcome => {
+		const [shown] = withUndo(
+			[block],
+			new Map([[action.id, { id: action.id, state, result: action.result, after: action.after, undoResult }]])
+		)
+		return shown?.type === 'action_result' || shown?.type === 'note_change'
+			? { kind: 'ok', block: shown }
+			: { kind: 'not_undoable' }
 	}
+	if (action.undoRequestId !== null) return view(action.state, action.undoResult)
 	if (action.state !== 'applied') return { kind: 'not_undoable' }
+	let issue: ChatNoteIssue | undefined
 	const done = await inSavepoint(tx, async (executor) => {
-		if (!(await inverse(executor, context, action))) throw new Refusal('lesson_changed')
+		const outcome = await inverse(executor, context, action)
+		if (!outcome.ok) {
+			issue = outcome.issue
+			throw new Refusal('lesson_changed')
+		}
 		return true
 	})
 	const undone = done === true
-	const undoResult = { undo: undone ? 'done' : 'stale' }
+	const undoResult = undone ? { undo: 'done' } : { undo: 'stale', ...(issue === undefined ? {} : { issue }) }
 	await tx
 		.update(chatActions)
 		.set({
@@ -649,11 +668,7 @@ async function undo(
 			updatedAt: sql`now()`,
 		})
 		.where(eq(chatActions.id, action.id))
-	const [shown] = withUndo(
-		[block],
-		new Map([[action.id, { id: action.id, state: undone ? 'undone' : action.state, undoResult }]])
-	)
-	return shown?.type === 'action_result' ? { kind: 'ok', block: shown } : { kind: 'not_undoable' }
+	return view(undone ? 'undone' : action.state, undoResult)
 }
 
 function calendarUndo(outcome: CalendarOutcome): UndoOutcome {

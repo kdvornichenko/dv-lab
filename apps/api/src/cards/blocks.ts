@@ -136,6 +136,15 @@ async function lockBlock(executor: DbExecutor, studentId: string, blockId: strin
 	return row && row.studentId === studentId ? row : null
 }
 
+export async function lockLiveBlock(
+	executor: DbExecutor,
+	studentId: string,
+	blockId: string
+): Promise<NoteBlock | null> {
+	const row = await lockBlock(executor, studentId, blockId)
+	return row && row.deletedAt === null ? toBlock(row) : null
+}
+
 async function writeBlock(
 	executor: DbExecutor,
 	blockId: string,
