@@ -476,7 +476,7 @@ async function sectionForms() {
 				await row.waitFor({ timeout: 30000 })
 				check(
 					'the profile and Students show the same balance after the correction',
-					header.includes(phrase) && (await row.innerText()).includes(phrase),
+					header.includes(phrase) && (await row.innerText()).includes(core.balancePhrase(minutes, 60, { short: true })),
 					phrase
 				)
 
@@ -691,6 +691,8 @@ function removeProposalCards() {
 	removeConversations(conversations)
 	sql(`delete from student_notes where student_id in (${cards})`)
 	sql(`delete from lesson_comments where student_id in (${cards})`)
+	sql(`delete from note_reviews where student_id in (${cards})`)
+	sql(`delete from student_terms where student_id in (${cards})`)
 	sql(`delete from student_sections where student_id in (${cards})`)
 	sql(`delete from accounts where student_id in (${cards}) and role = 'student'`)
 	sql(`delete from payments where student_id in (${cards})`)
