@@ -1,0 +1,10 @@
+FROM node:24.21.0-slim
+ARG GIT_SHA=unknown
+ENV NODE_ENV=production NEXT_TELEMETRY_DISABLED=1 HOSTNAME=0.0.0.0 PORT=3000 GIT_SHA=$GIT_SHA
+WORKDIR /app
+COPY --chown=node:node standalone ./
+COPY --chown=node:node static ./apps/web/.next/static
+COPY --chown=node:node public ./apps/web/public
+USER node
+EXPOSE 3000
+CMD ["node", "apps/web/server.js"]

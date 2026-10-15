@@ -43,7 +43,7 @@
 - Миграции генерирует `yarn db:generate`; сгенерированные файлы руками не правятся, `drizzle-kit push` не используется. Миграции одного релиза только добавляют (новые таблицы, колонки, индексы); исключение — `database.md`.
 - `apps/web` не импортирует код api и базы; `packages/contracts` зависит только от `zod`, у `packages/core` зависимостей нет (условия — `platform.md`).
 - Строки расписания не удаляются: меняются статус, `kind` или `ends_on`.
-- CI (`.github/workflows/ci.yml`): job `Verify` (граница пакетов, гигиена, миграции, typecheck, lint, test, build, knip), job `Base is master` и job `images` (образы в GHCR, на сервере сборки нет); подробно — `platform.md`.
+- CI (`.github/workflows/ci.yml`): параллельные jobs `Checks`, `Test`, `Image web`, `Image api`, затем `Publish` ставит деплойный тег `sha-<sha>` только после всех зелёных; job `Base is master`; подробно — `platform.md`.
 
 ## Публичный репозиторий
 
