@@ -179,6 +179,53 @@ function ChatView({ body, chat }: { body: string; chat: ChatMarkdown }) {
 	)
 }
 
+type InlineProps = { children?: ReactNode }
+
+const flat = ({ children }: InlineProps) => <>{children} </>
+const heading = ({ children }: InlineProps) => (
+	<>
+		<strong className="font-semibold">{children}</strong>{' '}
+	</>
+)
+
+const previewComponents: Components = {
+	h1: heading,
+	h2: heading,
+	h3: heading,
+	h4: heading,
+	h5: heading,
+	h6: heading,
+	p: flat,
+	ul: flat,
+	ol: flat,
+	li: ({ children }) => <>• {children} </>,
+	blockquote: flat,
+	pre: flat,
+	code: ({ children }) => <>{children}</>,
+	a: ({ children }) => <>{children}</>,
+	table: flat,
+	thead: flat,
+	tbody: flat,
+	tr: flat,
+	th: flat,
+	td: flat,
+	strong: ({ children }) => <strong className="font-semibold">{children}</strong>,
+	input: () => null,
+	img: () => null,
+	hr: () => null,
+	br: () => ' ',
+}
+
+export function MarkdownPreview({ body, className }: { body: string; className?: string }) {
+	return (
+		<span data-slot="markdown-preview" className={className}>
+			<Markdown remarkPlugins={[remarkGfm]} skipHtml components={previewComponents}>
+				{body}
+			</Markdown>
+		</span>
+	)
+}
+
 export function MarkdownView({ body, chat }: { body: string; chat?: ChatMarkdown }) {
 	if (chat !== undefined) return <ChatView body={body} chat={chat} />
 	if (body.trim() === '') {

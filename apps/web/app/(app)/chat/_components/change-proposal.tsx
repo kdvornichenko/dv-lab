@@ -22,6 +22,7 @@ import {
 import Link from 'next/link'
 
 import { Panel } from '@/components/app/layout-parts'
+import { MarkdownPreview } from '@/components/app/markdown-view'
 import { StudentBalance } from '@/components/app/student-balance'
 import { Banner, BannerDescription, BannerTitle } from '@/components/ui/banner'
 import { Button } from '@/components/ui/button'
@@ -179,8 +180,8 @@ function Muted({ children }: { children: ReactNode }) {
 
 function Quote({ body }: { body: string }) {
 	return (
-		<span title={body} className="line-clamp-3 wrap-anywhere whitespace-pre-line">
-			{body}
+		<span title={body} className="block">
+			<MarkdownPreview body={body} className="line-clamp-3 wrap-anywhere" />
 		</span>
 	)
 }

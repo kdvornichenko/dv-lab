@@ -8,6 +8,7 @@ import Link from 'next/link'
 import { useCalendarRefresh } from '@/components/app/calendar-command-provider'
 import { Panel } from '@/components/app/layout-parts'
 import { MoneyText } from '@/components/app/ledger-text'
+import { MarkdownPreview } from '@/components/app/markdown-view'
 import { Stat } from '@/components/app/stat'
 import { StatusDot } from '@/components/app/status-dot'
 import { balanceTone } from '@/components/app/student-balance'
@@ -378,7 +379,7 @@ function RecentRow({
 				<span className="text-caption text-muted-foreground tabular-nums">
 					{item.label} · {formatDay(new Date(item.at), mainTimeZone, year)}
 				</span>
-				<span className="line-clamp-2 text-body wrap-anywhere text-foreground">{item.body}</span>
+				<MarkdownPreview body={item.body} className="line-clamp-2 text-body wrap-anywhere text-foreground" />
 			</span>
 		</>
 	)
