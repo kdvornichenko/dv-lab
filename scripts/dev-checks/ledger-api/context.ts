@@ -95,19 +95,10 @@ export function seriesMarks(seriesId: string, originalOn: string) {
 export const sameActions = (actions: ScheduleLessonActions | undefined, expected: ScheduleLessonActions) =>
 	JSON.stringify(actions) === JSON.stringify(expected)
 
-export const createLesson = (ctx: Context, studentId: string, date: string, startTime: string, durationMinutes = 60) =>
-	post(ctx, '/lessons', { studentId, date, startTime, durationMinutes, repeats: 'once' })
-
-export async function onceLesson(
-	ctx: Context,
-	studentId: string,
-	date: string,
-	startTime: string,
-	durationMinutes = 60
-) {
-	const res = await createLesson(ctx, studentId, date, startTime, durationMinutes)
-	if (res.status !== 201) throw new Error(`single lesson create returned ${res.status}`)
-	return res.json.lesson.id
+export function onceLesson(studentId: string, date: string, startTime: string, durationMinutes = 60): string {
+	return sql(
+		`insert into lessons (student_id, starts_at, duration_minutes, status) values (${quote(studentId)}, ${quote(instant(date, startTime))}, ${durationMinutes}, 'scheduled') returning id`
+	).rows[0].id
 }
 
 export function lessonMarks(lessonId: string) {

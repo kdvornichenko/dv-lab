@@ -33,7 +33,7 @@ export async function movesPart1(ctx: Context) {
 	const studentId = await createCard(ctx, 'Alex Example 2115')
 	const yesterday = core.addDays(ctx.today, -1)
 	const twoDaysAgo = core.addDays(ctx.today, -2)
-	const single = await onceLesson(ctx, studentId, yesterday, '10:00')
+	const single = onceLesson(studentId, yesterday, '10:00')
 	await stepOk('done of the yesterday lesson', () => markSingle(ctx, single, 'done'))
 	await expectStatus(
 		'move of the started marked single lesson to the day before yesterday',
@@ -82,7 +82,7 @@ export async function movesPart1(ctx: Context) {
 	check('the card has two done mark rows', marks.length === 2 && marks.every((row) => row.kind === 'done'))
 
 	const cancelledDay = core.addDays(ctx.today, -3)
-	const cancelled = await onceLesson(ctx, studentId, cancelledDay, '12:00')
+	const cancelled = onceLesson(studentId, cancelledDay, '12:00')
 	await stepOk('cancel of the past lesson', () => post(ctx, `/lessons/${cancelled}/cancel`))
 	await expectStatus(
 		'move of the cancelled single lesson',
@@ -114,7 +114,7 @@ export async function movesBalance(ctx: Context, opening: string) {
 	await setOpening(ctx, studentId, 0, opening)
 	const path = (lessonId: string, action: string) => `/lessons/${lessonId}/${action}`
 	const first = core.addDays(opening, 1)
-	const lessonId = await onceLesson(ctx, studentId, first, '10:00')
+	const lessonId = onceLesson(studentId, first, '10:00')
 	await stepOk('done of the 2116 lesson', () => markSingle(ctx, lessonId, 'done'))
 	await expectBalance(ctx, studentId, '2116 done on D+1', -60)
 	let current = instant(first, '10:00')
@@ -242,7 +242,7 @@ export async function movesToday(ctx: Context, opening: string) {
 	const yesterday = core.addDays(ctx.today, -1)
 	const tomorrow = core.addDays(ctx.today, 1)
 	const futureDay = core.addDays(ctx.today, 2)
-	const lessonId = await onceLesson(ctx, studentId, futureDay, '10:00')
+	const lessonId = onceLesson(studentId, futureDay, '10:00')
 	const key = `l:${lessonId}`
 	await stepOk('2118 move of the future lesson to yesterday', () =>
 		moveTo(ctx, `/lessons/${lessonId}/move`, yesterday, '10:00', instant(futureDay, '10:00'))
@@ -267,7 +267,7 @@ export async function movesToday(ctx: Context, opening: string) {
 		console.log('SKIP 2118 today 23:45 in Vietnam has passed')
 		return
 	}
-	const pastId = await onceLesson(ctx, studentId, yesterday, '12:00')
+	const pastId = onceLesson(studentId, yesterday, '12:00')
 	await stepOk('2118 move of the past lesson to today 23:45', () =>
 		moveTo(ctx, `/lessons/${pastId}/move`, ctx.today, '23:45', instant(yesterday, '12:00'))
 	)

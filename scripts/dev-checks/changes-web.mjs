@@ -4,7 +4,7 @@ import { createConnection } from 'node:net'
 
 import { CHAT_FOLLOW_UP_TEXT, chatBlock, chatChangeProposalBlock } from '../../packages/contracts/src/chat.ts'
 import * as core from '../../packages/core/src/index.ts'
-import { BASE, ROOT, api, check, env, failures, shot, signIn, sql, theme } from './browser-context.ts'
+import { BASE, ROOT, check, env, failures, shot, signIn, sql, theme } from './browser-context.ts'
 import { withBrowser } from './browser-journey.ts'
 import { removeStudentCards } from './fixture-cleanup.mjs'
 
@@ -34,7 +34,7 @@ function portFree(port) {
 	})
 }
 
-async function startFakeModelApi(port = 4000, delay = '20') {
+async function startFakeModelApi(port, delay = '20') {
 	if (!(await portFree(port))) throw new Error(`port ${port} is busy: this section starts its own api`)
 	const env = {
 		...process.env,
@@ -138,8 +138,14 @@ async function askPayment(page, before) {
 	return page.locator(CHANGE).last()
 }
 
+const PAYMENT_PORT = 4256
+
 async function sectionPayment() {
-	const started = await startFakeModelApi()
+	const apiOrigin = await detectApiOrigin()
+	const health = await fetch('http://127.0.0.1:4000/healthz').catch(() => null)
+	if (!health || health.status !== 200)
+		throw new Error('the dev api does not answer on 4000: this section needs the dev stack')
+	const started = await startFakeModelApi(PAYMENT_PORT)
 	const conversations = []
 	const teacher = sql(`select id from accounts where role = 'teacher' and status = 'active'`).rows[0]?.id
 	const period = teacher
@@ -152,11 +158,11 @@ async function sectionPayment() {
 		await withBrowser(
 			{ width: 1280, height: 800 },
 			async ({ page, problems }) => {
-				await setTheme(page)
+				await proposalsPrepare(page, apiOrigin, PAYMENT_PORT)
 				await signIn(page)
 				const zone = sql(`select default_time_zone as zone from teacher_settings where account_id = '${teacher}'`)
 					.rows[0]?.zone
-				const created = await api(page, 'POST', '/students', {
+				const created = await formsApi(page, apiOrigin, 'POST', '/students', {
 					displayName: NAME,
 					rateMinor: 400000,
 					currency: 'RUB',
@@ -168,7 +174,7 @@ async function sectionPayment() {
 				})
 				check('the fixture card is created', created.status === 201, String(created.status))
 				const studentId = created.json.student.id
-				const opening = await api(page, 'PUT', `/students/${studentId}/opening-balance`, {
+				const opening = await formsApi(page, apiOrigin, 'PUT', `/students/${studentId}/opening-balance`, {
 					lessonsHundredths: 200,
 					on: core.addDays(core.scheduleToday(new Date(), zone ?? core.SCHEDULE_TIME_ZONE), -1),
 					expectedDefaultTimeZone: zone ?? core.SCHEDULE_TIME_ZONE,
@@ -265,7 +271,7 @@ async function sectionPayment() {
 					JSON.stringify(decisions)
 				)
 
-				const profile = await api(page, 'GET', `/students/${studentId}`)
+				const profile = await formsApi(page, apiOrigin, 'GET', `/students/${studentId}`)
 				const minutes = profile.json?.student?.balanceMinutes
 				await page.goto(`${BASE}/students/${studentId}`)
 				await page.getByRole('heading', { name: NAME, level: 1 }).waitFor({ timeout: 30000 })

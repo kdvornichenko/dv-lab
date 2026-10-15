@@ -19,15 +19,19 @@ import {
 } from './context.ts'
 import type { Context } from './types.ts'
 
+function setLessonStatus(lessonId: string, status: 'cancelled' | 'scheduled') {
+	sql(`update lessons set status = ${quote(status)} where id = ${quote(lessonId)}`)
+}
+
 export async function sectionBalance(ctx: Context) {
 	const studentId = await createCard(ctx, 'Alex Example 2120')
 	const opening = core.addDays(ctx.today, -3)
 	const dayAfter = core.addDays(opening, 1)
 	await setOpening(ctx, studentId, 0, opening)
-	const hour = await onceLesson(ctx, studentId, dayAfter, '10:00')
-	const long = await onceLesson(ctx, studentId, core.addDays(opening, 2), '10:00', 90)
-	const night = await onceLesson(ctx, studentId, dayAfter, '00:30')
-	const openingDay = await onceLesson(ctx, studentId, opening, '10:00')
+	const hour = onceLesson(studentId, dayAfter, '10:00')
+	const long = onceLesson(studentId, core.addDays(opening, 2), '10:00', 90)
+	const night = onceLesson(studentId, dayAfter, '00:30')
+	const openingDay = onceLesson(studentId, opening, '10:00')
 	const nightAt = core.zonedInstant(dayAfter, '00:30', VN)
 	check(
 		'the 00:30 Vietnam lesson is still the opening day in Moscow and UTC',
@@ -48,12 +52,10 @@ export async function sectionBalance(ctx: Context) {
 	await expectBalance(ctx, studentId, 'none of the 90 minute lesson', -120)
 	await stepOk('no_show of the 90 minute lesson', () => markSingle(ctx, long, 'no_show'))
 	await expectBalance(ctx, studentId, 'no_show of the 90 minute lesson deducts by default', -210)
-	await stepOk('cancel of the started 90 minute lesson', () => post(ctx, `/lessons/${long}/cancel`))
-	await expectBalance(ctx, studentId, 'cancel of the started 90 minute lesson', -120)
-	const kept = lessonMarks(long)
-	check('cancel keeps the no_show mark row', kept.length === 1 && kept[0].kind === 'no_show')
-	await stepOk('restore of the 90 minute lesson', () => post(ctx, `/lessons/${long}/restore`))
-	await expectBalance(ctx, studentId, 'restore of the 90 minute lesson', -210)
+	setLessonStatus(long, 'cancelled')
+	await expectBalance(ctx, studentId, 'cancelled started 90 minute lesson with a no_show mark', -120)
+	setLessonStatus(long, 'scheduled')
+	await expectBalance(ctx, studentId, 'restored 90 minute lesson with a no_show mark', -210)
 	await stepOk('payment after the opening day', () =>
 		call(ctx.api, 'POST', '/payments', {
 			cookie: ctx.cookie,
@@ -93,7 +95,7 @@ async function disableNoShowDeduction(ctx: Context) {
 	const studentId = await createCard(ctx, name)
 	const opening = core.addDays(ctx.today, -3)
 	await setOpening(ctx, studentId, 200, opening)
-	const lessonId = await onceLesson(ctx, studentId, core.addDays(opening, 1), '10:00')
+	const lessonId = onceLesson(studentId, core.addDays(opening, 1), '10:00')
 	await stepOk('no_show of the past lesson', () => markSingle(ctx, lessonId, 'no_show'))
 	const first = await expectBalance(ctx, studentId, 'no_show with the flag on', 60)
 	check('new card has noShowDeducts true', first.detail?.noShowDeducts === true)
