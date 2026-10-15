@@ -1,10 +1,10 @@
 ---
 schema_version: 1
-open_count: 16
+open_count: 17
 waived_count: 0
 fixed_count: 1
-total_count: 17
-last_updated: 2026-10-15T07:42:27.755Z
+total_count: 18
+last_updated: 2026-10-15T07:44:57.294Z
 ---
 
 # Broken Windows Ledger
@@ -32,6 +32,7 @@ last_updated: 2026-10-15T07:42:27.755Z
 | 15 | 25.2 | deviation | apps/web/lib/lesson-count-text.ts |  | A4 ключ сравнения названий: отложено, см. 25.2-ARCH-REVIEW.md | open |  | 2026-10-14T15:48:15.232Z |  |
 | 16 | 25.2 | deviation | apps/api/src/calendar/event-titles.ts |  | A5 проекция событий Google: отложено, см. 25.2-ARCH-REVIEW.md | open |  | 2026-10-14T15:48:15.330Z |  |
 | 17 | 25.2 | stub | apps/web/app/(app)/chat/_components/change-proposal.tsx |  | set_details: Rows and Notes return null, the field card ChangeCardDetails is built by 25.2-23 | open |  | 2026-10-15T07:42:27.755Z |  |
+| 18 | 21 | deviation | packages/core/src/lessons.ts |  | Две одинаковые формулы минут (creditedMinutes, lessonsToMinutes): отложено, см. 21-ARCH-REVIEW.md | open |  | 2026-10-15T07:44:57.294Z |  |
 
 ````json
 [
@@ -253,6 +254,19 @@ last_updated: 2026-10-15T07:42:27.755Z
     "status": "open",
     "reason": "",
     "recorded_at": "2026-10-15T07:42:27.755Z",
+    "resolved_at": null,
+    "milestone": "v2.0"
+  },
+  {
+    "id": 18,
+    "kind": "deviation",
+    "phase": "21",
+    "file": "packages/core/src/lessons.ts",
+    "line": null,
+    "description": "Две одинаковые формулы минут (creditedMinutes, lessonsToMinutes): отложено, см. 21-ARCH-REVIEW.md",
+    "status": "open",
+    "reason": "",
+    "recorded_at": "2026-10-15T07:44:57.294Z",
     "resolved_at": null,
     "milestone": "v2.0"
   }

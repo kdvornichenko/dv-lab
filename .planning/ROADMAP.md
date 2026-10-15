@@ -569,7 +569,7 @@ Superseded by Phase 25.1 (owner decisions D5-D10, 2026-10-12). Its research and 
 4. Students shows the four-column table with sorting, filters in the URL and the payment ring; the profile has Overview, Lessons (date range, outcomes, totals) and Payments (Opening balance).
 5. The app installs as a PWA and sends "lesson soon" and "student about to pay" pushes.
 
-**Plans**: 27 plans, 66 tasks, 16 waves; execution pending. See [25.2-PLAN-INDEX.md](phases/25.2-polish/25.2-PLAN-INDEX.md).
+**Plans**: 29 plans, 72 tasks, 17 waves; execution in progress. See [25.2-PLAN-INDEX.md](phases/25.2-polish/25.2-PLAN-INDEX.md).
 - [ ] 25.2-01-PLAN.md — dependencies, Firefox for checks, schema M1-M9
 - [ ] 25.2-02-PLAN.md — dialog kinds, Firefox fade, long titles, chat small fixes
 - [ ] 25.2-03-PLAN.md — core: chronological ledger (ARCH-A1), short balance, title matching
@@ -597,6 +597,8 @@ Superseded by Phase 25.1 (owner decisions D5-D10, 2026-10-12). Its research and 
 - [ ] 25.2-25-PLAN.md — service worker: push to a shown notification, tap, resubscribe
 - [ ] 25.2-26-PLAN.md — notification settings, subscription client, presence (web)
 - [ ] 25.2-27-PLAN.md — push: scheduler (lesson soon, pays soon), presence suppression, web-push delivery
+- [ ] 25.2-28-PLAN.md — Google event description parsed on the server into blocks, safe links, URL location label (design v104)
+- [ ] 25.2-29-PLAN.md — event description blocks, links and one-line URL location in EventDetails (web, design v104)
 **UI hint**: yes
 **Notes**: `/edvibe` and the command builder are Phase 25.3 and wait for the owner's template examples.
 
@@ -646,6 +648,6 @@ Superseded by Phase 25.1 (owner decisions D5-D10, 2026-10-12). Its research and 
 | 23. Confirmed Chat Changes and Entry Points      | v2.0      | 14/14          | Complete    | 2026-10-14 |
 | 24. Google Calendar Connection and Outbound Sync | v2.0      | 13/14          | In Progress | -          |
 | 25. Google Calendar Two-Way Sync                 | v2.0      | 0/12           | Planned     | -          |
-| 25.2. Polish before IELTS                        | v2.0      | 0/27           | Planned     | -          |
+| 25.2. Polish before IELTS                        | v2.0      | 0/29           | Planned     | -          |
 | 25.3. Chat Command Builder                       | v2.0      | 0/0            | Not planned | -          |
 | 26. IELTS Section                                | v2.0      | 0/40           | Planned     | -          |
