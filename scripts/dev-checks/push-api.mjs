@@ -1,3 +1,4 @@
+import { spawn } from 'node:child_process'
 import { randomBytes, randomUUID } from 'node:crypto'
 import { readFileSync } from 'node:fs'
 import { parseEnv } from 'node:util'
@@ -7,8 +8,8 @@ import { ENV_TEST, ROOT, STUDENT_LOGIN, call, quote, sql, startApi, studentCooki
 const PORT = 4271
 const ENDPOINT_HOST = 'push.example.test'
 const ENDPOINT_BASE = `https://${ENDPOINT_HOST}/dvlab-check/`
-const SECTIONS = ['routes', 'links', 'settings', 'presence']
-const API_SECTIONS = new Set(['routes', 'settings', 'presence'])
+const SECTIONS = ['routes', 'links', 'settings', 'presence', 'config']
+const API_SECTIONS = new Set(['routes', 'settings', 'presence', 'config'])
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/
 
 let failures = 0
@@ -359,7 +360,125 @@ async function presence(ctx) {
 	)
 }
 
-const RUNNERS = { routes, links, settings, presence }
+const PUSH_NAMES = ['PUSH_VAPID_PUBLIC_KEY', 'PUSH_VAPID_PRIVATE_KEY', 'PUSH_VAPID_SUBJECT']
+const SIDE_PORT = 4272
+const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms))
+
+function withoutPush(source) {
+	const env = { ...source }
+	for (const name of PUSH_NAMES) delete env[name]
+	return env
+}
+
+async function spawnApi(push) {
+	const base = `http://127.0.0.1:${SIDE_PORT}`
+	const env = {
+		...withoutPush(process.env),
+		...withoutPush(fileEnv),
+		...push,
+		NODE_ENV: 'test',
+		PORT: String(SIDE_PORT),
+		APP_ORIGIN: base,
+		LOG_LEVEL: 'info',
+	}
+	delete env.MIGRATOR_DATABASE_URL
+	const child = spawn(process.execPath, ['apps/api/src/server.ts'], { cwd: ROOT, env, stdio: ['ignore', 'pipe', 'pipe'] })
+	let output = ''
+	let exit = null
+	child.stdout.on('data', (chunk) => (output += chunk))
+	child.stderr.on('data', (chunk) => (output += chunk))
+	const exited = new Promise((resolve) =>
+		child.on('exit', (code, signal) => {
+			exit = { code, signal }
+			resolve(exit)
+		})
+	)
+	const api = { base, port: SIDE_PORT, logs: () => output }
+	api.stop = async () => {
+		if (exit) return exit
+		child.kill('SIGTERM')
+		if ((await Promise.race([exited, sleep(15000).then(() => 'timeout')])) === 'timeout') {
+			child.kill('SIGKILL')
+			await exited
+		}
+		return exit
+	}
+	const deadline = Date.now() + 20000
+	while (Date.now() < deadline) {
+		if (exit) return { started: false, exit, output }
+		try {
+			if ((await call(api, 'GET', '/healthz')).status === 200) return { started: true, api, output }
+		} catch {}
+		await sleep(200)
+	}
+	await api.stop()
+	return { started: false, exit, output }
+}
+
+function leaks(text) {
+	return PUSH_NAMES.slice(0, 2).some((name) => fileEnv[name] !== undefined && text.includes(fileEnv[name]))
+}
+
+async function config(ctx) {
+	const { api, cookie } = ctx
+	const hasPair = PUSH_NAMES.every((name) => fileEnv[name] !== undefined)
+	check('the check environment holds the local VAPID pair', hasPair)
+
+	const endpoint = newEndpoint()
+	const created = await send(api, 'POST', '/push/subscriptions', cookie, { endpoint, keys: newKeys() })
+	if (created.status !== 201) throw new Error(`subscription create returned ${created.status}`)
+	const withPair = await send(api, 'GET', '/push/config', cookie)
+	check(
+		'api with the pair answers enabled true and the public key',
+		withPair.status === 200 &&
+			withPair.json?.enabled === true &&
+			typeof withPair.json?.publicKey === 'string' &&
+			withPair.json.publicKey.length > 0 &&
+			withPair.json.publicKey === fileEnv.PUSH_VAPID_PUBLIC_KEY,
+		`status ${withPair.status} enabled ${withPair.json?.enabled}`
+	)
+	check('GET /push/config never carries the private key', !JSON.stringify(withPair.json).includes(fileEnv.PUSH_VAPID_PRIVATE_KEY ?? '\u0000'))
+
+	const off = await spawnApi({})
+	try {
+		check('api without PUSH_VAPID_* starts', off.started, JSON.stringify(off.exit))
+		if (off.started) {
+			const offCookie = await teacherCookie(off.api)
+			const disabled = await send(off.api, 'GET', '/push/config', offCookie)
+			check(
+				'api without PUSH_VAPID_* answers enabled false, publicKey null and still lists devices',
+				disabled.status === 200 &&
+					disabled.json?.enabled === false &&
+					disabled.json?.publicKey === null &&
+					disabled.json?.devices?.some((item) => item.id === created.json.id) === true,
+				`status ${disabled.status} enabled ${disabled.json?.enabled}`
+			)
+		}
+	} finally {
+		if (off.started) await off.api.stop()
+	}
+
+	const badSubject = await spawnApi({
+		PUSH_VAPID_PUBLIC_KEY: fileEnv.PUSH_VAPID_PUBLIC_KEY,
+		PUSH_VAPID_PRIVATE_KEY: fileEnv.PUSH_VAPID_PRIVATE_KEY,
+		PUSH_VAPID_SUBJECT: 'http://localhost',
+	})
+	if (badSubject.started) await badSubject.api.stop()
+	check(
+		'a subject that is not https stops the api with a config error',
+		!badSubject.started && /Invalid push configuration/.test(badSubject.output) && !leaks(badSubject.output),
+		JSON.stringify(badSubject.exit)
+	)
+	const partial = await spawnApi({ PUSH_VAPID_PUBLIC_KEY: fileEnv.PUSH_VAPID_PUBLIC_KEY })
+	if (partial.started) await partial.api.stop()
+	check(
+		'one variable of three stops the api with a config error',
+		!partial.started && /Invalid push configuration/.test(partial.output) && !leaks(partial.output),
+		JSON.stringify(partial.exit)
+	)
+}
+
+const RUNNERS = { routes, links, settings, presence, config }
 
 const wanted = process.argv.slice(2)
 const selected = wanted.length === 0 ? SECTIONS : wanted
