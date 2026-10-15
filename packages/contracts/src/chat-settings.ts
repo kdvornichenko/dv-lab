@@ -189,3 +189,42 @@ export const CHAT_SETTINGS_DEFAULT: AssistantSettings = {
 	model: null,
 	effort: null,
 }
+
+export const CHAT_PROMPT_COMMANDS = ['/recap', '/essay'] as const
+
+export type ChatPromptCommand = (typeof CHAT_PROMPT_COMMANDS)[number]
+
+export const CHAT_PROMPT_MAX_LENGTH = 8000
+
+const promptBody = z
+	.string()
+	.transform((value) => value.trim())
+	.refine((value) => {
+		const length = [...value].length
+		return length >= 1 && length <= CHAT_PROMPT_MAX_LENGTH && !value.includes('\u0000')
+	})
+
+export const commandPrompt = z.strictObject({
+	command: z.enum(CHAT_PROMPT_COMMANDS),
+	body: z.string(),
+	isDefault: z.boolean(),
+	defaultBody: z.string(),
+	revision: z.number().int().min(0),
+})
+
+export type CommandPrompt = z.infer<typeof commandPrompt>
+
+export const commandPromptsResponse = z.strictObject({ prompts: z.array(commandPrompt) })
+
+export type CommandPromptsResponse = z.infer<typeof commandPromptsResponse>
+
+export const commandPromptResponse = z.strictObject({ prompt: commandPrompt })
+
+export type CommandPromptResponse = z.infer<typeof commandPromptResponse>
+
+export const saveCommandPromptRequest = z.strictObject({
+	body: promptBody.nullable(),
+	expectedRevision: z.number().int().min(0),
+})
+
+export type SaveCommandPromptRequest = z.infer<typeof saveCommandPromptRequest>

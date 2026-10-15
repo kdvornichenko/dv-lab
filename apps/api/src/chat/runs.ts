@@ -39,11 +39,12 @@ import { studentGenders } from '../cards/cards.ts'
 import { readAssistantSettings, readTeacherSettings } from '../settings/settings.ts'
 import type { Admission, ChatContext, TurnStarter } from './actions.ts'
 import { markDispatched, markUnknown, release, reserveAttempt, settleAttempt, usageOf } from './budget.ts'
-import { ESSAY_COMMAND, ESSAY_TASK } from './essay.ts'
+import { ESSAY_COMMAND } from './essay.ts'
 import { lessonDatesPeriod } from './facts.ts'
 import { replyMentions, studentNames } from './mentions.ts'
 import { stepsOf, toMessages } from './messages.ts'
 import { type ModelOverride, modelCapabilities, resolveModelChoice, selectionAllowed } from './model-config.ts'
+import { type CommandTexts, readCommandTexts } from './prompts.ts'
 import { type ChatProvider, ProviderFault } from './provider.ts'
 import {
 	type GateContext,
@@ -193,10 +194,11 @@ function blockNote(block: Exclude<ChatBlock, { type: 'suggestions' }>): string {
 	}
 }
 
-function pastMessage(message: ChatMessage): Anthropic.MessageParam | null {
+function pastMessage(message: ChatMessage, texts: CommandTexts): Anthropic.MessageParam | null {
 	if (message.role === 'teacher') {
 		const lines = mentionLines(message.mentions)
-		const text = lines.length === 0 ? message.body : `${message.body}\n\nMentioned:\n${lines.join('\n')}`
+		const body = expandCommand(message.body, texts)
+		const text = lines.length === 0 ? body : `${body}\n\nMentioned:\n${lines.join('\n')}`
 		return { role: 'user', content: text }
 	}
 	const notes = message.blocks.filter((block) => block.type !== 'suggestions').map(blockNote)
@@ -206,14 +208,11 @@ function pastMessage(message: ChatMessage): Anthropic.MessageParam | null {
 
 const RECAP_COMMAND = /^\s*\/recap\b\s*/iu
 
-const RECAP_TASK =
-	'Prepare a short recap for the mentioned student. Read the stored profile, notes, comments and lessons with the tools, then retell them in your own words under three bold labels: what was covered, weak points, ideas for the next lessons. Under each label write one to five short bullet points, one line each, concrete and without filler. Never leave a label without text under it: when the records say nothing for it, leave the label out. Summarize profile sections instead of quoting them, and do not copy raw tables, file lists or service text. Use at most two cite markers in the whole recap, only for a short note or comment whose exact words matter, at the end of a bullet that reads complete without the quote. If no student is mentioned, ask which one.'
-
-function expandCommand(body: string): string {
+function expandCommand(body: string, texts: CommandTexts): string {
 	const command = RECAP_COMMAND.test(body) ? RECAP_COMMAND : ESSAY_COMMAND.test(body) ? ESSAY_COMMAND : null
 	if (command === null) return body
 	const rest = body.replace(command, '').trim()
-	const task = command === RECAP_COMMAND ? RECAP_TASK : ESSAY_TASK
+	const task = command === RECAP_COMMAND ? texts['/recap'] : texts['/essay']
 	return rest === '' ? task : `${task}\n\nThe teacher wrote: ${rest}`
 }
 
@@ -221,7 +220,8 @@ function currentMessage(
 	message: ChatMessage,
 	zone: string,
 	now: Date,
-	genders: ReadonlyMap<string, Gender | null>
+	genders: ReadonlyMap<string, Gender | null>,
+	texts: CommandTexts
 ): Anthropic.MessageParam {
 	const local = zonedParts(now, zone)
 	const lines = mentionLines(message.mentions, genders)
@@ -233,7 +233,7 @@ function currentMessage(
 		`Lesson day: ${day} (${weekdayName(new Date(`${day}T12:00:00Z`), 'UTC')})`,
 		...(lines.length === 0 ? [] : ['Mentioned students:', ...lines]),
 		'[Message]',
-		expandCommand(message.body),
+		expandCommand(message.body, texts),
 	]
 	return { role: 'user', content: context.join('\n') }
 }
@@ -621,12 +621,13 @@ export function createChat({
 			learnName(gate, binding.text.replace(/^@/u, ''))
 			run.people.set(binding.studentId, binding.text.replace(/^@/u, ''))
 		}
-		const past = loaded.past.map(pastMessage).filter((message) => message !== null)
+		const texts = await readCommandTexts(db, turn.accountId)
+		const past = loaded.past.map((message) => pastMessage(message, texts)).filter((message) => message !== null)
 		const genders = await studentGenders(
 			db,
 			loaded.current.mentions.map((binding) => binding.studentId)
 		)
-		const current = currentMessage(loaded.current, zone, start.now, genders)
+		const current = currentMessage(loaded.current, zone, start.now, genders, texts)
 		const steps: Anthropic.MessageParam[] = []
 		const issued: Issued = new Map()
 		const shown = new Set<string>()
