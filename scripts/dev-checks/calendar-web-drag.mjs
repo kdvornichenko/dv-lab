@@ -15,7 +15,7 @@ const VIEWPORTS = [
 const BODY = '[data-slot="week-grid-body"] [data-slot="calendar-event"]'
 const BAND = '[data-slot="calendar-all-day"] [data-slot="calendar-event"]'
 const MINUTE = 48 / 60
-const DAY_START = 120
+const DAY_START = 0
 const CARD_ONE = 'calendar-seed:alex-example-0001'
 const CARD_TWO = 'calendar-commands:alex-example-0002'
 const MODES = {

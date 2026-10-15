@@ -32,18 +32,21 @@ import {
 	useLaptop,
 	usePhoneGrid,
 } from './schedule-loading'
+import { useSchedulePrefetch } from './schedule-prefetch'
 import { ScheduleBar, TOOLBAR_BUTTONS, useScheduleKeys, weekSummary } from './schedule-toolbar'
 import type { MoveSeed } from './use-lesson-drag'
 import { useLessonStudents, type StudentsState } from './use-lesson-students'
 import { arrivalMonday, useDropArrivalParams, type ArrivalParams } from './use-schedule-arrival'
 import { useScheduleWeek } from './use-schedule-week'
-import { OPEN_SCROLL_TOP, WeekGrid, type SlotChoice } from './week-grid'
+import { WeekGrid, type SlotChoice } from './week-grid'
 
 export function ScheduleScreen({ arrival }: { arrival: ArrivalParams }) {
 	const now = useMinuteNow()
 	if (now === null) return <ScheduleLoading />
 	return <LoadedSchedule now={now} arrival={arrival} />
 }
+
+const NO_EVENTS: readonly CalendarEventView[] = []
 
 function displayWindow(data: GoogleScheduleWindow | null, query: { monday: string; mainTimeZone: string }, now: Date) {
 	const range = data?.snapshotRange ?? data?.requestedRange
@@ -65,7 +68,7 @@ function displayWindow(data: GoogleScheduleWindow | null, query: { monday: strin
 function LoadedSchedule({ now, arrival }: { now: Date; arrival: ArrivalParams }) {
 	const [initialMonday] = useState(() => arrivalMonday(arrival))
 	const { state: week, reload, navigate, peek } = useScheduleWeek(initialMonday)
-	const scrollTopRef = useRef(OPEN_SCROLL_TOP)
+	const scrollTopRef = useRef<number | null>(null)
 	const [selection, setSelection] = useState<CalendarEventView | null>(null)
 	const [moveSeed, setMoveSeed] = useState<MoveSeed | undefined>(undefined)
 	const commands = useCalendarCommands()
@@ -80,9 +83,7 @@ function LoadedSchedule({ now, arrival }: { now: Date; arrival: ArrivalParams })
 		void reload()
 	}, [reload])
 	const writes = useOptimisticWrites(refused)
-	const students = useLessonStudents(
-		draft !== null || selection !== null || (week.data?.events.some((event) => event.suggestion !== null) ?? false)
-	)
+	const students = useLessonStudents(week.data !== null)
 	const returnFocus = useRef<HTMLElement | null>(null)
 	const titleRef = useRef<HTMLHeadingElement>(null)
 	const [zone, setZone] = useSecondZone(week.query?.mainTimeZone ?? null)
@@ -106,6 +107,12 @@ function LoadedSchedule({ now, arrival }: { now: Date; arrival: ArrivalParams })
 		navigate(target, current)
 	}
 	useDropArrivalParams(week.query === null && week.kind === 'error')
+	useSchedulePrefetch(
+		week.data?.events ?? NO_EVENTS,
+		now,
+		week.data?.requestedRange.timeZone ?? week.query?.mainTimeZone ?? null,
+		week.kind === 'ready'
+	)
 
 	if (week.query === null)
 		return week.kind === 'error' ? (
@@ -197,7 +204,6 @@ function LoadedSchedule({ now, arrival }: { now: Date; arrival: ArrivalParams })
 			mark={writes.mark}
 			monday={monday}
 			mainTimeZone={mainTimeZone}
-			today={today}
 			now={now}
 			secondZone={secondZone}
 			events={events}
@@ -215,6 +221,7 @@ function LoadedSchedule({ now, arrival }: { now: Date; arrival: ArrivalParams })
 			onSlot={(seed) => void openNew(seed)}
 			frame={draft?.seed ?? null}
 			scrollTopRef={scrollTopRef}
+			onWeekStep={(direction) => (direction > 0 ? navigation.onNext() : navigation.onPrevious())}
 			placeholders={loadingFirst ? LOADING_BLOCKS : undefined}
 			phone={phone}
 			loadingBlocks={LOADING_BLOCKS}

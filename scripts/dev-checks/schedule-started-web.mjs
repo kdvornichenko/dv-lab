@@ -15,7 +15,7 @@ const WAIT = `${ROOT}/scripts/dev-checks/wait-dev.mjs`
 const VIEWPORT = { width: 1440, height: 820 }
 const BODY = '[data-slot="week-grid-body"] [data-slot="calendar-event"]'
 const MINUTE = 48 / 60
-const DAY_START = 120
+const DAY_START = 0
 const CARD = 'calendar-seed:alex-example-0001'
 const NAME = 'Alex Example 0001'
 const DONE_LINE = 'Marked Done: this lesson stays where it is. To move or cancel it, set the mark to Scheduled first.'

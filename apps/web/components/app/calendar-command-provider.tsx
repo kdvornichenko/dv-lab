@@ -2,12 +2,12 @@
 
 import { createContext, useContext, useEffect, useState, useSyncExternalStore, type ReactNode } from 'react'
 
-import { DATA_CHANGED_CHANNEL } from '@/lib/api-client'
+import { DATA_CHANGED_CHANNEL, sessionEpoch } from '@/lib/api-client'
 
 import type { GoogleScheduleWindow } from '@dv-lab/contracts'
 
 import { CalendarCommandStore } from './calendar-command-store'
-import { readCalendarWeek, sameCalendarAccount } from './calendar-command-transport'
+import { readCalendarWeek } from './calendar-command-transport'
 
 type RefreshKind = 'projection' | 'window'
 type Reader = { refresh: () => Promise<void>; kind: RefreshKind }
@@ -16,9 +16,10 @@ function createController(accountId: string) {
 	const readers = new Set<Reader>()
 	const windows = new Set<(window: GoogleScheduleWindow) => void>()
 	async function readWindow(date?: string, current: () => boolean = () => true) {
-		if (!current() || !(await sameCalendarAccount(accountId)) || !current()) return null
+		const session = sessionEpoch()
+		if (!current()) return null
 		const result = await readCalendarWeek(date)
-		if (!(await sameCalendarAccount(accountId)) || !current()) return null
+		if (sessionEpoch() !== session || !current()) return null
 		if (result !== null) for (const accept of windows) accept(result)
 		return result
 	}
