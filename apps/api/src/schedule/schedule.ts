@@ -102,7 +102,7 @@ function toWireBlock(
 		movedTo: block.movedTo === null ? null : block.movedTo.toISOString(),
 		movedFrom: block.movedFrom === null ? null : block.movedFrom.toISOString(),
 		outcome: toWireOutcome(block.outcome),
-		actions: toWireActions(lessonActions(block.outcome, block.startsAt, now)),
+		actions: toWireActions(lessonActions(block.outcome, mark?.kind ?? null, block.startsAt, now)),
 		ledger: {
 			openingOn: student.card.openingOn,
 			noShowDeducts: student.card.noShowDeducts,

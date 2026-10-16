@@ -11,13 +11,14 @@ import {
 	type ReactNode,
 } from 'react'
 
-import { m } from 'motion/react'
 import { ChevronLeft, ChevronRight } from 'lucide-react'
+import { m } from 'motion/react'
 
 import { Skeleton } from '@/components/ui/skeleton'
 import { TooltipProvider } from '@/components/ui/tooltip'
 import { Elevated } from '@/lib/elevated'
 import { eventPaint } from '@/lib/event-colors'
+import { eventAwaitsMark } from '@/lib/lesson-actions'
 import { dayNumber, formatDate, gutterLabel, hourLabel, weekTitle, weekdayCaps } from '@/lib/schedule-format'
 import { zoneLabel } from '@/lib/time-zones'
 import { cn } from '@/lib/utils'
@@ -650,11 +651,7 @@ export function WeekGrid({
 							editable={canEdit(event)}
 							movable={mouseEditable && canMove(event)}
 							phone={phone}
-							needsMark={
-								event.binding.kind === 'lesson' &&
-								event.when.kind === 'timed' &&
-								Date.parse(event.when.startsAt) <= now.getTime()
-							}
+							needsMark={eventAwaitsMark(event, now)}
 							studentName={studentName}
 							ghost={event.eventKey === ghostKey}
 							mark={mark?.(event) ?? null}

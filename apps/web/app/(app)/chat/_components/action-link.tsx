@@ -12,6 +12,7 @@ import {
 } from 'lucide-react'
 import Link from 'next/link'
 
+import { useMainTimeZone } from '@/lib/main-time-zone'
 import { dayMonthShort, formatDate, yearInZone } from '@/lib/schedule-format'
 import { actionLinkHref } from '@/lib/schedule-links'
 import { surfaceClasses } from '@/lib/surface-classes'
@@ -19,7 +20,7 @@ import { useSurface } from '@/lib/surface-context'
 import { cn } from '@/lib/utils'
 
 import type { ChatActionLinkBlock } from '@dv-lab/contracts'
-import { SCHEDULE_TIME_ZONE, mondayOf } from '@dv-lab/core'
+import { mondayOf } from '@dv-lab/core'
 
 const SETTINGS_PART = { general: 'General', calendar: 'Calendar', assistant: 'Assistant' } as const
 
@@ -32,7 +33,7 @@ const ICONS = {
 	settings: SlidersHorizontal,
 } satisfies Record<ChatActionLinkBlock['kind'], LucideIcon>
 
-function words(block: ChatActionLinkBlock): { title: string; line: string } {
+function words(block: ChatActionLinkBlock, zone: string): { title: string; line: string } {
 	const name = block.studentName ?? ''
 	const possessive = `${name}'s`
 	switch (block.kind) {
@@ -52,7 +53,7 @@ function words(block: ChatActionLinkBlock): { title: string; line: string } {
 			return { title: `Open ${possessive} vocabulary`, line: `Vocabulary · ${name}` }
 		case 'schedule_day': {
 			const date = block.date ?? ''
-			const year = yearInZone(new Date(), SCHEDULE_TIME_ZONE)
+			const year = yearInZone(new Date(), zone)
 			return {
 				title: `Open ${formatDate(date, year)} in the Schedule`,
 				line: `Schedule · Week of ${dayMonthShort(mondayOf(date))}`,
@@ -68,9 +69,10 @@ function words(block: ChatActionLinkBlock): { title: string; line: string } {
 
 export function ActionLink({ block }: { block: ChatActionLinkBlock }) {
 	const level = useSurface() + 1
+	const zone = useMainTimeZone()
 	const href = actionLinkHref(block)
 	if (href === null) return null
-	const { title, line } = words(block)
+	const { title, line } = words(block, zone)
 	const Icon = ICONS[block.kind]
 	return (
 		<Link

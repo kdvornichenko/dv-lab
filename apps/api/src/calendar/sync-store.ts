@@ -1,6 +1,7 @@
 import { and, eq, getColumns, inArray, isNotNull, isNull, lt, ne, not, or, sql, type SQL } from 'drizzle-orm'
 import { isDeepStrictEqual } from 'node:util'
 
+import { SYNC_WINDOW_WEEKS } from '@dv-lab/contracts'
 import { addDays, mondayOf, scheduleToday, startOfZonedDay } from '@dv-lab/core'
 import {
 	googleCalendarEvents,
@@ -55,7 +56,10 @@ const due = sql`(${s.nextPollAt} <= now() or (${s.failureCount} = 0 and (${s.req
 
 export function syncWindow(now: Date, zone: string): SyncWindow {
 	const monday = mondayOf(scheduleToday(now, zone))
-	return { start: startOfZonedDay(addDays(monday, -56), zone), end: startOfZonedDay(addDays(monday, 371), zone) }
+	return {
+		start: startOfZonedDay(addDays(monday, -SYNC_WINDOW_WEEKS.back * 7), zone),
+		end: startOfZonedDay(addDays(monday, SYNC_WINDOW_WEEKS.ahead * 7), zone),
+	}
 }
 
 export async function ensureSyncRow(

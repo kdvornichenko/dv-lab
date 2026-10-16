@@ -13,11 +13,11 @@ import { Banner, BannerAction, BannerActions, BannerTitle } from '@/components/u
 import { Button } from '@/components/ui/button'
 import { Skeleton } from '@/components/ui/skeleton'
 import { apiRequest, peekApi } from '@/lib/api-client'
+import { useMainTimeZone } from '@/lib/main-time-zone'
 import { formatWhen, yearInZone } from '@/lib/schedule-format'
 import { zoneLabel } from '@/lib/time-zones'
 
 import { timeZoneIdentity, type GoogleConnectionSnapshot, type SettingsResponse } from '@dv-lab/contracts'
-import { SCHEDULE_TIME_ZONE } from '@dv-lab/core'
 
 import { CalendarChoice } from './calendar-choice'
 
@@ -154,25 +154,6 @@ function ConnectionDialog({
 	)
 }
 
-function useMainTimeZone(fallback: string): string {
-	const [zone, setZone] = useState<string | null>(() => {
-		const cached = peekApi<SettingsResponse>('/settings')
-		return cached !== null && cached.ok ? timeZoneIdentity(cached.data.settings.defaultTimeZone) : null
-	})
-	useEffect(() => {
-		let live = true
-		void apiRequest<SettingsResponse>('GET', '/settings').then((result) => {
-			if (!live || !result.ok) return
-			const identity = timeZoneIdentity(result.data.settings.defaultTimeZone)
-			if (identity !== null) setZone(identity)
-		})
-		return () => {
-			live = false
-		}
-	}, [])
-	return zone ?? fallback
-}
-
 function lastChecked(at: string, zone: string): string {
 	const instant = new Date(at)
 	return `Last checked ${formatWhen(instant, zone, yearInZone(instant, zone))} (${zoneLabel(zone, instant)})`
@@ -180,7 +161,7 @@ function lastChecked(at: string, zone: string): string {
 
 function SyncState({ snapshot }: { snapshot: GoogleConnectionSnapshot }) {
 	const sync = useGoogleSync()
-	const zone = useMainTimeZone(snapshot.calendar?.timeZone ?? SCHEDULE_TIME_ZONE)
+	const zone = useMainTimeZone()
 	const checked = sync?.lastCheckedAt ? lastChecked(sync.lastCheckedAt, zone) : null
 	let content: ReactNode = null
 	if (snapshot.state !== 'connected' || sync?.state === 'off')

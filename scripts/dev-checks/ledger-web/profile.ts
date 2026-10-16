@@ -1086,21 +1086,37 @@ async function phonePart(page: Page, id: string) {
 		metrics.rows.length > 0 && metrics.rows.every((row) => row.columns === 3 && row.outcome > row.menu)
 	)
 	await shot(page, 'ledger-profile', 'phone')
+	const layout = () =>
+		page.evaluate(() => {
+			const spans = Array.from(document.querySelectorAll<HTMLElement>('[data-slot="lessons-head"] span'))
+				.filter((node) => getComputedStyle(node).display !== 'none' && node.textContent !== '')
+				.map((node) => node.getBoundingClientRect())
+			return {
+				page: document.documentElement.scrollWidth - window.innerWidth,
+				head: getComputedStyle(document.querySelector('[data-slot="lessons-head"]')!).display,
+				duration: Array.from(document.querySelectorAll<HTMLElement>('[data-slot="lessons-head"] span')).some(
+					(node) => node.textContent === 'Duration' && getComputedStyle(node).display !== 'none'
+				),
+				overlap: spans.some((rect, index) => index > 0 && rect.left < spans[index - 1]!.right),
+			}
+		})
 	await page.setViewportSize({ width: 768, height: 900 })
 	await page.waitForTimeout(300)
-	const tablet = await page.evaluate(() => ({
-		page: document.documentElement.scrollWidth - window.innerWidth,
-		head: getComputedStyle(document.querySelector('[data-slot="lessons-head"]')!).display,
-		duration: Array.from(document.querySelectorAll<HTMLElement>('[data-slot="lessons-head"] span')).some(
-			(node) => node.textContent === 'Duration' && getComputedStyle(node).display !== 'none'
-		),
-	}))
+	const tablet = await layout()
 	check(
-		'768 px: no sideways scroll, the header is a grid and Duration is not a column',
-		tablet.page <= 0 && tablet.head === 'grid' && !tablet.duration,
+		'768 px with the sidebar: no sideways scroll, the list is too narrow for columns and a lesson is a card',
+		tablet.page <= 0 && tablet.head === 'none',
 		JSON.stringify(tablet)
 	)
 	await shot(page, 'ledger-profile', 'tablet')
+	await page.setViewportSize({ width: 1024, height: 900 })
+	await page.waitForTimeout(300)
+	const laptop = await layout()
+	check(
+		'1024 px: the header is a grid, Duration is not a column and no header label overlaps the next',
+		laptop.page <= 0 && laptop.head === 'grid' && !laptop.duration && !laptop.overlap,
+		JSON.stringify(laptop)
+	)
 	await page.setViewportSize({ width: 1280, height: 900 })
 }
 

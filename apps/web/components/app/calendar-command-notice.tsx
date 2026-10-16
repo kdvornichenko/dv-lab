@@ -4,6 +4,7 @@ import { useState } from 'react'
 
 import Link from 'next/link'
 
+import { READ_ISSUES } from '@/components/app/google-calendar-state'
 import { Button } from '@/components/ui/button'
 
 import type { CalendarCommandSnapshot } from '@dv-lab/contracts'
@@ -41,7 +42,7 @@ function commandCopy(entry: CommandEntry): string {
 			? 'Only part of this calendar change is confirmed. Resume recovery to check the remaining steps.'
 			: 'Only part of this calendar change is confirmed. Checking the remaining steps…'
 	return command.nextAction === 'resume_recovery'
-		? 'Earlier calendar requests need recovery before you can make new changes.'
+		? READ_ISSUES.command_pending
 		: 'Checking earlier calendar requests before allowing new changes…'
 }
 

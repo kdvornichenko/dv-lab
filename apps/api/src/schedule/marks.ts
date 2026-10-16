@@ -33,9 +33,15 @@ const NOT_STARTED = { kind: 'not_started' } as const
 
 const NEXT_REVISION = sql`${lessonMarks.revision} + 1`
 
-function markRefusal(outcome: LessonOutcome, startsAt: Date, expected: string | undefined, now: Date) {
+function markRefusal(
+	outcome: LessonOutcome,
+	mark: MarkKind | null,
+	startsAt: Date,
+	expected: string | undefined,
+	now: Date
+) {
 	if (stale(expected, startsAt)) return CHANGED
-	if (lessonActions(outcome, startsAt, now).mark) return null
+	if (lessonActions(outcome, mark, startsAt, now).mark) return null
 	return countsAsLesson(outcome) ? NOT_STARTED : CHANGED
 }
 
@@ -88,7 +94,7 @@ export async function writeMark(
 	const mark = before?.kind ?? null
 	const eligible = await historyEligibility(executor, accountId, [{ ...subject, mark }], 'write')
 	if (!eligible.has(occurrenceKey(subject.ref))) return CHANGED
-	const refused = markRefusal(occurrenceOutcome(subject, mark), subject.startsAt, input.expectedStartsAt, now)
+	const refused = markRefusal(occurrenceOutcome(subject, mark), mark, subject.startsAt, input.expectedStartsAt, now)
 	if (refused !== null) return refused
 	if (input.expectedRevision !== undefined && input.expectedRevision !== (before?.revision ?? null)) return CHANGED
 	const saved = await putMark(executor, subject.ref, toMarkKind(input.kind))

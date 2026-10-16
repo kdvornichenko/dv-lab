@@ -145,6 +145,8 @@ export const calendarEventSuggestion = z.strictObject({
 })
 export type CalendarEventSuggestion = z.infer<typeof calendarEventSuggestion>
 
+export const SYNC_WINDOW_WEEKS = { back: 8, ahead: 53 } as const
+
 export const calendarEventView = z.strictObject({
 	eventKey: z.string().min(1),
 	version: calendarVersion,

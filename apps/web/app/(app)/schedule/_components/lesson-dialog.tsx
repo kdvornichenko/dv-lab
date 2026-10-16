@@ -16,7 +16,7 @@ import { ScrollArea } from '@/components/ui/scroll-area'
 import {
 	calendarSeriesFor,
 	canEditCalendarEvent,
-	changeableLesson,
+	eventActions,
 	writeIssueFor,
 	type CalendarLesson,
 } from '@/lib/lesson-actions'
@@ -31,7 +31,7 @@ import type {
 	ScheduleBlock,
 	ScheduleSeries,
 } from '@dv-lab/contracts'
-import { canChange, countsAsLesson, scheduleDate } from '@dv-lab/core'
+import { canChange, scheduleDate } from '@dv-lab/core'
 
 import { useToast } from '../../_components/toasts'
 import { lessonMoveBody, movedBlocks } from './calendar-lesson-dialog'
@@ -122,13 +122,10 @@ export function LessonDialog({
 	const second = secondRange(start, block.durationMinutes, context.mainTimeZone, shownSecondZone)
 	const description = `${formatFullDate(start, context.mainTimeZone, currentYear)} · ${range}`
 
-	const mark = block.mark
-	const changeable = event === null ? countsAsLesson(block.outcome) && mark !== 'done' : changeableLesson(event)
-	const actions = {
-		move: changeable,
-		cancel: changeable,
-		restore: event !== null && event.status === 'cancelled' && mark !== 'done',
-	}
+	const actions =
+		event === null
+			? { move: block.actions.move, cancel: block.actions.cancel, restore: false }
+			: eventActions(event, now)
 	const issue =
 		calendar === undefined || editable || busy || calendar.loading ? null : writeIssueFor(event, window, blocked)
 	const unavailable = issue === null ? null : READ_ISSUES[issue]
@@ -305,7 +302,7 @@ export function LessonDialog({
 						moving={moving}
 						pending={command.pending}
 						locked={busy || !editable}
-						mark={mark}
+						mark={block.mark}
 						unavailable={unavailable}
 						moveButton={moveButton}
 						onKeep={() => setConfirming(false)}

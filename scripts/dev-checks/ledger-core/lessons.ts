@@ -94,7 +94,8 @@ function outcomeVectors(expect: Expect): void {
 }
 
 function actionVectors(expect: Expect): void {
-	const actions = (outcome: core.LessonOutcome, startsAt: Date) => core.lessonActions(outcome, startsAt, NOW)
+	const actions = (outcome: core.LessonOutcome, startsAt: Date, mark: core.MarkKind | null = null) =>
+		core.lessonActions(outcome, mark, startsAt, NOW)
 	const none = { move: false, cancel: false, restore: false, mark: false, series: false }
 	expect(
 		'p2 lessonActions matrix at the start boundary',
@@ -106,6 +107,8 @@ function actionVectors(expect: Expect): void {
 			noShowStarted: actions('no_show', NOW),
 			cancelledPast: actions('cancelled', NOW),
 			cancelledFuture: actions('cancelled', LATER),
+			cancelledDone: actions('cancelled', NOW, 'done'),
+			cancelledNoShow: actions('cancelled', NOW, 'no_show'),
 			movedPast: actions('moved', NOW),
 			movedFuture: actions('moved', LATER),
 		},
@@ -117,6 +120,8 @@ function actionVectors(expect: Expect): void {
 			noShowStarted: { move: true, cancel: true, restore: false, mark: true, series: false },
 			cancelledPast: { move: false, cancel: false, restore: true, mark: false, series: false },
 			cancelledFuture: { move: false, cancel: false, restore: true, mark: false, series: true },
+			cancelledDone: none,
+			cancelledNoShow: { move: false, cancel: false, restore: true, mark: false, series: false },
 			movedPast: none,
 			movedFuture: none,
 		}
