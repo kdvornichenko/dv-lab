@@ -27,7 +27,7 @@ import { TodayMarkControls } from '../../../_components/today-mark-controls'
 const DONE_LINE = 'Marked Done: this lesson stays where it is. To move or cancel it, set the mark to Scheduled first.'
 
 const GRID =
-	'grid items-center gap-x-3 grid-cols-[auto_minmax(0,1fr)_auto] sm:grid-cols-[7rem_6.5rem_minmax(10rem,12rem)_minmax(0,1fr)_minmax(5rem,8rem)_3.75rem] lg:grid-cols-[7rem_6.5rem_minmax(10rem,12rem)_4.5rem_minmax(0,1fr)_minmax(5rem,8rem)_3.75rem]'
+	'grid items-center gap-x-3 grid-cols-[auto_minmax(0,1fr)_auto] @min-[44rem]:grid-cols-[7rem_6.5rem_minmax(10rem,12rem)_minmax(6rem,1fr)_minmax(5rem,8rem)_3.75rem] @min-[50rem]:grid-cols-[7rem_6.5rem_minmax(10rem,12rem)_4.5rem_minmax(6rem,1fr)_minmax(5rem,8rem)_3.75rem]'
 
 export interface LessonsTableProps {
 	lessons: readonly StudentLesson[]
@@ -54,7 +54,7 @@ function BalanceAfter({ lesson, lessonMinutes }: { lesson: StudentLesson; lesson
 			data-slot="lessons-balance-after"
 			className={cn(
 				'tabular-nums',
-				lesson.projected ? 'text-muted-foreground' : minutes < 0 ? 'text-destructive' : 'sm:text-foreground'
+				lesson.projected ? 'text-muted-foreground' : minutes < 0 ? 'text-destructive' : '@min-[44rem]:text-foreground'
 			)}
 		>
 			{balancePhrase(minutes, lessonMinutes, { short: true })}
@@ -241,12 +241,12 @@ function Row(props: RowProps) {
 			data-next={next ? 'true' : 'false'}
 			className={cn(
 				GRID,
-				'relative gap-y-1 rounded-lg px-3 py-2 text-body tabular-nums hover:bg-hover sm:min-h-12 sm:gap-y-0',
+				'relative gap-y-1 rounded-lg px-3 py-2 text-body tabular-nums hover:bg-hover @min-[44rem]:min-h-12 @min-[44rem]:gap-y-0',
 				cancelled && 'text-muted-foreground',
 				next && 'bg-active font-semibold'
 			)}
 		>
-			<div className="flex min-w-0 flex-col max-sm:col-start-1 max-sm:row-start-1">
+			<div className="flex min-w-0 flex-col @max-[44rem]:col-start-1 @max-[44rem]:row-start-1">
 				<button
 					type="button"
 					disabled={busy}
@@ -257,16 +257,16 @@ function Row(props: RowProps) {
 				>
 					{dateText}
 				</button>
-				<span className="hidden text-micro font-normal text-muted-foreground sm:block lg:hidden">
+				<span className="hidden text-micro font-normal text-muted-foreground @min-[44rem]:block @min-[50rem]:hidden">
 					{lesson.durationMinutes} min
 				</span>
 			</div>
 			<TimePair
-				className={cn('min-w-0 max-sm:col-start-2 max-sm:row-start-1', cancelled && 'line-through')}
+				className={cn('min-w-0 @max-[44rem]:col-start-2 @max-[44rem]:row-start-1', cancelled && 'line-through')}
 				main={timeText}
 				second={secondWhen(start, mainTimeZone, secondZone)}
 			/>
-			<div className="min-w-0 max-sm:col-span-3 max-sm:row-start-2">
+			<div className="min-w-0 @max-[44rem]:col-span-3 @max-[44rem]:row-start-2">
 				<OutcomeCell
 					lesson={lesson}
 					block={block}
@@ -280,22 +280,24 @@ function Row(props: RowProps) {
 					onReload={props.onReload}
 				/>
 			</div>
-			<div className="flex min-w-0 flex-wrap items-baseline gap-x-2 text-micro font-normal text-muted-foreground max-sm:col-span-3 max-sm:row-start-3 sm:contents sm:text-body">
-				<span className="sm:hidden lg:block lg:text-foreground">{lesson.durationMinutes} min</span>
-				<span className="min-w-0 sm:text-foreground">
+			<div className="flex min-w-0 flex-wrap items-baseline gap-x-2 text-micro font-normal text-muted-foreground @max-[44rem]:col-span-3 @max-[44rem]:row-start-3 @min-[44rem]:contents @min-[44rem]:text-body">
+				<span className="@min-[44rem]:hidden @min-[50rem]:block @min-[50rem]:text-foreground">
+					{lesson.durationMinutes} min
+				</span>
+				<span className="min-w-0 @min-[44rem]:text-foreground">
 					<PaymentCell lesson={lesson} onOpenPayment={props.onOpenPayment} />
 				</span>
 				<span className="min-w-0">
 					<BalanceAfter lesson={lesson} lessonMinutes={lessonMinutes} />
 				</span>
 			</div>
-			<div className="relative z-10 flex items-center justify-end gap-1 max-sm:col-start-3 max-sm:row-start-1">
+			<div className="relative z-10 flex items-center justify-end gap-1 @max-[44rem]:col-start-3 @max-[44rem]:row-start-1">
 				<Tooltip side="top" content="Open in calendar">
 					<Button
 						variant="ghost"
 						size="icon-compact"
 						nativeButton={false}
-						className="max-sm:hidden"
+						className="@max-[44rem]:hidden"
 						aria-label={`Open in calendar, ${subject}`}
 						render={<Link href={href} />}
 					>
@@ -320,12 +322,12 @@ function Head() {
 		<div
 			aria-hidden
 			data-slot="lessons-head"
-			className={cn(GRID, 'hidden px-3 pt-3 pb-1 text-caption text-muted-foreground sm:grid')}
+			className={cn(GRID, 'hidden px-3 pt-3 pb-1 text-caption text-muted-foreground @min-[44rem]:grid')}
 		>
 			<span>Date</span>
 			<span>Time</span>
 			<span>Outcome</span>
-			<span className="hidden lg:block">Duration</span>
+			<span className="hidden @min-[50rem]:block">Duration</span>
 			<span>Payment</span>
 			<span>Balance after</span>
 			<span />
@@ -355,7 +357,7 @@ export function LessonsTable({ lessons, ...rest }: LessonsTableProps) {
 	const showNow = ahead.length > 0 && ahead.length < sorted.length
 	return (
 		<Panel>
-			<div data-slot="lessons-table" className="flex flex-col pb-2">
+			<div data-slot="lessons-table" className="@container flex flex-col pb-2">
 				<Head />
 				<ul className="flex flex-col px-1 pt-1">
 					{sorted.map((lesson, index) => (
