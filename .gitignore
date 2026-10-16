@@ -52,3 +52,5 @@ next-env.d.ts
 
 .claude
 .gsd
+.planning/HANDOFF.json
+.continue-here*.md

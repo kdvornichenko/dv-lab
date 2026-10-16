@@ -1,7 +1,8 @@
 ---
 phase: 18-accounts-and-variant-a-shell
 verified: 2026-10-10T00:00:00Z
-status: human_needed
+status: passed
+human_verification_closed: "2026-10-16, владелец: сайт работает на dv-lab.dev в ежедневном использовании, ручные пункты закрыты"
 score: 4/5 must-haves verified
 covered_files:
   - apps/api/src/auth/accounts.ts

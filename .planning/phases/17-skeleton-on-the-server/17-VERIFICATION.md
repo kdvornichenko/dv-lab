@@ -1,7 +1,8 @@
 ---
 phase: 17-skeleton-on-the-server
 verified: 2026-10-09T15:00:00Z
-status: human_needed
+status: passed
+human_verification_closed: "2026-10-16, владелец: сайт работает на dv-lab.dev в ежедневном использовании, ручные пункты закрыты"
 score: 5/5 must-haves verified
 covered_files:
   - .github/workflows/ci.yml
