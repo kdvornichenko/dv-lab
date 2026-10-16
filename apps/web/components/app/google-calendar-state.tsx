@@ -17,6 +17,7 @@ import { zoneLabel } from '@/lib/time-zones'
 import { cn } from '@/lib/utils'
 
 import {
+	SYNC_WINDOW_WEEKS,
 	googleConnectionSnapshot,
 	type CalendarIssue,
 	type CalendarReadStatus,
@@ -24,6 +25,8 @@ import {
 	type GoogleScheduleWindow,
 	type NextLessonRead,
 } from '@dv-lab/contracts'
+
+export const LESSON_DONE_LINE = 'This lesson is marked Done, so it stays where it is.'
 
 export const READ_ISSUES: Record<CalendarIssue, string> = {
 	connection_required:
@@ -38,8 +41,7 @@ export const READ_ISSUES: Record<CalendarIssue, string> = {
 	disconnect_failed: 'Calendar changes are stopped. Google access removal is not confirmed.',
 	invalid_provider_data: 'Could not read a complete calendar view from Google.',
 	history_only: 'This record is local history. Calendar changes are unavailable.',
-	outside_sync_window:
-		'This week is outside the synced range, from 8 weeks back to 53 weeks ahead. Calendar changes are unavailable.',
+	outside_sync_window: `This week is outside the synced range, from ${SYNC_WINDOW_WEEKS.back} weeks back to ${SYNC_WINDOW_WEEKS.ahead} weeks ahead. Calendar changes are unavailable.`,
 	unsupported_recurrence: "This repeat rule can't be edited here. Change it in Google Calendar.",
 	read_only_event: "This event can't be edited here. Change it in Google Calendar.",
 }

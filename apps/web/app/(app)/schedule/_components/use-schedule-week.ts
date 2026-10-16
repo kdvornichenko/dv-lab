@@ -8,6 +8,7 @@ import { useGoogleSync } from '@/components/app/use-google-sync'
 import { API_CACHE_INVALIDATED, DEVICE_CACHE_PREFIX, sessionEpoch } from '@/lib/api-client'
 import { deviceGet, deviceSet } from '@/lib/device-store'
 import { staleCalendarWindow } from '@/lib/lesson-actions'
+import { knownMainTimeZone, rememberMainTimeZone } from '@/lib/main-time-zone'
 
 import { googleScheduleWindow, timeZoneIdentity, type GoogleScheduleWindow } from '@dv-lab/contracts'
 import { SCHEDULE_TIME_ZONE, addDays, lessonDay, mondayOf, scheduleDate, scheduleWeekRange } from '@dv-lab/core'
@@ -36,19 +37,10 @@ function pause(ms: number): Promise<void> {
 	return new Promise((resolve) => setTimeout(resolve, ms))
 }
 
-const ZONE_KEY = `${DEVICE_CACHE_PREFIX}schedule-zone`
 const DEVICE_WEEKS = 3
 
 function deviceKey(accountId: string): string {
 	return `${DEVICE_CACHE_PREFIX}schedule-weeks:${accountId}`
-}
-
-function knownZone(): string {
-	try {
-		return timeZoneIdentity(localStorage.getItem(ZONE_KEY) ?? SCHEDULE_TIME_ZONE) ?? SCHEDULE_TIME_ZONE
-	} catch {
-		return SCHEDULE_TIME_ZONE
-	}
 }
 
 async function deviceWindows(accountId: string): Promise<GoogleScheduleWindow[]> {
@@ -61,9 +53,7 @@ async function deviceWindows(accountId: string): Promise<GoogleScheduleWindow[]>
 }
 
 async function keepOnDevice(accountId: string, data: GoogleScheduleWindow) {
-	try {
-		localStorage.setItem(ZONE_KEY, data.requestedRange.timeZone)
-	} catch {}
+	rememberMainTimeZone(data.requestedRange.timeZone)
 	const key = windowKey(data)
 	const kept = [data, ...(await deviceWindows(accountId)).filter((item) => windowKey(item) !== key)]
 	await deviceSet(deviceKey(accountId), kept.slice(0, DEVICE_WEEKS))
@@ -77,7 +67,7 @@ function nearToday(data: GoogleScheduleWindow): boolean {
 }
 
 function bootstrap(initialMonday: string | null): WeekQuery {
-	const mainTimeZone = knownZone()
+	const mainTimeZone = knownMainTimeZone()
 	const currentMonday = mondayOf(lessonDay(new Date(), mainTimeZone))
 	const monday = initialMonday ?? currentMonday
 	return { mainTimeZone, monday, current: monday === currentMonday }

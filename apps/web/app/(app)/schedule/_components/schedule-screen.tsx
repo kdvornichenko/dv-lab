@@ -155,7 +155,7 @@ function LoadedSchedule({ now, arrival }: { now: Date; arrival: ArrivalParams })
 	}
 	function canMove(event: CalendarEventView) {
 		if (!editable || data === null || writes.mark(event) !== null) return false
-		if (calendarLesson(event)) return canEditCalendarEvent(event, data) && changeableLesson(event)
+		if (calendarLesson(event)) return canEditCalendarEvent(event, data) && changeableLesson(event, now)
 		return canEditPlainEvent(event, data)
 	}
 	function studentName(id: string) {

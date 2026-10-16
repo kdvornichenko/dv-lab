@@ -18,7 +18,7 @@ export async function occurrenceChange(executor: DbExecutor, accountId: string, 
 	if (mark === 'done') throw new CommandFault('lesson_done')
 	if (
 		stale(input.input.expectedStartsAt, occurrence.startsAt) ||
-		!lessonActions(occurrenceOutcome(occurrence, mark), occurrence.startsAt, now)[input.operation]
+		!lessonActions(occurrenceOutcome(occurrence, mark), mark, occurrence.startsAt, now)[input.operation]
 	)
 		throw new CommandFault('precondition_failed')
 	let startsAt = occurrence.startsAt

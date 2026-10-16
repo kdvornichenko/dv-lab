@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 
 import { useCalendarCommands } from '@/components/app/calendar-command-provider'
-import { READ_ISSUES } from '@/components/app/google-calendar-state'
+import { LESSON_DONE_LINE, READ_ISSUES } from '@/components/app/google-calendar-state'
 import { formatWhen, yearInZone } from '@/lib/schedule-format'
 import { zoneLabel } from '@/lib/time-zones'
 
@@ -31,7 +31,7 @@ const NOT_CONFIRMED_LINE = 'This change has not been confirmed. Check its status
 const ACCESS_CODES: readonly ErrorCode[] = ['connection_required', 'reconnect_required', 'permission_required']
 
 export function codeRefusal(code: ErrorCode | null): string | null {
-	if (code === 'lesson_done') return 'This lesson is marked Done, so it stays where it is.'
+	if (code === 'lesson_done') return LESSON_DONE_LINE
 	if (code === 'outside_sync_window') return READ_ISSUES.outside_sync_window
 	return null
 }

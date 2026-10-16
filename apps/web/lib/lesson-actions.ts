@@ -8,7 +8,16 @@ import {
 	type ScheduleOccurrenceRef,
 	type ScheduleSeries,
 } from '@dv-lab/contracts'
-import { canChange, scheduleDate, seriesStart } from '@dv-lab/core'
+import {
+	awaitsMark,
+	canChange,
+	lessonActions,
+	lessonOutcome,
+	scheduleDate,
+	seriesStart,
+	type LessonActions,
+	type LessonOutcome,
+} from '@dv-lab/core'
 
 export type CalendarLesson = CalendarEventView & {
 	binding: Extract<CalendarEventView['binding'], { kind: 'lesson' }>
@@ -30,8 +39,20 @@ export function canEditCalendarEvent(event: CalendarEventView, window: GoogleSch
 	)
 }
 
-export function changeableLesson(event: CalendarEventView): event is CalendarLesson {
-	return calendarLesson(event) && event.binding.mark !== 'done' && event.status !== 'cancelled'
+function eventOutcome(event: CalendarLesson): LessonOutcome {
+	return lessonOutcome(event.status === 'cancelled' ? 'cancelled' : 'scheduled', event.binding.mark)
+}
+
+export function eventActions(event: CalendarLesson, now: Date): LessonActions {
+	return lessonActions(eventOutcome(event), event.binding.mark, new Date(event.when.startsAt), now)
+}
+
+export function eventAwaitsMark(event: CalendarEventView, now: Date): boolean {
+	return calendarLesson(event) && awaitsMark(eventOutcome(event), new Date(event.when.startsAt), now)
+}
+
+export function changeableLesson(event: CalendarEventView, now: Date): event is CalendarLesson {
+	return calendarLesson(event) && eventActions(event, now).move
 }
 
 export function startedLesson(event: CalendarLesson, now: Date): boolean {

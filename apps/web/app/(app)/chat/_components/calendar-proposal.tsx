@@ -4,6 +4,7 @@ import { useEffect, useRef, useState, type ReactNode } from 'react'
 
 import { CalendarCheck2, CalendarX2, Check, Info, LoaderCircle, Repeat, TriangleAlert, Undo2 } from 'lucide-react'
 
+import { LESSON_DONE_LINE, READ_ISSUES } from '@/components/app/google-calendar-state'
 import { Panel } from '@/components/app/layout-parts'
 import { TimePair } from '@/components/app/time-pair'
 import { useSecondZone } from '@/components/app/time-zone-picker'
@@ -33,10 +34,9 @@ const CHECK_EVERY_MS = 2000
 const UNDO_CONFLICT = 'This event changed in Google Calendar after your action. Undo is unavailable.'
 
 export const ISSUE_LINES: Partial<Record<ChatCalendarIssue, string>> = {
-	command_pending: 'Earlier calendar requests need recovery before you can make new changes.',
-	outside_sync_window:
-		'This week is outside the synced range, from 8 weeks back to 53 weeks ahead. Calendar changes are unavailable.',
-	lesson_done: 'This lesson is marked Done, so it stays where it is.',
+	command_pending: READ_ISSUES.command_pending,
+	outside_sync_window: READ_ISSUES.outside_sync_window,
+	lesson_done: LESSON_DONE_LINE,
 	connection_required: 'Connect Google Calendar to use the calendar.',
 	provider_unavailable: 'Google Calendar is unavailable. Calendar changes are disabled.',
 }

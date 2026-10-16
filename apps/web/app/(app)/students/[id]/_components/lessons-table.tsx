@@ -104,13 +104,12 @@ function RowMenu({
 	const router = useRouter()
 	const href = lessonHref(lesson.date, lesson.ref)
 	const done = lesson.outcome === 'done' || lesson.mark === 'done'
-	const cancelled = lesson.outcome === 'cancelled'
 	const later = (action: () => void) => () => {
 		window.setTimeout(action, 0)
 	}
-	const movable = !readOnly && !cancelled && !done && lesson.actions.move
-	const cancellable = !readOnly && !cancelled && !done && lesson.actions.cancel
-	const restorable = !readOnly && cancelled && lesson.actions.restore
+	const movable = !readOnly && lesson.actions.move
+	const cancellable = !readOnly && lesson.actions.cancel
+	const restorable = !readOnly && lesson.actions.restore
 	let index = 0
 	return (
 		<DropdownMenu size="compact">

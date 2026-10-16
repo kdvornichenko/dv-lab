@@ -2,15 +2,17 @@
 
 import { Fragment, useEffect, useLayoutEffect, useRef, useState, type ReactNode } from 'react'
 
-import { m, useReducedMotion } from 'motion/react'
 import { LoaderCircle } from 'lucide-react'
+import { m, useReducedMotion } from 'motion/react'
 import Link from 'next/link'
 
+import { LESSON_DONE_LINE, READ_ISSUES } from '@/components/app/google-calendar-state'
 import { Panel } from '@/components/app/layout-parts'
 import { MarkdownView } from '@/components/app/markdown-view'
 import { useSecondZone } from '@/components/app/time-zone-picker'
 import { Banner, BannerAction, BannerActions, BannerDescription, BannerTitle } from '@/components/ui/banner'
 import { Button } from '@/components/ui/button'
+import { useMainTimeZone } from '@/lib/main-time-zone'
 import { formatTime, formatWhen, mainWhen, secondWhen, yearInZone } from '@/lib/schedule-format'
 import { spring } from '@/lib/springs'
 import { zoneLabel } from '@/lib/time-zones'
@@ -24,7 +26,6 @@ import {
 	type ChatRefusedBlock,
 	type MentionBinding,
 } from '@dv-lab/contracts'
-import { SCHEDULE_TIME_ZONE } from '@dv-lab/core'
 
 import { ActionLink } from './action-link'
 import { ActionResult } from './action-result'
@@ -86,7 +87,7 @@ function notice(block: ChatRefusedBlock, secondZone: string | null): Notice {
 		case 'lesson_done':
 			return {
 				tone: 'info',
-				title: 'This lesson is marked Done, so it stays where it is.',
+				title: LESSON_DONE_LINE,
 				line: 'Set the mark to Scheduled first, then ask again.',
 			}
 		case 'lesson_not_started': {
@@ -103,23 +104,22 @@ function notice(block: ChatRefusedBlock, secondZone: string | null): Notice {
 		case 'outside_sync_window':
 			return {
 				tone: 'info',
-				title:
-					'This week is outside the synced range, from 8 weeks back to 53 weeks ahead. Calendar changes are unavailable.',
+				title: READ_ISSUES.outside_sync_window,
 				line: CALENDAR_STILL,
 			}
 		case 'connection_required':
 			return {
 				tone: 'info',
-				title: 'Connect Google Calendar to use the calendar. Previously saved history is available for viewing.',
+				title: READ_ISSUES.connection_required,
 				line: CALENDAR_STILL,
 				settings: true,
 			}
 		case 'command_pending':
-			return { tone: 'info', title: 'Earlier calendar requests need recovery before you can make new changes.' }
+			return { tone: 'info', title: READ_ISSUES.command_pending }
 		case 'calendar_unavailable':
 			return {
 				tone: 'info',
-				title: 'Google Calendar is unavailable. Showing the last checked view. Calendar changes are disabled.',
+				title: READ_ISSUES.provider_unavailable,
 			}
 		case 'series_marked':
 			return {
@@ -321,13 +321,13 @@ function renderMention(studentId: string, children: ReactNode): ReactNode {
 	return <StudentMention studentId={studentId}>{children}</StudentMention>
 }
 
-function messageTime(iso: string): string {
-	return formatTime(new Date(iso), SCHEDULE_TIME_ZONE)
+function messageTime(iso: string, zone: string): string {
+	return formatTime(new Date(iso), zone)
 }
 
-function fullTime(iso: string): string {
+function fullTime(iso: string, zone: string): string {
 	const at = new Date(iso)
-	return `${formatWhen(at, SCHEDULE_TIME_ZONE, yearInZone(new Date(), SCHEDULE_TIME_ZONE))} ${zoneLabel(SCHEDULE_TIME_ZONE, at)}`
+	return `${formatWhen(at, zone, yearInZone(new Date(), zone))} ${zoneLabel(zone, at)}`
 }
 
 function TeacherText({ text, mentions }: { text: string; mentions: readonly MentionBinding[] }) {
@@ -524,6 +524,7 @@ export function Messages({
 	active: ActiveReply | null
 }) {
 	const reduceMotion = useReducedMotion() ?? false
+	const zone = useMainTimeZone()
 	const end = useRef<HTMLDivElement>(null)
 	const atBottom = useRef(true)
 	const lastSent = useRef<string | null>(null)
@@ -556,7 +557,9 @@ export function Messages({
 					answeredOffer(message) ? null : message.role === 'teacher' ? (
 						<MessageItem key={message.id} message={message} reduceMotion={reduceMotion}>
 							<TeacherBubble text={message.body} mentions={message.mentions} />
-							<span className="text-caption text-muted-foreground tabular-nums">{messageTime(message.createdAt)}</span>
+							<span className="text-caption text-muted-foreground tabular-nums">
+								{messageTime(message.createdAt, zone)}
+							</span>
 						</MessageItem>
 					) : (
 						<MessageItem
@@ -608,8 +611,8 @@ export function Messages({
 							/>
 							{active?.messageId === message.id ? null : (
 								<ReplyFooter
-									time={messageTime(message.finishedAt ?? message.createdAt)}
-									title={fullTime(message.finishedAt ?? message.createdAt)}
+									time={messageTime(message.finishedAt ?? message.createdAt, zone)}
+									title={fullTime(message.finishedAt ?? message.createdAt, zone)}
 									copyText={message.body === '' ? null : message.body}
 								/>
 							)}

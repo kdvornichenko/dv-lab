@@ -82,12 +82,12 @@ export function isMarked(outcome: LessonOutcome): boolean {
 
 export type LessonActions = { move: boolean; cancel: boolean; restore: boolean; mark: boolean; series: boolean }
 
-export function lessonActions(outcome: LessonOutcome, startsAt: Date, now: Date): LessonActions {
+export function lessonActions(outcome: LessonOutcome, mark: MarkKind | null, startsAt: Date, now: Date): LessonActions {
 	const upcoming = canChange(startsAt, now)
 	return {
 		move: countsAsLesson(outcome) && outcome !== 'done',
 		cancel: countsAsLesson(outcome) && outcome !== 'done',
-		restore: outcome === 'cancelled',
+		restore: outcome === 'cancelled' && mark !== 'done',
 		mark: countsAsLesson(outcome) && (isMarked(outcome) || !upcoming),
 		series: outcome !== 'moved' && upcoming,
 	}

@@ -7,11 +7,11 @@ import { Check, CircleCheck, Info, TriangleAlert, Undo2, type LucideIcon } from 
 import { Panel } from '@/components/app/layout-parts'
 import { Banner, BannerActions, BannerDescription, BannerTitle } from '@/components/ui/banner'
 import { Button } from '@/components/ui/button'
+import { useMainTimeZone } from '@/lib/main-time-zone'
 import { formatDay, yearInZone } from '@/lib/schedule-format'
 import { studentHref } from '@/lib/schedule-links'
 
 import type { ChatReviewOfferBlock, ChatReviewResultBlock } from '@dv-lab/contracts'
-import { SCHEDULE_TIME_ZONE } from '@dv-lab/core'
 
 import { TextLink } from './agent-links'
 import { Caption, Header, Spinner, TOUCH } from './change-proposal'
@@ -27,8 +27,8 @@ type Item = ChatReviewResultBlock['fixed'][number]
 const CANT_UNDO = "Can't undo: a block changed after the review."
 const UNDONE = 'Changes undone. The notes are as they were before the review.'
 
-function dayOf(instant: string): string {
-	return formatDay(new Date(instant), SCHEDULE_TIME_ZONE, yearInZone(new Date(), SCHEDULE_TIME_ZONE))
+function dayOf(instant: string, zone: string): string {
+	return formatDay(new Date(instant), zone, yearInZone(new Date(), zone))
 }
 
 function Note({ icon, children, role }: { icon: ReactNode; children: ReactNode; role?: 'status' }) {
@@ -153,6 +153,7 @@ function UndoChanges({ block, onUndo }: { block: ChatReviewResultBlock; onUndo: 
 }
 
 export function ReviewResult({ block, onRun, onUndo }: { block: ChatReviewResultBlock } & ReviewHandlers) {
+	const zone = useMainTimeZone()
 	const student = { id: block.studentId, name: block.studentName }
 	if (block.undo === 'none' && block.issue === 'changed') return <ReviewFailed student={student} onRun={onRun} />
 	const empty = block.fixed.length + block.found.length + block.decisions.length === 0
@@ -169,7 +170,7 @@ export function ReviewResult({ block, onRun, onUndo }: { block: ChatReviewResult
 			>
 				<div className="flex flex-col gap-1">
 					<Header icon={<CircleCheck size={16} aria-hidden className="text-success" />} text="Review finished" />
-					<Caption>{`${block.studentName}'s notes and vocabulary · ${dayOf(block.finishedAt)}`}</Caption>
+					<Caption>{`${block.studentName}'s notes and vocabulary · ${dayOf(block.finishedAt, zone)}`}</Caption>
 				</div>
 				{empty ? (
 					<p className="pl-6 text-body text-foreground" data-slot="chat-review-empty">
@@ -226,6 +227,7 @@ export function ReviewOffer({
 	block: ChatReviewOfferBlock
 	onAnswer: ReviewHandlers['onAnswer']
 }) {
+	const zone = useMainTimeZone()
 	const [busy, setBusy] = useState<'yes' | 'no' | null>(null)
 	const [failed, setFailed] = useState(false)
 	if (block.state !== 'proposed') return null
@@ -233,7 +235,7 @@ export function ReviewOffer({
 	const sentence =
 		block.lastReviewedAt === null
 			? `${name}'s notes and vocabulary have never been reviewed. Run a review?`
-			: `The last review of ${name}'s notes and vocabulary was on ${dayOf(block.lastReviewedAt)}. Run a new one?`
+			: `The last review of ${name}'s notes and vocabulary was on ${dayOf(block.lastReviewedAt, zone)}. Run a new one?`
 
 	async function answer(yes: boolean) {
 		if (busy !== null) return

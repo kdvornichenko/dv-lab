@@ -26,12 +26,13 @@ import { MarkdownPreview } from '@/components/app/markdown-view'
 import { StudentBalance } from '@/components/app/student-balance'
 import { Banner, BannerDescription, BannerTitle } from '@/components/ui/banner'
 import { Button } from '@/components/ui/button'
+import { useMainTimeZone } from '@/lib/main-time-zone'
 import { formatDate, formatFullDate, yearInZone } from '@/lib/schedule-format'
 import { changeReceiptHref } from '@/lib/schedule-links'
 import { offsetLabel, zoneName } from '@/lib/time-zones'
 
 import { LESSON_MINUTES_DEFAULT, type ChatChange, type ChatChangeProposalBlock } from '@dv-lab/contracts'
-import { SCHEDULE_TIME_ZONE, balancePhrase, formatHundredths, formatMoney } from '@dv-lab/core'
+import { balancePhrase, formatHundredths, formatMoney } from '@dv-lab/core'
 
 import type { ChangeHandlers } from './messages'
 
@@ -380,7 +381,8 @@ function detailsNote(fields: readonly DetailChange[]): string {
 }
 
 function Rows({ change }: { change: ChatChange }) {
-	const year = yearInZone(new Date(), SCHEDULE_TIME_ZONE)
+	const zone = useMainTimeZone()
+	const year = yearInZone(new Date(), zone)
 	switch (change.operation) {
 		case 'record_payment':
 			return <PaymentRows change={change} />
@@ -440,7 +442,7 @@ function Rows({ change }: { change: ChatChange }) {
 			return (
 				<>
 					<Row label="Student">{change.studentName}</Row>
-					<Row label="Added">{formatFullDate(new Date(change.createdAt), SCHEDULE_TIME_ZONE, year)}</Row>
+					<Row label="Added">{formatFullDate(new Date(change.createdAt), zone, year)}</Row>
 					<Row label="Note">
 						<Quote body={change.body} />
 					</Row>
@@ -516,7 +518,7 @@ function Lead({ change }: { change: ChatChange }) {
 	)
 }
 
-function appliedLine(change: ChatChange): string | null {
+function appliedLine(change: ChatChange, zone: string): string | null {
 	switch (change.operation) {
 		case 'record_payment': {
 			const year = yearInZone(new Date(), change.timeZone)
@@ -528,7 +530,7 @@ function appliedLine(change: ChatChange): string | null {
 		case 'create_card':
 			return `${change.displayName}.`
 		case 'delete_payment': {
-			const year = yearInZone(new Date(), SCHEDULE_TIME_ZONE)
+			const year = yearInZone(new Date(), zone)
 			const values = `${change.studentName}, ${formatDate(change.paidOn, year)}: ${formatMoney(change.amountMinor, change.currency)}.`
 			if (change.balanceAfterMinutes === null) return values
 			return `${values} Balance after this payment: ${balancePhrase(change.balanceAfterMinutes, lessonMinutesOf(change))}.`
@@ -604,6 +606,7 @@ export function ChangeProposal({
 	onDecline,
 	onRefresh,
 }: { block: ChatChangeProposalBlock } & ChangeHandlers) {
+	const zone = useMainTimeZone()
 	const [pending, setPending] = useState<Decision | null>(null)
 	const [unknown, setUnknown] = useState(false)
 	const [refreshing, setRefreshing] = useState(false)
@@ -685,7 +688,7 @@ export function ChangeProposal({
 		switch (block.state) {
 			case 'applied': {
 				const href = changeReceiptHref(block)
-				const applied = appliedLine(block.change)
+				const applied = appliedLine(block.change, zone)
 				const link = receiptLabel(block.change)
 				return (
 					<div ref={status} tabIndex={-1} role="status" className="flex flex-col gap-2 outline-none">

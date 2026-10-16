@@ -14,7 +14,7 @@ import { ScrollArea } from '@/components/ui/scroll-area'
 import {
 	calendarSeriesFor,
 	canEditCalendarEvent,
-	changeableLesson,
+	eventActions,
 	seriesDateInZone,
 	seriesScopesFor,
 	startedLesson,
@@ -214,11 +214,7 @@ function LessonContent({
 	const endable =
 		editable && series !== null && event.status !== 'cancelled' && canChange(new Date(event.when.startsAt), now)
 	const mark = event.binding.mark
-	const actions = {
-		move: changeableLesson(event),
-		cancel: changeableLesson(event),
-		restore: event.status === 'cancelled' && mark !== 'done',
-	}
+	const actions = eventActions(event, now)
 	const unavailable =
 		editable || busy
 			? null
@@ -226,7 +222,7 @@ function LessonContent({
 					const issue = writeIssueFor(event, window, blocked)
 					return issue === null ? null : READ_ISSUES[issue]
 				})()
-	const markable = startedLesson(event, now) && event.status !== 'cancelled'
+	const markable = actions.mark
 	const scopes = editable ? seriesScopesFor(initial, series) : (['one'] as const)
 	const title = student?.name ?? eventTitle(event)
 	async function apply(action: 'cancel' | 'restore'): Promise<'ok' | 'detached' | { failed: string }> {

@@ -48,12 +48,13 @@ type LessonChange = 'move' | 'cancel' | 'restore'
 function refusal(
 	change: LessonChange,
 	outcome: LessonOutcome,
+	mark: MarkKind | null,
 	startsAt: Date,
 	expected: string | undefined,
 	now: Date
 ): ChangeFailure | null {
 	if (stale(expected, startsAt)) return CHANGED
-	return lessonActions(outcome, startsAt, now)[change] ? null : CHANGED
+	return lessonActions(outcome, mark, startsAt, now)[change] ? null : CHANGED
 }
 
 export function clearsMark(change: LessonChange, mark: MarkKind | null, target: Date, now: Date): boolean {
@@ -100,7 +101,7 @@ export async function prepareLessonChange(
 	const mark = await markOf(executor, { kind: 'single', lessonId: lesson.id })
 	if (mark === 'done') return { kind: 'lesson_done' as const }
 	const outcome = occurrenceOutcome(lesson, mark)
-	const refused = refusal(change, outcome, lesson.startsAt, input.expectedStartsAt, now)
+	const refused = refusal(change, outcome, mark, lesson.startsAt, input.expectedStartsAt, now)
 	if (refused) return refused
 	let startsAt = lesson.startsAt
 	let durationMinutes = lesson.durationMinutes
