@@ -22,10 +22,10 @@ v2.0 replaces the Supabase-era CRM with a new workspace on the own VPS. The orde
 - Integer phases (17, 18, 19): planned v2.0 work, continuing from v1.1 (last phase 16)
 - Decimal phases (17.1, 17.2): urgent insertions (marked with INSERTED)
 
-- [x] **Phase 17: Skeleton on the Server** - Clean monorepo on the latest stack, CI on PostgreSQL 18, images in GHCR, HTTPS and backups on the VPS (released; human acceptance deferred)
-- [x] **Phase 18: Accounts and Variant A Shell** - Teacher and student sign-in ported from ielts, inside the variant A shell (released; human acceptance deferred)
-- [x] **Phase 19: Student Cards and Vault Import** - Cards with sections, vocabulary and payments; all 25 vault students imported (released; human acceptance deferred)
-- [x] **Phase 20: Schedule** - Week grid with single lessons, weekly series and occurrence exceptions (merged in PR 6)
+- [x] **Phase 17: Skeleton on the Server** - Clean monorepo on the latest stack, CI on PostgreSQL 18, images in GHCR, HTTPS and backups on the VPS (completed 2026-10-16: accepted by the owner in daily production use)
+- [x] **Phase 18: Accounts and Variant A Shell** - Teacher and student sign-in ported from ielts, inside the variant A shell (completed 2026-10-16: accepted by the owner in daily production use)
+- [x] **Phase 19: Student Cards and Vault Import** - Cards with sections, vocabulary and payments; all 25 vault students imported (completed 2026-10-16: accepted by the owner in daily production use)
+- [x] **Phase 20: Schedule** - Week grid with single lessons, weekly series and occurrence exceptions (completed 2026-10-16: accepted by the owner in daily production use)
 - [x] **Phase 21: Lesson Accounting and Today** - Lesson marks deduct minutes by shared core rules; Today and "pays soon" from real data (completed 2026-10-11)
 - [x] **Phase 21.1: Default Time Zone** - Account setting, per-lesson and per-series zones, consistent display and accounting dates (completed 2026-10-11)
 - [x] **Phase 22: Chat with Mentions and Quick Marks** - Conversations, `@student` mentions, instant marks with undo, answers from data, budget cap
@@ -34,7 +34,7 @@ v2.0 replaces the Supabase-era CRM with a new workspace on the own VPS. The orde
 - [~] **Phase 25: Google Calendar Two-Way Sync** - Superseded by 25.1 (documents archived in `.planning/archive/phase-25-superseded`)
 - [x] **Phase 25.1: Google Calendar Core** - Any event created, moved, resized, edited and deleted in the app; push and incremental sync rewritten as one task per connection; calendar choice; Google wins
 - [x] **Phase 25.2: Polish before IELTS** - Dialog kinds, Firefox fade, chat fixes, notes/vocabulary/review from chat, card edits from chat, Students table, student profile tabs, installable PWA with push (completed 2026-10-16)
-- [ ] **Phase 25.3: Chat Command Builder** - Commands stored in the database and edited in Settings, `/edvibe` (waits for the owner's Edvibe template examples)
+- [ ] **Phase 25.3: Chat Command Builder** - Commands stored in the database and edited in Settings; `/edvibe` is a command the owner creates there with their own block formats and templates
 - [ ] **Phase 26: IELTS Section** - ielts ported under `/ielts` with its data moved from Neon and Blob
 
 ## Phase Details
@@ -601,13 +601,13 @@ Superseded by Phase 25.1 (owner decisions D5-D10, 2026-10-12). Its research and 
 - [x] 25.2-29-PLAN.md — event description blocks, links and one-line URL location in EventDetails (web, design v104)
 
 **UI hint**: yes
-**Notes**: `/edvibe` and the command builder are Phase 25.3 and wait for the owner's template examples.
+**Notes**: `/edvibe` and the command builder are Phase 25.3.
 
 ### Phase 25.3: Chat Command Builder
 
-**Goal**: The owner creates chat commands in Settings with their own prompt and tool set; `/edvibe` produces copy blocks in Edvibe format.
+**Goal**: The owner creates chat commands in Settings with their own prompt, tool set and answer blocks with formats and templates; each block has Copy. `/edvibe` is one such command, created by the owner.
 **Depends on**: Phase 25.2
-**Plans**: not planned; waits for the owner's list of Edvibe templates with examples
+**Plans**: not planned; the builder is generic, the owner fills real Edvibe templates in Settings, checks use one made-up command
 **UI hint**: yes
 
 ### Phase 26: IELTS Section
@@ -635,14 +635,14 @@ Superseded by Phase 25.1 (owner decisions D5-D10, 2026-10-12). Its research and 
 ## Progress
 
 **Execution Order:**
-17 → 18 → 19 → 20 → 21 → 21.1 → 24 → 25 → 22 → 23 → 26
+17 → 18 → 19 → 20 → 21 → 21.1 → 24 → 25.1 → 22 → 23 → 25.2 → 25.3 → 25.4 → 26
 
 | Phase                                            | Milestone | Plans Complete | Status      | Completed  |
 | ------------------------------------------------ | --------- | -------------- | ----------- | ---------- |
-| 17. Skeleton on the Server                       | v2.0      | 13/13          | In Progress |            |
-| 18. Accounts and Variant A Shell                 | v2.0      | 16/16          | In Progress |            |
-| 19. Student Cards and Vault Import               | v2.0      | 20/20          | In Progress |            |
-| 20. Schedule                                     | v2.0      | 10/10          | In Progress |            |
+| 17. Skeleton on the Server                       | v2.0      | 13/13          | Complete    | 2026-10-16 |
+| 18. Accounts and Variant A Shell                 | v2.0      | 16/16          | Complete    | 2026-10-16 |
+| 19. Student Cards and Vault Import               | v2.0      | 20/20          | Complete    | 2026-10-16 |
+| 20. Schedule                                     | v2.0      | 10/10          | Complete    | 2026-10-16 |
 | 21. Lesson Accounting and Today                  | v2.0      | 18/18          | Complete    | 2026-10-11 |
 | 21.1. Default Time Zone                          | v2.0      | 13/13          | Complete    | 2026-10-11 |
 | 22. Chat with Mentions and Quick Marks           | v2.0      | 18/18          | Complete    | 2026-10-14 |

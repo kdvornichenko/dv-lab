@@ -6,22 +6,22 @@
     {
       "number": "17",
       "name": "Skeleton on the Server",
-      "status": "in_progress"
+      "status": "complete"
     },
     {
       "number": "18",
       "name": "Accounts and Variant A Shell",
-      "status": "in_progress"
+      "status": "complete"
     },
     {
       "number": "19",
       "name": "Student Cards and Vault Import",
-      "status": "in_progress"
+      "status": "complete"
     },
     {
       "number": "20",
       "name": "Schedule",
-      "status": "in_progress"
+      "status": "complete"
     },
     {
       "number": "21",
@@ -46,12 +46,17 @@
     {
       "number": "24",
       "name": "Google Calendar Connection and Outbound Sync",
-      "status": "in_progress"
+      "status": "complete"
     },
     {
       "number": "25",
       "name": "Google Calendar Two-Way Sync",
       "status": "pending"
+    },
+    {
+      "number": "25.1",
+      "name": "Google Calendar Core",
+      "status": "complete"
     },
     {
       "number": "25.2",
@@ -70,9 +75,9 @@
     }
   ],
   "next": {
-    "command": "/gsd:progress --next",
-    "label": "Advance to the next step (plan phase 24)",
-    "reason": "Phase 24 of 14 — needs a plan"
+    "command": "/gsd-discuss-phase 25.3",
+    "label": "Discuss phase 25.3 (Chat Command Builder)",
+    "reason": "Phase 25.3 has no context yet"
   },
-  "updated_at": "2026-10-15T17:01:06.695Z"
+  "updated_at": "2026-10-16T12:00:00.000Z"
 }

@@ -2,17 +2,17 @@
 gsd_state_version: "1.0"
 milestone: v2.0
 milestone_name: Unified dv-lab (In Progress)
-current_phase: 25.4
-current_phase_name: Local Database
-status: discussed
-stopped_at: Phase 25.2 and the post-phase PRs 42–52 complete (prod 6083d998); Phase 25.4 context gathered in branch gsd/phase-25.4-local-db, plan next
+current_phase: 25.3
+current_phase_name: Chat Command Builder
+status: ready_to_discuss
+stopped_at: Phases 17–20 closed; Phase 25.3 discuss next, Phase 25.4 context waits in branch gsd/phase-25.4-local-db
 last_updated: "2026-10-15T17:01:06.676Z"
 last_activity: 2026-10-16
-last_activity_desc: Phase 25.2 closed, Phase 24 closed by the Phase 25.1 live check
+last_activity_desc: Phases 17–20 closed by the owner after production use; 25.3 no longer waits for template examples
 state_head: 6083d9988e1e553cccfe15344281670cc5dfc01e
 progress:
   total_phases: 14
-  completed_phases: 6
+  completed_phases: 10
   total_plans: 217
   completed_plans: 176
   percent: 38
@@ -25,29 +25,22 @@ progress:
 See: .planning/PROJECT.md (updated 2026-10-09)
 
 **Core value:** The teacher can always see who studies, how many lessons remain for each student, who has to pay soon and what was covered, and can record any of it by writing one line in chat.
-**Current focus:** Phase 25.4 — Local Database (planning next)
+**Current focus:** Phase 25.3 — Chat Command Builder (discuss next)
 
 ## Current Position
 
-Phase: 25.4 — Local Database (context in branch gsd/phase-25.4-local-db)
+Phase: 25.3 — Chat Command Builder
 Plan: Not started
-Status: Ready to plan
-Last activity: 2026-10-16 — Phase 25.2 closed (see 25.2-VERIFICATION.md for the post-phase PRs and deferred items)
+Status: Ready to discuss
+Next after it: Phase 25.4 — Local Database (context in branch gsd/phase-25.4-local-db)
+Last activity: 2026-10-16 — Phases 17–20 closed by the owner after production use
 
 Progress: [████░░░░░░] 38%
 
-## Deferred Verification
+## Owner To-dos
 
-| Phase | State                                                    | Resume                                                                   |
-| ----- | -------------------------------------------------------- | ------------------------------------------------------------------------ |
-| 17    | verification_deferred_human                              | /gsd-verify-work 17                                                      |
-| 18    | verification_deferred_human                              | /gsd-verify-work 18                                                      |
-| 19    | verification_deferred_human                              | /gsd-verify-work 19                                                      |
-| 21    | Two manual scenarios accepted as deferred after Phase 25 | Real VN midnight and final Earlier panel removal; see 21-VERIFICATION.md |
-
-Phase 19 human items left: the owner sets the opening balance on each card (the import does not fill it). Release and import are done.
-
-Phase 17 human items (see 17-VERIFICATION.md): return the apex TTL to 300-3600 in the Vercel panel (RUNBOOK 3.5); recreate network dv-lab_default once at the next release (commit 2bcd8c0); optional browser look at the stub.
+- Opening balance on each imported card (the vault import does not fill it).
+- Apex TTL back to 300-3600 in the Vercel panel (RUNBOOK 3.5).
 
 ## Performance Metrics
 
