@@ -112,7 +112,7 @@ export function ChatProvider({ children }: { children: ReactNode }) {
 			return
 		}
 		adopt(arrival, false)
-		setChosen(true)
+		queueMicrotask(() => setChosen(true))
 		if (clean !== undefined) router.replace(clean, { scroll: false })
 	}, [arrival, viewport, available, adopt, router])
 

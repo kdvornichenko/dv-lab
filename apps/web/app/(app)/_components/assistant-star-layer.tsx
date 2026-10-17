@@ -138,7 +138,9 @@ export function AssistantStarLayer() {
 	const drag = useRef<{ id: number; origin: Point; start: Point; moved: boolean; last: number } | null>(null)
 	const suppressClick = useRef(false)
 	const [view, setView] = useState<View | null>(null)
-	const [fraction, setFraction] = useState<Fraction | null>(null)
+	const [fraction, setFraction] = useState<Fraction | null>(() =>
+		typeof window === 'undefined' ? null : readFraction()
+	)
 	const [dragging, setDragging] = useState<Point | null>(null)
 	const [lean, setLean] = useState(0)
 	const [hop, setHop] = useState(0)
@@ -147,10 +149,6 @@ export function AssistantStarLayer() {
 	const shownKey = useRef<string | null>(null)
 	const open = star.open
 	const setOpen = star.setOpen
-
-	useEffect(() => {
-		setFraction(readFraction())
-	}, [])
 
 	useEffect(() => {
 		function read() {
@@ -218,7 +216,6 @@ export function AssistantStarLayer() {
 
 	useEffect(() => {
 		if (!open) return
-		setBubble(null)
 		const timer = window.setTimeout(() => card.current?.querySelector('textarea')?.focus(), 60)
 		return () => window.clearTimeout(timer)
 	}, [open])
