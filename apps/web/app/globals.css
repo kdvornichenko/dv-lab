@@ -347,6 +347,12 @@
 	--info: #3b82f6;
 	--success: #22c55e;
 	--warning: #f59e0b;
+	--star-top: #ffe45c;
+	--star-bottom: #ffbf1f;
+	--star-edge: #c98a00;
+	--star-eye: #1a1406;
+	--star-glint: #ffffff;
+	--star-shadow: rgba(0, 0, 0, 0.28);
 	--gcal-line: #dadce0;
 	--gcal-today: #1a73e8;
 	--gcal-today-ink: #ffffff;
@@ -461,6 +467,12 @@
 	--info: #93c5fd;
 	--success: #86efac;
 	--warning: #fcd34d;
+	--star-top: #ffe766;
+	--star-bottom: #ffb300;
+	--star-edge: #8a5a00;
+	--star-eye: #1a1406;
+	--star-glint: #ffffff;
+	--star-shadow: rgba(0, 0, 0, 0.55);
 	--gcal-line: #3c4043;
 	--gcal-today: #8ab4f8;
 	--gcal-today-ink: #202124;
