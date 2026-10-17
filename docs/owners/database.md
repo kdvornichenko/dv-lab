@@ -15,7 +15,7 @@
 
 ## Права `dvlab_app`
 
-- Без `DELETE` и `TRUNCATE`: `chat_conversations`, `chat_messages`, `chat_actions`, `chat_turns`, `chat_budget_periods`, `chat_usage_attempts`, `student_notes`, `lesson_comments`, `lesson_marks`, `note_reviews`, `chat_command_prompts`, `push_subscriptions`, `push_deliveries`, `push_payment_alerts`.
+- Без `DELETE` и `TRUNCATE`: `chat_conversations`, `chat_messages`, `chat_actions`, `chat_turns`, `chat_budget_periods`, `chat_usage_attempts`, `student_notes`, `lesson_comments`, `lesson_marks`, `note_reviews`, `chat_command_prompts`, `chat_commands`, `push_subscriptions`, `push_deliveries`, `push_payment_alerts`.
 - Единственная таблица, где `dvlab_app` имеет `DELETE`, — `google_calendar_events`; на остальных новых таблицах (включая таблицы календаря) `DELETE` и `TRUNCATE` отозваны.
 
 ## Тесты

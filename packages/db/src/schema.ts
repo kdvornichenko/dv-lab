@@ -225,6 +225,39 @@ export const chatCommandPrompts = pgTable(
 	]
 )
 
+export const chatCommands = pgTable(
+	'chat_commands',
+	{
+		id: uuid('id').defaultRandom().primaryKey(),
+		accountId: uuid('account_id')
+			.notNull()
+			.references(() => accounts.id, { onDelete: 'restrict' }),
+		name: text('name').notNull(),
+		description: text('description').notNull(),
+		prompt: text('prompt').notNull(),
+		student: boolean('student').default(false).notNull(),
+		tools: jsonb('tools').$type<unknown>().notNull(),
+		blocks: jsonb('blocks').$type<unknown>().notNull(),
+		status: text('status').default('active').notNull(),
+		revision: integer('revision').default(1).notNull(),
+		createdAt: timestamp('created_at', { withTimezone: true }).defaultNow().notNull(),
+		updatedAt: timestamp('updated_at', { withTimezone: true }).defaultNow().notNull(),
+	},
+	(table) => [
+		uniqueIndex('chat_commands_active_name_uq')
+			.on(table.accountId, table.name)
+			.where(sql`${table.status} = 'active'`),
+		index('chat_commands_account_idx').on(table.accountId, table.status),
+		check('chat_commands_name_ck', sql`${table.name} ~ '^/[a-z][a-z0-9_-]{0,31}$'`),
+		check('chat_commands_description_ck', sql`char_length(${table.description}) between 1 and 120`),
+		check('chat_commands_prompt_ck', sql`char_length(${table.prompt}) between 1 and 8000`),
+		check('chat_commands_status_ck', sql`${table.status} in ('active', 'archived')`),
+		check('chat_commands_revision_ck', sql`${table.revision} >= 1`),
+		check('chat_commands_tools_ck', sql`jsonb_typeof(${table.tools}) = 'array'`),
+		check('chat_commands_blocks_ck', sql`jsonb_typeof(${table.blocks}) = 'array'`),
+	]
+)
+
 export const payments = pgTable(
 	'payments',
 	{
@@ -380,6 +413,7 @@ export const teacherSettings = pgTable(
 		notifyLessonSoon: boolean('notify_lesson_soon').default(true).notNull(),
 		notifyLessonMinutes: integer('notify_lesson_minutes').default(30).notNull(),
 		notifyPaysSoon: boolean('notify_pays_soon').default(true).notNull(),
+		notifyAssistant: boolean('notify_assistant').default(false).notNull(),
 		updatedAt: timestamp('updated_at', { withTimezone: true }).defaultNow().notNull(),
 	},
 	(table) => [
