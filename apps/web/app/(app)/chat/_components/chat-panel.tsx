@@ -66,7 +66,7 @@ export function ChatPanel() {
 			initial={false}
 			animate={{ width: panel.open ? panel.width + GUTTER : 0 }}
 			transition={reduce ? { duration: 0 } : spring.slow}
-			className="shrink-0 overflow-hidden"
+			className="shrink-0 overflow-hidden pl-px"
 			inert={!panel.open}
 		>
 			<m.aside
