@@ -4,9 +4,8 @@ import { Check, Info } from 'lucide-react'
 
 import { Panel } from '@/components/app/layout-parts'
 
-import { CHAT_COMMANDS } from '@dv-lab/contracts'
-
-import { commandText } from './composer'
+import { allCommands, commandText } from './composer'
+import { useStoredCommands } from './use-commands'
 
 const SECTIONS = [
 	{
@@ -37,6 +36,7 @@ const SECTIONS = [
 ] as const
 
 export function ChatHelp({ off, onCommand }: { off: boolean; onCommand: (text: string) => void }) {
+	const commands = allCommands(useStoredCommands())
 	return (
 		<Panel>
 			<div role="group" aria-label="Help" data-slot="chat-help" className="flex flex-col gap-3 px-4 py-3">
@@ -51,7 +51,7 @@ export function ChatHelp({ off, onCommand }: { off: boolean; onCommand: (text: s
 				</div>
 				<div role="group" aria-label="Commands" className="flex flex-col">
 					<p className="mb-1 text-caption font-semibold text-muted-foreground">Commands</p>
-					{CHAT_COMMANDS.map((command) => (
+					{commands.map((command) => (
 						<button
 							key={command.name}
 							type="button"

@@ -92,7 +92,9 @@ function useSettings() {
 	}
 
 	function saveNotify(
-		fields: Partial<Pick<TeacherSettings, 'notifyLessonSoon' | 'notifyLessonMinutes' | 'notifyPaysSoon'>>
+		fields: Partial<
+			Pick<TeacherSettings, 'notifyLessonSoon' | 'notifyLessonMinutes' | 'notifyPaysSoon' | 'notifyAssistant'>
+		>
 	) {
 		setSettings((current) => (current === null ? null : { ...current, ...fields }))
 	}

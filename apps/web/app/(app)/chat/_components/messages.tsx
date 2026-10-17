@@ -157,6 +157,12 @@ function notice(block: ChatRefusedBlock, secondZone: string | null): Notice {
 				title: 'The assistant declined to answer this request.',
 				line: 'Try asking in other words.',
 			}
+		case 'command_unavailable':
+			return { tone: 'info', title: 'This command is not available.' }
+		case 'command_too_large':
+			return { tone: 'info', title: 'This command needs too many tools. Edit it in Settings.' }
+		case 'command_rejected':
+			return { tone: 'info', title: 'The model rejected this command. Check its blocks in Settings.' }
 		case 'model_unavailable':
 		case 'provider_unavailable':
 			return { tone: 'info', title: 'Model settings are unavailable. Refresh before sending.' }

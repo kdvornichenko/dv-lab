@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useRef, useState } from 'react'
 
-import { useRouter } from 'next/navigation'
+import { usePathname, useRouter } from 'next/navigation'
 
 import { useCalendarController } from '@/components/app/calendar-command-provider'
 import { API_CACHE_INVALIDATED, DATA_CHANGED_CHANNEL, apiEventStream, apiRequest, peekApi } from '@/lib/api-client'
@@ -356,6 +356,7 @@ function useAssistantSnapshot() {
 export function useChat(initialConversationId: string | null, options: { startNew: boolean }) {
 	const calendar = useCalendarController()
 	const router = useRouter()
+	const onChatPage = usePathname() === '/chat'
 	const [list, setList] = useState<ConversationListState>(() => {
 		const cached = peekApi<ChatConversationsResponse>('/chat/conversations')
 		return cached !== null && cached.ok
@@ -480,9 +481,9 @@ export function useChat(initialConversationId: string | null, options: { startNe
 	const select = useCallback(
 		(id: string | null) => {
 			setSelectedId(id)
-			router.replace(selectionHref(id), { scroll: false })
+			if (onChatPage) router.replace(selectionHref(id), { scroll: false })
 		},
-		[router]
+		[onChatPage, router]
 	)
 
 	const known =
@@ -494,9 +495,13 @@ export function useChat(initialConversationId: string | null, options: { startNe
 	const activeId = fallbackId ?? (known ? selectedId : null)
 
 	useEffect(() => {
+		if (!onChatPage) return
+		const params = new URL(window.location.href).searchParams
+		const requested = params.get('c')
+		if (params.has('new') || (requested !== null && requested !== selectedId)) return
 		if (fallbackId !== null) router.replace(selectionHref(fallbackId), { scroll: false })
 		else if (!known) router.replace(selectionHref(null), { scroll: false })
-	}, [fallbackId, known, router])
+	}, [fallbackId, known, onChatPage, router, selectedId])
 
 	const setReply = useCallback((next: Reply | null) => {
 		replyRef.current = next
@@ -709,6 +714,19 @@ export function useChat(initialConversationId: string | null, options: { startNe
 		setStartedNew(true)
 		setSelectedId(null)
 	}, [setPending])
+
+	const adopt = useCallback(
+		(id: string | null, fresh: boolean) => {
+			if (fresh) {
+				beginNew()
+				return
+			}
+			if (id === null) return
+			setStartedNew(false)
+			setSelectedId(id)
+		},
+		[beginNew]
+	)
 
 	const replaceConversation = useCallback(
 		(conversation: ChatConversation) => {
@@ -1069,6 +1087,7 @@ export function useChat(initialConversationId: string | null, options: { startNe
 		select,
 		newChat,
 		beginNew,
+		adopt,
 		send,
 		undo,
 		confirmCalendar,

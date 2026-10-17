@@ -21,7 +21,10 @@ import {
 
 import { useToast } from '../../_components/toasts'
 
-type NotifyFields = Pick<TeacherSettings, 'notifyLessonSoon' | 'notifyLessonMinutes' | 'notifyPaysSoon'>
+type NotifyFields = Pick<
+	TeacherSettings,
+	'notifyLessonSoon' | 'notifyLessonMinutes' | 'notifyPaysSoon' | 'notifyAssistant'
+>
 
 const REVERT_DELAY_MS = 2000
 const RANGE_ERROR = `Use a whole number from ${NOTIFY_LESSON_MINUTES_MIN} to ${NOTIFY_LESSON_MINUTES_MAX}.`
@@ -256,8 +259,8 @@ function EventsCard({
 				setSaveFailed(true)
 				return false
 			}
-			const { notifyLessonSoon, notifyLessonMinutes, notifyPaysSoon } = result.data.settings
-			onSaved({ notifyLessonSoon, notifyLessonMinutes, notifyPaysSoon })
+			const { notifyLessonSoon, notifyLessonMinutes, notifyPaysSoon, notifyAssistant } = result.data.settings
+			onSaved({ notifyLessonSoon, notifyLessonMinutes, notifyPaysSoon, notifyAssistant })
 			return true
 		} finally {
 			inflight.current = false
@@ -297,7 +300,7 @@ function EventsCard({
 		<Panel
 			id="settings-notifications-events"
 			title="What to notify about"
-			description="Two kinds of notification. The choice is kept for every device."
+			description="Three kinds of notification. The choice is kept for every device."
 		>
 			{saveFailed ? (
 				<div className="px-4 pt-2">
@@ -377,6 +380,19 @@ function EventsCard({
 							? ` (${settings.paysSoonLessons} ${settings.paysSoonLessons === 1 ? 'lesson' : 'lessons'} left or fewer now, see Payments above)`
 							: ''}
 						. Not again until the balance has changed.
+					</p>
+				</div>
+				<div className="flex min-w-0 flex-col gap-1">
+					<Switch
+						label="The assistant has answered"
+						checked={settings?.notifyAssistant ?? false}
+						disabled={!ready || saving}
+						onToggle={() => void (settings && save({ notifyAssistant: !settings.notifyAssistant }))}
+						className={SWITCH_CLASS}
+					/>
+					<p className="pr-13 text-caption text-muted-foreground">
+						When a reply is ready or a proposal waits for your decision and the app is not open in front. The
+						notification shows the title of the chat, never the reply.
 					</p>
 				</div>
 			</div>

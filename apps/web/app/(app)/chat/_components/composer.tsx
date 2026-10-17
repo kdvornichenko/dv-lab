@@ -22,7 +22,6 @@ import { Elevated } from '@/lib/elevated'
 import {
 	CHAT_COMMANDS,
 	CHAT_MESSAGE_MAX,
-	type ChatCommand,
 	type MentionBinding,
 	type StudentLessonOption,
 } from '@dv-lab/contracts'
@@ -30,6 +29,7 @@ import {
 import { BudgetNotice } from './budget-notice'
 import { MentionPopup, popupOptionId, type PopupItem, type PopupState } from './mention-popup'
 import { ModelControls, choiceUnavailable, readChoice } from './model-controls'
+import { type StoredCommandRow, useStoredCommands } from './use-commands'
 import {
 	insertMention,
 	matchStudents,
@@ -43,20 +43,30 @@ import {
 
 type Trigger = { kind: 'mention'; from: number; query: string } | { kind: 'command'; query: string } | null
 
-export function commandText(command: ChatCommand): string {
+export function commandText(command: { name: string; student: boolean }): string {
 	return command.student ? `${command.name} @` : `${command.name} `
 }
 
-export const COMMAND_ROWS = [
-	{ name: '@', detail: 'Mention a student', text: '@' },
-	...CHAT_COMMANDS.map((command) => ({ name: command.name, detail: command.detail, text: commandText(command) })),
-] as const
+export function allCommands(stored: readonly StoredCommandRow[]): StoredCommandRow[] {
+	return [...CHAT_COMMANDS, ...stored]
+}
+
+export function commandRows(stored: readonly StoredCommandRow[]) {
+	return [
+		{ name: '@', detail: 'Mention a student', text: '@' },
+		...allCommands(stored).map((command) => ({
+			name: command.name,
+			detail: command.detail,
+			text: commandText(command),
+		})),
+	]
+}
 
 function findTrigger(draft: Draft, caret: number): Trigger {
 	const text = draft.text
 	if (draft.bindings.some((binding) => caret > tokenStart(text, binding) && caret <= binding.end)) return null
 	const head = text.slice(0, caret)
-	if (/^\/[a-z]*$/i.test(head)) return { kind: 'command', query: head.slice(1).toLowerCase() }
+	if (/^\/[a-z0-9_-]*$/i.test(head)) return { kind: 'command', query: head.slice(1).toLowerCase() }
 	const at = head.lastIndexOf('@')
 	if (at < 0 || (at > 0 && !/\s/.test(head[at - 1] ?? ''))) return null
 	if (draft.bindings.some((binding) => tokenStart(text, binding) === at)) return null
@@ -80,13 +90,15 @@ function studentItems(rows: readonly StudentLessonOption[], query: string): Popu
 	}))
 }
 
-function commandItems(query: string): PopupItem[] {
-	return CHAT_COMMANDS.filter((command) => command.name.slice(1).startsWith(query)).map((command) => ({
-		kind: 'command',
-		id: command.name,
-		name: command.name,
-		detail: command.detail,
-	}))
+function commandItems(query: string, stored: readonly StoredCommandRow[]): PopupItem[] {
+	return allCommands(stored)
+		.filter((command) => command.name.slice(1).startsWith(query))
+		.map((command) => ({
+			kind: 'command',
+			id: command.name,
+			name: command.name,
+			detail: command.detail,
+		}))
 }
 
 function Highlight({ text, bindings }: { text: string; bindings: readonly MentionBinding[] }) {
@@ -143,6 +155,7 @@ export function Composer({
 	models: ChatModels
 }) {
 	const [menuOpen, setMenuOpen] = useState(false)
+	const stored = useStoredCommands()
 	const choice = readChoice(models)
 	const budget = models.assistant.kind === 'ready' ? models.assistant.data.budget : null
 	const reached = budget?.state === 'reached'
@@ -168,7 +181,7 @@ export function Composer({
 		trigger === null
 			? []
 			: trigger.kind === 'command'
-				? commandItems(trigger.query)
+				? commandItems(trigger.query, stored)
 				: students.kind === 'ready'
 					? studentItems(students.rows, trigger.query)
 					: []
@@ -214,7 +227,7 @@ export function Composer({
 		const item = items[index]
 		if (!item || trigger === null) return
 		if (trigger.kind === 'command') {
-			const command = CHAT_COMMANDS.find((entry) => entry.name === item.name)
+			const command = allCommands(stored).find((entry) => entry.name === item.name)
 			if (command) apply(replaceText(draft, 0, caret, commandText(command)))
 			return
 		}
