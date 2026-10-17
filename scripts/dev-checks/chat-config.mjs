@@ -96,7 +96,7 @@ async function sectionDefaults(db, accountId) {
 	check(
 		'default model ids are in the menu order',
 		CHAT_SETTINGS_DEFAULT.models.map((entry) => entry.id).join(',') ===
-			'claude-haiku-5-5,claude-sonnet-5-5,claude-opus-5-5,claude-fable-5-1'
+			'claude-haiku-5-5,claude-sonnet-5-5,claude-opus-5-5'
 	)
 	check(
 		'default cap and limits',
@@ -127,13 +127,13 @@ async function sectionDefaults(db, accountId) {
 }
 
 async function sectionSave(db, accountId) {
-	const reorder = [1, 0, 2, 3].map((index) => clone(CHAT_SETTINGS_DEFAULT.models[index]))
+	const reorder = [1, 0, 2].map((index) => clone(CHAT_SETTINGS_DEFAULT.models[index]))
 	const first = await saveAssistantSettings(db, accountId, { models: reorder })
 	check(
 		'a reordered list is saved and read back in that order',
 		first.ok &&
 			first.settings.models.map((entry) => entry.id).join(',') ===
-				'claude-sonnet-5-5,claude-haiku-5-5,claude-opus-5-5,claude-fable-5-1'
+				'claude-sonnet-5-5,claude-haiku-5-5,claude-opus-5-5'
 	)
 	const stored = await readAssistantSettings(db, accountId)
 	check('reading again gives the saved order', stored.models[0].id === 'claude-sonnet-5-5')
@@ -362,17 +362,17 @@ async function sectionCapabilities() {
 		off.map((entry) => entry.id).join(',') === CHAT_SETTINGS_DEFAULT.models.map((entry) => entry.id).join(',') &&
 			off.every((entry) => !('pricing' in entry) && entry.available === false)
 	)
-	const on = await modelCapabilities(CHAT_SETTINGS_DEFAULT, async (id) => id !== 'claude-fable-5-1')
+	const on = await modelCapabilities(CHAT_SETTINGS_DEFAULT, async (id) => id !== 'claude-opus-5-5')
 	check(
 		'availability is asked per model',
-		on.filter((entry) => entry.available).length === 3 &&
-			on.find((entry) => entry.id === 'claude-fable-5-1')?.available === false
+		on.filter((entry) => entry.available).length === 2 &&
+			on.find((entry) => entry.id === 'claude-opus-5-5')?.available === false
 	)
 	check(
 		'a selection is allowed only for an available model and a supported level',
 		selectionAllowed(on, 'claude-haiku-5-5', 'max') &&
 			selectionAllowed(on, 'claude-haiku-5-5', null) &&
-			!selectionAllowed(on, 'claude-fable-5-1', 'low') &&
+			!selectionAllowed(on, 'claude-opus-5-5', 'low') &&
 			!selectionAllowed(on, 'claude-unknown', null) &&
 			!selectionAllowed(off, 'claude-haiku-5-5', 'low')
 	)

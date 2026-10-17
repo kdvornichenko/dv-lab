@@ -25,6 +25,7 @@ import { createChatProvider } from './chat/provider.ts'
 import { createChat } from './chat/runs.ts'
 import { loadConfig, type CalendarConfig } from './config.ts'
 import { createLifecycle } from './lifecycle.ts'
+import { createAssistantNotifier } from './push/assistant.ts'
 import { createWebPushDeliver } from './push/deliver.ts'
 import { createPushScheduler } from './push/scheduler.ts'
 import { createLogger } from './request-context.ts'
@@ -46,20 +47,24 @@ const housekeeping = createHousekeeping({ db, logger })
 const calendar = config.calendar.enabled ? createCalendar(config.calendar) : undefined
 await calendar?.worker.start()
 calendar?.sync.start()
+const pushDeliver =
+	config.push.enabled && config.NODE_ENV !== 'test'
+		? createWebPushDeliver({ push: config.push, db, logger })
+		: undefined
 const chat = config.chat.enabled
 	? createChat({
 			db,
 			logger,
 			provider: createChatProvider({ apiKey: config.chat.apiKey }),
+			cacheDiagnostics: config.chat.cacheDiagnostics,
 			calendarCommands: calendar?.commands,
 			eventTitles: calendar?.eventTitles,
+			onTurnEnded: pushDeliver === undefined ? undefined : createAssistantNotifier({ db, logger, deliver: pushDeliver }),
 		})
 	: undefined
 await chat?.sweepInterrupted()
 const pushScheduler =
-	config.push.enabled && config.NODE_ENV !== 'test'
-		? createPushScheduler({ db, logger, deliver: createWebPushDeliver({ push: config.push, db, logger }) })
-		: undefined
+	pushDeliver === undefined ? undefined : createPushScheduler({ db, logger, deliver: pushDeliver })
 
 function createCalendar(calendarConfig: Extract<CalendarConfig, { enabled: true }>) {
 	const lease = createConnectionLease(pool)

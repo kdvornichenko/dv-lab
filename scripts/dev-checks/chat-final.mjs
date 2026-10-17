@@ -20,6 +20,8 @@ const CHECKS = [
 	{ script: 'chat-api.mjs', args: ['budget'], token: 'CHAT_BUDGET_OK' },
 	{ script: 'chat-api.mjs', args: ['runs'], token: 'CHAT_RUNS_OK' },
 	{ script: 'chat-api.mjs', args: ['answers'], token: 'CHAT_ANSWERS_OK' },
+	{ script: 'chat-api.mjs', args: ['commands'], token: 'CHAT_COMMANDS_OK' },
+	{ script: 'chat-api.mjs', args: ['command-turn'], token: 'CHAT_COMMAND_TURN_OK' },
 	{ script: 'chat-api.mjs', args: ['models'], token: 'CHAT_MODELS_OK' },
 	{ script: 'chat-api.mjs', args: ['delete'], token: 'CHAT_DELETE_OK' },
 	{ script: 'chat-api.mjs', args: ['title'], token: 'CHAT_TITLE_OK' },

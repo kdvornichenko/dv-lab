@@ -5,16 +5,15 @@ import { isDeepStrictEqual, parseEnv } from 'node:util'
 import { ROOT } from './paths.mjs'
 
 const { CHAT_TOOLS, CHAT_TOOL_ENTRIES, ESSAY_TOOLS, REVIEW_TOOLS } = await import(`${ROOT}/apps/api/src/chat/tools.ts`)
-const { isReadOnly, toAnthropicTool } = await import(`${ROOT}/apps/api/src/chat/tool-registry.ts`)
+const { allowedCommandTools, commandSchema, commandTools, isReadOnly, strictBudget, toAnthropicTool, withinBudget } =
+	await import(`${ROOT}/apps/api/src/chat/tool-registry.ts`)
 const { ESSAY_TOOL_NAME } = await import(`${ROOT}/apps/api/src/chat/essay.ts`)
-const { CHAT_STEP_TOOLS } = await import(`${ROOT}/packages/contracts/src/index.ts`)
+const { CHAT_REQUEST_LIMITS, CHAT_STEP_TOOLS } = await import(`${ROOT}/packages/contracts/src/index.ts`)
 
 const apiRequire = createRequire(new URL('../../apps/api/package.json', import.meta.url))
 const Anthropic = apiRequire('@anthropic-ai/sdk').default
 
 const MODEL = process.argv[2] ?? 'claude-haiku-5-5'
-const UNIONS_MAX = 16
-const OPTIONAL_MAX = 24
 
 let failures = 0
 
@@ -26,23 +25,14 @@ function check(name, ok, detail = '') {
 	}
 }
 
-const isUnion = (property) => Array.isArray(property.type) || 'anyOf' in property
-
-function shape(tools) {
-	let unions = 0
-	let optional = 0
-	const enumUnions = []
+function enumUnions(tools) {
+	const found = []
 	for (const tool of tools) {
-		const properties = tool.input_schema.properties ?? {}
-		const required = new Set(tool.input_schema.required ?? [])
-		for (const [key, property] of Object.entries(properties)) {
-			if (Array.isArray(property.type) && 'enum' in property) enumUnions.push(`${tool.name}.${key}`)
-			if (tool.strict !== true) continue
-			if (isUnion(property)) unions++
-			if (!required.has(key)) optional++
+		for (const [key, property] of Object.entries(tool.input_schema.properties ?? {})) {
+			if (Array.isArray(property.type) && 'enum' in property) found.push(`${tool.name}.${key}`)
 		}
 	}
-	return { unions, optional, enumUnions }
+	return found
 }
 
 function apiKey() {
@@ -158,18 +148,67 @@ for (const [label, tools] of [
 	['essay turn tools', ESSAY_TOOLS],
 	['review turn tools', REVIEW_TOOLS],
 ]) {
-	const found = shape(tools)
+	const found = strictBudget(tools)
 	console.log(
-		`${label}: strict ${tools.filter((tool) => tool.strict === true).length} of ${tools.length}, unions ${found.unions}, optional ${found.optional}`
+		`${label}: strict ${found.strict} of ${tools.length}, unions ${found.union}, optional ${found.optional}`
 	)
-	check(`${label}: no type array with enum`, found.enumUnions.length === 0, found.enumUnions.join(','))
-	check(`${label}: strict union parameters within ${UNIONS_MAX}`, found.unions <= UNIONS_MAX)
-	check(`${label}: strict optional parameters within ${OPTIONAL_MAX}`, found.optional <= OPTIONAL_MAX)
+	const unions = enumUnions(tools)
+	check(`${label}: no type array with enum`, unions.length === 0, unions.join(','))
+	check(`${label}: strict tools within ${CHAT_REQUEST_LIMITS.strict}`, found.strict <= CHAT_REQUEST_LIMITS.strict)
+	check(`${label}: strict union parameters within ${CHAT_REQUEST_LIMITS.union}`, found.union <= CHAT_REQUEST_LIMITS.union)
+	check(
+		`${label}: strict optional parameters within ${CHAT_REQUEST_LIMITS.optional}`,
+		found.optional <= CHAT_REQUEST_LIMITS.optional
+	)
 	check(
 		`${label}: every schema is a closed object`,
 		tools.every((tool) => tool.input_schema.type === 'object' && tool.input_schema.additionalProperties === false)
 	)
 }
+
+const blockSpecs = Array.from({ length: 8 }, (_, index) => ({
+	key: `block_${index + 1}`,
+	name: `Block ${index + 1}`,
+	format: index % 2 === 0 ? 'list' : 'text',
+}))
+const allowed = allowedCommandTools(CHAT_TOOL_ENTRIES)
+check(
+	'commands: allowed tools are read or show and never review',
+	allowed.length > 0 && allowed.every((entry) => ['read', 'show'].includes(entry.effect) && entry.review !== true),
+	allowed.map((entry) => entry.name).join(',')
+)
+check('commands: the today tool is allowed in a command', allowed.some((entry) => entry.name === 'today'))
+const everything = strictBudget(
+	commandTools(
+		CHAT_TOOL_ENTRIES,
+		allowed.map((entry) => entry.name)
+	).map(toAnthropicTool),
+	commandSchema(blockSpecs).schema
+)
+check('commands: every allowed tool and eight blocks stay within the limits', withinBudget(everything), JSON.stringify(everything))
+const syntheticStrict = Array.from({ length: CHAT_REQUEST_LIMITS.strict + 1 }, (_, index) => ({
+	name: `synthetic_${index}`,
+	strict: true,
+	input_schema: { type: 'object', properties: {}, required: [], additionalProperties: false },
+}))
+check('commands: 21 strict tools are over the limit', !withinBudget(strictBudget(syntheticStrict)))
+const homeworkBlocks = [
+	{ key: 'block_1', name: 'Exercises', format: 'list' },
+	{ key: 'block_2', name: 'Message', format: 'text' },
+]
+const homework = commandSchema(homeworkBlocks)
+const schemaText = JSON.stringify(homework.schema)
+check(
+	'commands: the response schema has only block keys, types and names',
+	isDeepStrictEqual(Object.keys(homework.schema.properties), ['block_1', 'block_2']) &&
+		isDeepStrictEqual(homework.schema.required, ['block_1', 'block_2']) &&
+		homework.schema.additionalProperties === false &&
+		!/anyOf|null|minLength|maxLength|minItems|maxItems/.test(schemaText),
+	schemaText
+)
+console.log(`commands: /homework response schema ${schemaText}`)
+const homeworkTools = commandTools(CHAT_TOOL_ENTRIES, ['student_notes', 'lesson_dates']).map(toAnthropicTool)
+check('commands: the /homework tool set and schema are within the limits', withinBudget(strictBudget(homeworkTools, homework.schema)))
 
 const key = apiKey()
 let live = 'NOT RUN'
@@ -196,6 +235,20 @@ if (key === null) {
 			const detail = error instanceof Anthropic.APIError ? `${error.status} ${error.message}` : String(error)
 			check(`${label}: ${MODEL} accepts the tool list`, false, detail.replaceAll(key, '***'))
 		}
+	}
+	try {
+		const message = await client.messages.create({
+			model: MODEL,
+			max_tokens: 256,
+			output_config: { effort: 'medium', format: { type: 'json_schema', schema: homework.schema } },
+			tools: homeworkTools,
+			tool_choice: { type: 'auto' },
+			messages: [{ role: 'user', content: 'Write one exercise and one short message for a student.' }],
+		})
+		check(`commands: ${MODEL} accepts the /homework tools with the response schema (${message.stop_reason})`, true)
+	} catch (error) {
+		const detail = error instanceof Anthropic.APIError ? `${error.status} ${error.message}` : String(error)
+		check(`commands: ${MODEL} accepts the /homework tools with the response schema`, false, detail.replaceAll(key, '***'))
 	}
 	live = 'RUN'
 }

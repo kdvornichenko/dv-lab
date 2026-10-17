@@ -35,16 +35,31 @@ const chatUsage = z.strictObject({
 	outputTokens: tokenCount,
 	cacheCreationInputTokens: tokenCount,
 	cacheReadInputTokens: tokenCount,
+	cacheCreation5mInputTokens: tokenCount.optional(),
+	cacheCreation1hInputTokens: tokenCount.optional(),
+	thinkingTokens: tokenCount.optional(),
 })
 
 type ChatUsage = z.infer<typeof chatUsage>
 
+function field(value: unknown, key: string): unknown {
+	return typeof value === 'object' && value !== null ? Reflect.get(value, key) : undefined
+}
+
+function tokens(value: unknown): number {
+	return typeof value === 'number' && Number.isInteger(value) && value >= 0 ? value : 0
+}
+
 export function usageOf(usage: Anthropic.Usage): ChatUsage {
+	const creation = field(usage, 'cache_creation')
 	return {
 		inputTokens: usage.input_tokens,
 		outputTokens: usage.output_tokens,
 		cacheCreationInputTokens: usage.cache_creation_input_tokens ?? 0,
 		cacheReadInputTokens: usage.cache_read_input_tokens ?? 0,
+		cacheCreation5mInputTokens: tokens(field(creation, 'ephemeral_5m_input_tokens')),
+		cacheCreation1hInputTokens: tokens(field(creation, 'ephemeral_1h_input_tokens')),
+		thinkingTokens: tokens(field(field(usage, 'output_tokens_details'), 'thinking_tokens')),
 	}
 }
 

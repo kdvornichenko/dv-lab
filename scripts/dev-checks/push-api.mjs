@@ -21,7 +21,18 @@ import { removeCards } from './ledger-api/context.ts'
 const PORT = 4271
 const ENDPOINT_HOST = 'push.example.test'
 const ENDPOINT_BASE = `https://${ENDPOINT_HOST}/dvlab-check/`
-const SECTIONS = ['routes', 'links', 'settings', 'presence', 'config', 'lessons', 'payments', 'suppress', 'delivery']
+const SECTIONS = [
+	'routes',
+	'links',
+	'settings',
+	'presence',
+	'config',
+	'lessons',
+	'payments',
+	'suppress',
+	'delivery',
+	'assistant',
+]
 const API_SECTIONS = new Set([
 	'routes',
 	'settings',
@@ -31,6 +42,7 @@ const API_SECTIONS = new Set([
 	'payments',
 	'suppress',
 	'delivery',
+	'assistant',
 ])
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/
 
@@ -967,7 +979,76 @@ async function delivery(ctx) {
 	check('the check api under NODE_ENV test keeps the scheduler off', !ctx.api.logs().includes('push scheduler started'))
 }
 
-const RUNNERS = { routes, links, settings, presence, config, lessons, payments, suppress, delivery }
+async function assistant(ctx) {
+	const { db, logger } = await inProcess(ctx)
+	const { createAssistantNotifier } = await import(`${ROOT}/apps/api/src/push/assistant.ts`)
+	const presenceModule = await import(`${ROOT}/apps/api/src/push/presence.ts`)
+	const { chatLink } = await import(`${ROOT}/packages/contracts/src/index.ts`)
+	const { readTeacherSettings } = await import(`${ROOT}/apps/api/src/settings/settings.ts`)
+	const accountId = teacherAccountId()
+	const own = await ownSubscription(ctx)
+	const deliveries = []
+	const notify = createAssistantNotifier({
+		db,
+		logger,
+		deliver: async (subscription, payload) => {
+			deliveries.push({ subscriptionId: subscription.id, payload })
+		},
+	})
+	const conversationId = randomUUID()
+	const event = (waiting) => ({ accountId, conversationId, title: 'Past simple practice', waiting })
+	const mine = () => deliveries.filter((item) => item.subscriptionId === own.id)
+
+	const initial = (await send(ctx.api, 'GET', '/settings', ctx.cookie)).json?.settings
+	check('GET /settings carries the notifyAssistant switch', typeof initial?.notifyAssistant === 'boolean')
+	const defaults = await readTeacherSettings(db, randomUUID())
+	check('without a settings row the assistant push is off', defaults.notifyAssistant === false)
+	await patchSettings(ctx, { notifyAssistant: true })
+	check('the chat link is /?chat=<id>', chatLink(conversationId) === `/?chat=${conversationId}`)
+
+	await notify(event(false))
+	const ready = mine().at(-1)?.payload
+	check(
+		'a finished turn pushes "Reply is ready" with the chat title, a chat tag and the chat link',
+		mine().length === 1 &&
+			ready.title === 'Reply is ready' &&
+			ready.body === 'Past simple practice' &&
+			ready.tag === `chat:${conversationId}` &&
+			ready.url === `/?chat=${conversationId}`,
+		JSON.stringify(ready)
+	)
+	await notify(event(true))
+	const waiting = mine().at(-1)?.payload
+	check(
+		'a proposal that waits pushes "Waiting for your decision" under the same tag',
+		mine().length === 2 && waiting.title === 'Waiting for your decision' && waiting.tag === ready.tag,
+		JSON.stringify(waiting)
+	)
+	check('the push carries no reply text', Object.keys(waiting).sort().join() === 'body,tag,title,url')
+
+	try {
+		const off = await patchSettings(ctx, { notifyAssistant: false })
+		await notify(event(false))
+		check('with the switch off nothing is pushed', off.notifyAssistant === false && mine().length === 2)
+	} finally {
+		const on = await patchSettings(ctx, { notifyAssistant: true })
+		check('the switch is turned on again', on.notifyAssistant === true)
+	}
+
+	const front = await ownSubscription(ctx)
+	presenceModule.recordPresence(accountId, front.endpoint, 'other', null)
+	const before = deliveries.length
+	await notify(event(false))
+	const added = deliveries.slice(before)
+	check(
+		'a device with a fresh presence signal gets nothing, the other device does',
+		added.some((item) => item.subscriptionId === own.id) && !added.some((item) => item.subscriptionId === front.id),
+		JSON.stringify(added.map((item) => item.subscriptionId))
+	)
+	await patchSettings(ctx, { notifyAssistant: initial.notifyAssistant })
+}
+
+const RUNNERS = { routes, links, settings, presence, config, lessons, payments, suppress, delivery, assistant }
 
 const wanted = process.argv.slice(2)
 const selected = wanted.length === 0 ? SECTIONS : wanted

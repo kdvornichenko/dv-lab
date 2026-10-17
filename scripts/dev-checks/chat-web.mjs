@@ -2229,8 +2229,8 @@ async function sectionModels() {
 				await page.locator(MODEL_CHIP).waitFor({ timeout: 30000 })
 				const names = await menuNames(page)
 				check(
-					'the menu shows the four models in the order of the settings',
-					JSON.stringify(names) === JSON.stringify(['Haiku 5.5', 'Sonnet 5.5', 'Opus 5.5', 'Fable 5.1']),
+					'the menu shows the three models in the order of the settings',
+					JSON.stringify(names) === JSON.stringify(['Haiku 5.5', 'Sonnet 5.5', 'Opus 5.5']),
 					JSON.stringify(names)
 				)
 				check(

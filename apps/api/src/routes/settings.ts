@@ -1,19 +1,38 @@
 import type { Context } from 'hono'
 import { Hono } from 'hono'
+import { z } from 'zod'
 
 import {
+	CHAT_REQUEST_LIMITS,
 	type AssistantSettingsResponse,
+	type CommandLimits,
+	type CommandLimitsResponse,
 	type CommandPromptResponse,
 	type CommandPromptsResponse,
+	type CommandResponse,
+	type CommandsResponse,
 	type SettingsResponse,
+	commandLimitsRequest,
+	commandStatusRequest,
+	createCommandRequest,
 	saveAssistantSettingsRequest,
 	saveCommandPromptRequest,
+	updateCommandRequest,
 	updateSettingsRequest,
 } from '@dv-lab/contracts'
 import { type Database, readSnapshot } from '@dv-lab/db'
 
 import { type AppEnv, noStore, readJson, requireRole, requireSession } from '../auth/middleware.ts'
 import { readBudgetSnapshot, usageByConversation } from '../chat/budget.ts'
+import {
+	type CommandResult,
+	allowedToolList,
+	createCommand,
+	draftLimits,
+	readCommands,
+	setCommandStatus,
+	updateCommand,
+} from '../chat/commands.ts'
 import { modelCapabilities } from '../chat/model-config.ts'
 import { isPromptCommand, readCommandPrompts, saveCommandPrompt } from '../chat/prompts.ts'
 import { errorBody } from '../request-context.ts'
@@ -29,6 +48,30 @@ type SettingsRouteDeps = { db: Database; availability?: (modelId: string) => Pro
 const USAGE_ROWS = 5
 
 const invalidRequest = (c: Context<AppEnv>) => c.json(errorBody('invalid_request', 'Invalid request'), 400)
+
+const commandId = z.uuid()
+
+function limitsText(limits: CommandLimits | null): string {
+	if (limits === null) return 'The command needs too many tools'
+	return `${limits.strict} of ${CHAT_REQUEST_LIMITS.strict} strict, ${limits.optional} of ${CHAT_REQUEST_LIMITS.optional} optional, ${limits.union} of ${CHAT_REQUEST_LIMITS.union} union`
+}
+
+function commandFailure(c: Context<AppEnv>, result: Extract<CommandResult, { ok: false }>) {
+	switch (result.error) {
+		case 'not_found':
+			return c.json(errorBody('not_found', 'Command not found'), 404)
+		case 'changed':
+			return c.json(errorBody('precondition_failed', 'The command changed'), 409)
+		case 'name_taken':
+			return c.json(errorBody('name_taken', 'A command with this name already exists'), 409)
+		case 'name_reserved':
+			return c.json(errorBody('name_reserved', 'This name belongs to a built-in command'), 409)
+		case 'too_many_tools':
+			return c.json(errorBody('too_many_tools', limitsText(result.limits)), 409)
+		case 'tool_not_allowed':
+			return c.json(errorBody('tool_not_allowed', 'This tool cannot be used in a command'), 400)
+	}
+}
 
 export function settingsRoutes({ db, availability }: SettingsRouteDeps) {
 	const routes = new Hono<AppEnv>()
@@ -89,6 +132,53 @@ export function settingsRoutes({ db, availability }: SettingsRouteDeps) {
 		if (!result.ok) return c.json(errorBody('precondition_failed', 'The prompt changed'), 409)
 		return c.json({ prompt: result.prompt } satisfies CommandPromptResponse, 200)
 	})
+
+	routes.get('/assistant/commands', async (c) => {
+		const accountId = c.get('session').account.id
+		const status = c.req.query('status') === 'active' ? 'active' : null
+		const commands = await readSnapshot(db, (executor) => readCommands(executor, accountId, status))
+		return c.json(
+			{ commands, allowedTools: allowedToolList(), limits: CHAT_REQUEST_LIMITS } satisfies CommandsResponse,
+			200
+		)
+	})
+
+	routes.post('/assistant/commands/limits', async (c) => {
+		const input = await readJson(c, commandLimitsRequest)
+		if (!input) return invalidRequest(c)
+		return c.json({ limits: draftLimits(input.tools, input.blocks) } satisfies CommandLimitsResponse, 200)
+	})
+
+	routes.post('/assistant/commands', async (c) => {
+		const input = await readJson(c, createCommandRequest)
+		if (!input) return invalidRequest(c)
+		const result = await createCommand(db, c.get('session').account.id, input)
+		if (!result.ok) return commandFailure(c, result)
+		return c.json({ command: result.command } satisfies CommandResponse, 201)
+	})
+
+	routes.put('/assistant/commands/:id', async (c) => {
+		const id = commandId.safeParse(c.req.param('id'))
+		const input = await readJson(c, updateCommandRequest)
+		if (!id.success || !input) return invalidRequest(c)
+		const result = await updateCommand(db, c.get('session').account.id, id.data, input)
+		if (!result.ok) return commandFailure(c, result)
+		return c.json({ command: result.command } satisfies CommandResponse, 200)
+	})
+
+	for (const [action, status] of [
+		['archive', 'archived'],
+		['restore', 'active'],
+	] as const) {
+		routes.post(`/assistant/commands/:id/${action}`, async (c) => {
+			const id = commandId.safeParse(c.req.param('id'))
+			const input = await readJson(c, commandStatusRequest)
+			if (!id.success || !input) return invalidRequest(c)
+			const result = await setCommandStatus(db, c.get('session').account.id, id.data, status, input.expectedRevision)
+			if (!result.ok) return commandFailure(c, result)
+			return c.json({ command: result.command } satisfies CommandResponse, 200)
+		})
+	}
 
 	return routes
 }

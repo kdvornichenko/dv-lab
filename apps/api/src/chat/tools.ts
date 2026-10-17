@@ -55,7 +55,14 @@ import { paymentRecords } from './change-deletions.ts'
 import { removeNoteBlock, writeNoteBlock } from './change-notes.ts'
 import { type ChangeRequest, proposeChange } from './changes.ts'
 import { ESSAY_NOTE, ESSAY_TOOL_NAME, essayFeedbackInput } from './essay.ts'
-import { chatDayLesson, lessonDatesPeriod, readChatFacts, readChatLessonDates } from './facts.ts'
+import {
+	chatDayLesson,
+	lessonDatesPeriod,
+	readChatDay,
+	readChatFacts,
+	readChatLessonDates,
+	readChatPaysSoon,
+} from './facts.ts'
 import { type NoteOutcome, addVocabulary, createNoteBlock, removeVocabulary } from './note-writes.ts'
 import { citeKey } from './publish-gate.ts'
 import { REVIEW_TOOL_ENTRIES } from './review.ts'
@@ -207,6 +214,7 @@ const inputs = {
 		merge: nullable(z.boolean()),
 	}),
 	show_help: z.strictObject({}),
+	today: z.strictObject({}),
 }
 
 const string = { type: 'string' }
@@ -723,6 +731,44 @@ async function showHelp(context: ToolContext): Promise<ToolOutcome> {
 		return result({ status: 'not_shown', note: 'The help is already shown in this answer.' })
 	context.shown.add('help')
 	return show(context, { type: 'help' }, result({ status: 'shown', note: HELP_NOTE }))
+}
+
+const TODAY_NOTE =
+	'The teacher sees the lessons of the day and the students who pay soon in blocks. They are the whole answer: write no text at all and never repeat a name, a time or a number from them.'
+
+async function todayRecords(context: ToolContext): Promise<ToolOutcome> {
+	if (context.shown.has('today'))
+		return result({ status: 'not_shown', note: 'The day is already shown in this answer.' })
+	let read: {
+		lessons: Awaited<ReturnType<typeof readChatDay>>
+		paysSoon: Awaited<ReturnType<typeof readChatPaysSoon>>
+	}
+	try {
+		read = await readSnapshot(context.db, async (executor) => {
+			const settings = await readTeacherSettings(executor, context.chat.accountId)
+			return {
+				lessons: await readChatDay(executor, context.chat, 'today'),
+				paysSoon: await readChatPaysSoon(executor, context.chat, settings.paysSoonLessons),
+			}
+		})
+	} catch {
+		return show(context, { type: 'read_failed', key: { kind: 'day', day: 'today' } }, failure('tool_failed'))
+	}
+	context.shown.add('today')
+	const lessons = fit(read.lessons.lessons, {
+		part: 'lessons',
+		date: read.lessons.date,
+		time_zone: read.lessons.defaultTimeZone,
+	})
+	const paysSoon = fit(read.paysSoon.students, {
+		part: 'pays_soon',
+		pays_soon_lessons: read.paysSoon.paysSoonLessons,
+	})
+	await context.db.transaction(async (tx) => {
+		await context.persist(tx, read.lessons)
+		await context.persist(tx, read.paysSoon)
+	})
+	return { content: `${lessons.text}\n${paysSoon.text}\n${TODAY_NOTE}`, isError: false, block: read.lessons }
 }
 
 const CALENDAR_DISCONNECTED: ReadonlySet<string> = new Set([
@@ -1254,6 +1300,17 @@ export const CHAT_TOOL_ENTRIES: readonly ChatToolEntry[] = [
 		effect: 'show',
 		step: null,
 		run: showHelp,
+	}),
+	chatTool({
+		name: 'today',
+		description:
+			"Show the teacher the lessons of today's lesson day and the students who pay soon, both in one call. Call it when the teacher asks what is today, who has lessons today and who has to pay soon, or for a short overview of the day. The two blocks are the whole answer: write no text with them and never list or count the lessons or the students yourself.",
+		input: inputs.today,
+		properties: {},
+		strict: false,
+		effect: 'show',
+		step: null,
+		run: todayRecords,
 	}),
 
 	...REVIEW_TOOL_ENTRIES,

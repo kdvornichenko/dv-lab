@@ -312,6 +312,42 @@ async function providerSmoke() {
 			final.usage.input_tokens === 120 &&
 			final.usage.output_tokens > 5
 	)
+	check(
+		'a request without diagnostics carries no diagnostics field and keeps tool_choice auto',
+		fakeState.lastBody !== undefined && !('diagnostics' in fakeState.lastBody) && fakeState.lastBody.tool_choice.type === 'auto'
+	)
+	for await (const event of real.stream(
+		{ ...request('Plan the next lesson'), diagnostics: { previousMessageId: null } },
+		new AbortController().signal
+	))
+		if (event.type === 'final') break
+	check(
+		'a request with diagnostics sends previous_message_id null on the first request',
+		fakeState.lastBody.diagnostics?.previous_message_id === null
+	)
+	for await (const event of real.stream(
+		{
+			...request('Plan the next lesson'),
+			tools: [],
+			format: {
+				schema: {
+					type: 'object',
+					properties: { block_1: { type: 'string', description: 'Text' } },
+					required: ['block_1'],
+					additionalProperties: false,
+				},
+			},
+		},
+		new AbortController().signal
+	))
+		if (event.type === 'final') break
+	check(
+		'a request with a response schema sends output_config.format and leaves out an empty tool list',
+		fakeState.lastBody.output_config.format?.type === 'json_schema' &&
+			fakeState.lastBody.output_config.format.schema.required[0] === 'block_1' &&
+			!('tools' in fakeState.lastBody) &&
+			!('tool_choice' in fakeState.lastBody)
+	)
 	const tool = await collect('[fake:tool] find someone')
 	const toolFinal = tool.find((event) => event.type === 'final')?.message
 	const toolUse = toolFinal?.content.find((block) => block.type === 'tool_use')

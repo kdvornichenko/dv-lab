@@ -346,6 +346,32 @@ export function checkSentence(sentence: string, context: GateContext): GateVerdi
 	return 'publish'
 }
 
+const URL_TEXT = /\bhttps?:\/\/\S+|\bwww\.\S+/giu
+const TIME_EXACT = new Set(['min', 'mins', 'hr', 'hrs', 'мин'])
+const TIME_PREFIXES = new Set(['lesson', 'minute', 'hour', 'урок', 'минут', 'занят'])
+
+function isBlockLedger(word: string): boolean {
+	if (HOUR_RU.test(word)) return false
+	return (
+		(LEDGER_EXACT.has(word) && !TIME_EXACT.has(word)) ||
+		LEDGER_PREFIXES.some((prefix) => !TIME_PREFIXES.has(prefix) && word.startsWith(prefix))
+	)
+}
+
+export function checkBlockLine(line: string): GateVerdict {
+	const text = line.replace(URL_TEXT, ' ')
+	if (MONEY_SIGN.test(text)) return 'withhold'
+	const words = text.replace(UUID, ' ').toLowerCase().match(WORD) ?? []
+	const ledger = words.map(isBlockLedger)
+	for (const [index, word] of words.entries()) {
+		if (!isNumber(word)) continue
+		const from = Math.max(0, index - WINDOW)
+		const to = Math.min(words.length, index + WINDOW + 1)
+		if (ledger.slice(from, to).some(Boolean)) return 'withhold'
+	}
+	return 'publish'
+}
+
 export function citeKey(source: ChatExcerptBlock['source'], id: string): string {
 	return `${source}:${id}`.toLowerCase()
 }

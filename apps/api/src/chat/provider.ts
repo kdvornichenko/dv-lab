@@ -9,6 +9,8 @@ export type ProviderRequest = {
 	system: string
 	tools: Anthropic.Tool[]
 	messages: Anthropic.MessageParam[]
+	diagnostics?: { previousMessageId: string | null }
+	format?: { schema: Record<string, unknown> }
 }
 
 export type CompleteRequest = Omit<ProviderRequest, 'tools'>
@@ -16,17 +18,19 @@ export type CompleteRequest = Omit<ProviderRequest, 'tools'>
 export type ProviderEvent =
 	{ type: 'text'; text: string } | { type: 'text_end' } | { type: 'final'; message: Anthropic.Message }
 
-export type ProviderFaultCode = 'credits_unavailable' | 'model_unavailable' | 'provider_unavailable'
+export type ProviderFaultCode = 'credits_unavailable' | 'model_unavailable' | 'provider_unavailable' | 'request_rejected'
 
 export class ProviderFault extends Error {
 	readonly code: ProviderFaultCode
 	readonly aborted: boolean
 	readonly answered: boolean
-	constructor(code: ProviderFaultCode, options: { aborted?: boolean; answered?: boolean } = {}) {
+	readonly detail: string | null
+	constructor(code: ProviderFaultCode, options: { aborted?: boolean; answered?: boolean; detail?: string } = {}) {
 		super(code)
 		this.code = code
 		this.aborted = options.aborted ?? false
 		this.answered = options.answered ?? false
+		this.detail = options.detail ?? null
 	}
 }
 
@@ -43,6 +47,7 @@ function faultCode(error: InstanceType<typeof Anthropic.APIError>): ProviderFaul
 	if (error.type === 'billing_error' || error.status === 402) return 'credits_unavailable'
 	if (error instanceof Anthropic.NotFoundError || error instanceof Anthropic.PermissionDeniedError)
 		return 'model_unavailable'
+	if (error instanceof Anthropic.BadRequestError) return 'request_rejected'
 	return 'provider_unavailable'
 }
 
@@ -51,7 +56,10 @@ function toFault(error: unknown, started: boolean): ProviderFault {
 	if (error instanceof Anthropic.APIUserAbortError) return new ProviderFault('provider_unavailable', { aborted: true })
 	if (error instanceof Anthropic.APIConnectionError) return new ProviderFault('provider_unavailable')
 	if (error instanceof Anthropic.APIError)
-		return new ProviderFault(faultCode(error), { answered: error.status !== undefined && !started })
+		return new ProviderFault(faultCode(error), {
+			answered: error.status !== undefined && !started,
+			detail: error.message,
+		})
 	return new ProviderFault('provider_unavailable')
 }
 
@@ -66,12 +74,17 @@ export function createChatProvider({ apiKey }: { apiKey: string }): ChatProvider
 				{
 					model: request.model,
 					max_tokens: request.maxOutputTokens,
-					output_config: { effort: request.effort },
+					output_config: {
+						effort: request.effort,
+						...(request.format ? { format: { type: 'json_schema' as const, schema: request.format.schema } } : {}),
+					},
 					cache_control: { type: 'ephemeral' },
 					system: request.system,
-					tools: request.tools,
-					tool_choice: { type: 'auto' },
+					...(request.tools.length > 0 ? { tools: request.tools, tool_choice: { type: 'auto' as const } } : {}),
 					messages: request.messages,
+					...(request.diagnostics
+						? { diagnostics: { previous_message_id: request.diagnostics.previousMessageId } }
+						: {}),
 				},
 				{ signal }
 			)

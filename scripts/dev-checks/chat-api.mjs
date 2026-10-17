@@ -7,8 +7,11 @@ import { isDeepStrictEqual, parseEnv } from 'node:util'
 import {
 	CHAT_FOLLOW_UP_TEXT,
 	CHAT_PROMPT_MAX_LENGTH,
+	commandLimitsResponse,
 	commandPromptResponse,
 	commandPromptsResponse,
+	commandResponse,
+	commandsResponse,
 } from '../../packages/contracts/src/index.ts'
 import * as core from '../../packages/core/src/index.ts'
 import { ENV_TEST, ROOT, STUDENT_LOGIN } from './api.mjs'
@@ -31,6 +34,8 @@ const SECTIONS = {
 	title: sectionTitle,
 	since: sectionSince,
 	prompts: sectionPrompts,
+	commands: sectionCommands,
+	'command-turn': sectionCommandTurn,
 }
 
 let failures = 0
@@ -1765,6 +1770,36 @@ async function sectionAnswers(ctx) {
 				!paysBlock.students.some((item) => item.id === cards.unset)
 		)
 
+		const { runTool } = await import('../../apps/api/src/chat/tools.ts')
+		const toolBlocks = []
+		const toolContext = {
+			db,
+			chat: { accountId, now: new Date(), defaultTimeZone: zone },
+			source: { conversationId: conversation, messageId: randomUUID() },
+			persist: async (_executor, block) => {
+				toolBlocks.push(block)
+			},
+			issued: new Map(),
+			shown: new Set(),
+			essay: false,
+		}
+		const todayTool = await runTool(toolContext, 'today', {})
+		check(
+			'the today tool shows the lessons and Pays soon blocks equal to /today and /payments',
+			!todayTool.isError &&
+				toolBlocks.length === 2 &&
+				toolBlocks[0].type === 'lessons' &&
+				toolBlocks[1].type === 'pays_soon' &&
+				isDeepStrictEqual(dayRows(toolBlocks[0]), dayRows(todayBlock)) &&
+				isDeepStrictEqual(dueRows(toolBlocks[1].students), dueRows(paysBlock.students)),
+			JSON.stringify(toolBlocks.map((block) => block.type))
+		)
+		const todayAgain = await runTool(toolContext, 'today', {})
+		check(
+			'a second today call in the same turn publishes nothing',
+			!todayAgain.isError && toolBlocks.length === 2 && JSON.parse(todayAgain.content).status === 'not_shown'
+		)
+
 		const spaced = await say('  /TODAY ')
 		check('a read command ignores case and outer spaces', spaced.json?.messages?.[1]?.blocks?.[0]?.type === 'lessons')
 		const prose = await say('/today please')
@@ -1945,11 +1980,11 @@ async function sectionBudget(ctx) {
 			['1e3', '-1', '.5', '1.0000000001', ''].every((text) => throws(() => budget.usdToNano(text)))
 		)
 		const haiku = await choose(null)
-		const fable = await choose('claude-fable-5-1')
+		const opus = await choose('claude-opus-5-5')
 		check(
 			'reserve uses max input at the larger of input and cache write plus max output at the output price',
-			budget.reserveNano(haiku) === 20_500_000n && budget.reserveNano(fable) === 2_050_000_000n,
-			`${budget.reserveNano(haiku)} ${budget.reserveNano(fable)}`
+			budget.reserveNano(haiku) === 20_500_000n && budget.reserveNano(opus) === 820_000_000n,
+			`${budget.reserveNano(haiku)} ${budget.reserveNano(opus)}`
 		)
 		const tinyPricing = {
 			inputPerMTok: '0.000001',
@@ -2165,9 +2200,9 @@ async function sectionBudget(ctx) {
 		)
 		await setCap('10.00')
 
-		await setCap('3.00')
+		await setCap('1.00')
 		const racedAt = core.zonedInstant('2031-03-15', '12:00', zone)
-		const raced = await Promise.all([reserve(one, fable, racedAt, first.db), reserve(two, fable, racedAt, second.db)])
+		const raced = await Promise.all([reserve(one, opus, racedAt, first.db), reserve(two, opus, racedAt, second.db)])
 		const racedPeriods = sql(
 			`select id, held_nano::text as held from chat_budget_periods where account_id = ${quote(accountId)} and starts_on = '2031-03-01'`
 		).rows
@@ -2176,18 +2211,18 @@ async function sectionBudget(ctx) {
 			racedPeriods.length === 1 &&
 				raced.filter((item) => item.ok).length === 1 &&
 				raced.filter((item) => !item.ok && item.code === 'budget_insufficient').length === 1 &&
-				racedPeriods[0].held === '2050000000',
+				racedPeriods[0].held === '820000000',
 			JSON.stringify(racedPeriods)
 		)
 		await setCap('10.00')
 		const bothAt = core.zonedInstant('2031-04-15', '12:00', zone)
-		const both = await Promise.all([reserve(one, fable, bothAt, first.db), reserve(two, fable, bothAt, second.db)])
+		const both = await Promise.all([reserve(one, opus, bothAt, first.db), reserve(two, opus, bothAt, second.db)])
 		const bothPeriods = sql(
 			`select held_nano::text as held from chat_budget_periods where account_id = ${quote(accountId)} and starts_on = '2031-04-01'`
 		).rows
 		check(
 			'two parallel reserves that fit both pass without a unique key error',
-			both.every((item) => item.ok) && bothPeriods.length === 1 && bothPeriods[0].held === '4100000000',
+			both.every((item) => item.ok) && bothPeriods.length === 1 && bothPeriods[0].held === '1640000000',
 			JSON.stringify(bothPeriods)
 		)
 
@@ -2333,8 +2368,8 @@ async function sectionModels(ctx) {
 				.map((item) => item.id)
 				.join()
 		check(
-			'with a provider all four default models are available, in the order of the settings',
-			(await availableIds()) === `${HAIKU},${SONNET},${OPUS},claude-fable-5-1`,
+			'with a provider all three default models are available, in the order of the settings',
+			(await availableIds()) === `${HAIKU},${SONNET},${OPUS}`,
 			await availableIds()
 		)
 
@@ -3510,6 +3545,467 @@ async function sectionPrompts(ctx) {
 		await chat.close()
 		server.close()
 		console.log(`fixture prompts removed ${clearPrompts()}`)
+		if (original?.cap)
+			sql(`update teacher_settings set chat_monthly_cap_usd = ${original.cap} where account_id = ${quote(accountId)}`)
+		sql(
+			`update teacher_settings set chat_models = ${original?.models == null ? 'null' : `${quote(JSON.stringify(original.models))}::jsonb`}, chat_model = ${original?.model == null ? 'null' : quote(original.model)}, chat_effort = ${original?.effort == null ? 'null' : quote(original.effort)} where account_id = ${quote(accountId)}`
+		)
+		await pool.end()
+	}
+}
+
+async function sectionCommands(ctx) {
+	const { api, cookie } = ctx
+	const accountId = sql(`select id from accounts where role = 'teacher' and status = 'active'`).rows[0].id
+	const clear = () => sql(`delete from chat_commands where account_id = ${quote(accountId)}`, 'migrator').rowCount
+	console.log(`fixture commands removed ${clear()}`)
+	try {
+		const as = (method, path, body) => call(api, method, path, { cookie, body })
+		const body = {
+			description: 'Homework from the notes',
+			prompt: 'Prepare homework from the notes of the mentioned student.',
+			student: true,
+			tools: ['student_notes', 'lesson_dates'],
+			blocks: [
+				{ name: 'Exercises', format: 'list', template: '1. ... 2. ... 3. ...' },
+				{ name: 'Message', format: 'text', template: 'Hello! https://example.com/lesson' },
+			],
+		}
+		const empty = await as('GET', '/settings/assistant/commands')
+		check(
+			'GET gives no commands, the allowed read and show tools and the limits 20, 24 and 16',
+			empty.status === 200 &&
+				commandsResponse.safeParse(empty.json).success &&
+				empty.json.commands.length === 0 &&
+				empty.json.allowedTools.some((tool) => tool.name === 'today' && tool.effect === 'show') &&
+				!empty.json.allowedTools.some((tool) => ['propose_payment', 'mark_lesson', 'essay_feedback'].includes(tool.name)) &&
+				isDeepStrictEqual(empty.json.limits, { strict: 20, optional: 24, union: 16 }),
+			String(empty.status)
+		)
+		const created = await as('POST', '/settings/assistant/commands', { name: '/homework', ...body })
+		const command = created.json?.command
+		check(
+			'POST creates the command at revision 1 with block keys in order and the counted limits',
+			created.status === 201 &&
+				commandResponse.safeParse(created.json).success &&
+				command.name === '/homework' &&
+				command.status === 'active' &&
+				command.revision === 1 &&
+				command.student === true &&
+				command.blocks.map((block) => block.key).join() === 'block_1,block_2' &&
+				isDeepStrictEqual(command.limits, { strict: 0, optional: 0, union: 0 }),
+			JSON.stringify(created.json)
+		)
+		for (const name of ['/today', '/review', '/note']) {
+			const reserved = await as('POST', '/settings/assistant/commands', { name, ...body })
+			check(
+				`the built-in name ${name} is refused`,
+				reserved.status === 409 && reserved.json?.error?.code === 'name_reserved',
+				JSON.stringify(reserved.json)
+			)
+		}
+		const taken = await as('POST', '/settings/assistant/commands', { name: '/homework', ...body })
+		check('a second active command with the same name is refused', taken.status === 409 && taken.json?.error?.code === 'name_taken')
+		const badName = await as('POST', '/settings/assistant/commands', { name: 'homework2', ...body })
+		check('a name without the slash is an invalid request', badName.status === 400)
+		const writing = await as('POST', '/settings/assistant/commands', {
+			name: '/writer',
+			...body,
+			tools: ['student_notes', 'propose_payment'],
+		})
+		check(
+			'a write or propose tool is refused',
+			writing.status === 400 && writing.json?.error?.code === 'tool_not_allowed',
+			JSON.stringify(writing.json)
+		)
+
+		const update = { ...body, description: 'Homework and a message', expectedRevision: 1 }
+		const updated = await as('PUT', `/settings/assistant/commands/${command.id}`, update)
+		check(
+			'PUT with the right revision saves, keeps the name and raises the revision',
+			updated.status === 200 &&
+				updated.json.command.revision === 2 &&
+				updated.json.command.description === 'Homework and a message' &&
+				updated.json.command.name === '/homework',
+			JSON.stringify(updated.json)
+		)
+		const stale = await as('PUT', `/settings/assistant/commands/${command.id}`, update)
+		check('PUT with the old revision answers 409 precondition_failed', stale.status === 409 && stale.json?.error?.code === 'precondition_failed')
+		const renamed = await as('PUT', `/settings/assistant/commands/${command.id}`, { ...update, expectedRevision: 2, name: '/other' })
+		check(
+			'a name in the update is an invalid request and the stored name stays',
+			renamed.status === 400 &&
+				sql(`select name from chat_commands where id = ${quote(command.id)}`).rows[0].name === '/homework'
+		)
+		const missing = await as('PUT', `/settings/assistant/commands/${'0'.repeat(8)}-0000-4000-8000-${'0'.repeat(12)}`, update)
+		check('an unknown id answers 404 and a bad id 400', missing.status === 404 && (await as('PUT', '/settings/assistant/commands/x', update)).status === 400)
+
+		const limits = await as('POST', '/settings/assistant/commands/limits', { tools: ['student_notes'], blocks: body.blocks })
+		check(
+			'the limits route counts a draft and writes nothing',
+			limits.status === 200 &&
+				commandLimitsResponse.safeParse(limits.json).success &&
+				isDeepStrictEqual(limits.json.limits, { strict: 0, optional: 0, union: 0 }) &&
+				sql(`select count(*)::int as n from chat_commands where account_id = ${quote(accountId)}`).rows[0].n === 1
+		)
+
+		const archived = await as('POST', `/settings/assistant/commands/${command.id}/archive`, { expectedRevision: 2 })
+		const activeOnly = await as('GET', '/settings/assistant/commands?status=active')
+		const everything = await as('GET', '/settings/assistant/commands')
+		check(
+			'archive keeps the row, leaves the active list and stays in the full list',
+			archived.status === 200 &&
+				archived.json.command.status === 'archived' &&
+				archived.json.command.revision === 3 &&
+				activeOnly.json.commands.length === 0 &&
+				everything.json.commands.length === 1 &&
+				everything.json.commands[0].status === 'archived'
+		)
+		const again = await as('POST', '/settings/assistant/commands', { name: '/homework', ...body })
+		check('the name is free again after the archive', again.status === 201)
+		const restored = await as('POST', `/settings/assistant/commands/${command.id}/restore`, { expectedRevision: 3 })
+		check('restoring while the name is active again is refused', restored.status === 409 && restored.json?.error?.code === 'name_taken')
+
+		check(
+			'commands are never deleted and the app role cannot delete them',
+			sql(`select count(*)::int as n from chat_commands where account_id = ${quote(accountId)}`).rows[0].n === 2 &&
+				sql(
+					`select has_table_privilege('dvlab_app', 'chat_commands', 'DELETE') as d, has_table_privilege('dvlab_app', 'chat_commands', 'TRUNCATE') as t`
+				).rows[0].d === false &&
+				sql(
+					`select has_table_privilege('dvlab_app', 'chat_commands', 'DELETE') as d, has_table_privilege('dvlab_app', 'chat_commands', 'TRUNCATE') as t`
+				).rows[0].t === false
+		)
+		console.log('NOTE the 20, 24 and 16 limits cannot be exceeded through the route: every allowed tool is not strict; the synthetic set is checked in chat-tools-schema.mjs')
+		const student = await studentCookie(api)
+		const forbidden = await call(api, 'GET', '/settings/assistant/commands', { cookie: student })
+		check('a student cannot read the commands', forbidden.status === 403 || forbidden.status === 401, String(forbidden.status))
+		return 'CHAT_COMMANDS_OK'
+	} finally {
+		console.log(`fixture commands removed ${clear()}`)
+	}
+}
+
+const COMMAND_TURN_PORT = 4237
+
+async function sectionCommandTurn(ctx) {
+	const { createDb } = await import('../../packages/db/src/index.ts')
+	const { createApp } = await import('../../apps/api/src/app.ts')
+	const { createSignIn } = await import('../../apps/api/src/auth/sign-in.ts')
+	const { createChat } = await import('../../apps/api/src/chat/runs.ts')
+	const { ProviderFault } = await import('../../apps/api/src/chat/provider.ts')
+	const { createCommand, setCommandStatus } = await import('../../apps/api/src/chat/commands.ts')
+	const apiRequire = createRequire(new URL('../../apps/api/package.json', import.meta.url))
+	const pino = apiRequire('pino')
+	const { serve } = apiRequire('@hono/node-server')
+
+	const reply = (model, content, stop) => ({
+		id: `msg_${randomUUID()}`,
+		type: 'message',
+		role: 'assistant',
+		model,
+		content,
+		stop_reason: stop,
+		stop_sequence: null,
+		usage: { input_tokens: 100, output_tokens: 40, cache_creation_input_tokens: 0, cache_read_input_tokens: 0 },
+	})
+	const say = (text) =>
+		async function* answer(request) {
+			yield { type: 'text', text }
+			yield { type: 'text_end' }
+			yield { type: 'final', message: reply(request.model, [{ type: 'text', text, citations: null }], 'end_turn') }
+		}
+	const jsonReply = (value, stop = 'end_turn') => {
+		const text = typeof value === 'string' ? value : JSON.stringify(value)
+		return async function* answer(request) {
+			yield { type: 'text', text }
+			yield { type: 'text_end' }
+			yield { type: 'final', message: reply(request.model, [{ type: 'text', text, citations: null }], stop) }
+		}
+	}
+	const refuse = () =>
+		async function* refusal(request) {
+			yield { type: 'final', message: reply(request.model, [], 'refusal') }
+		}
+	const reject = () =>
+		// eslint-disable-next-line require-yield
+		async function* rejected() {
+			throw new ProviderFault('request_rejected', { answered: true, detail: 'Schema is too complex for compilation' })
+		}
+	const use = (name, input) =>
+		async function* toolUse(request) {
+			const block = { type: 'tool_use', id: `toolu_${randomUUID().slice(0, 8)}`, name, input }
+			yield { type: 'final', message: reply(request.model, [block], 'tool_use') }
+		}
+	const fake = {
+		calls: [],
+		script: [],
+		availability: async () => true,
+		async complete() {
+			throw new ProviderFault('model_unavailable', { answered: true })
+		},
+		stream(request, signal) {
+			this.calls.push(request)
+			return (this.script.shift() ?? say('Fine.'))(request, signal)
+		},
+	}
+
+	const url = parseEnv(readFileSync(ENV_TEST, 'utf8')).DATABASE_URL
+	const { pool, db } = createDb(url)
+	const lines = []
+	const logger = pino({ level: 'info' }, { write: (line) => lines.push(line) })
+	const base = `http://127.0.0.1:${COMMAND_TURN_PORT}`
+	const chat = createChat({ db, logger, provider: fake })
+	const app = createApp({
+		logger,
+		db,
+		gitSha: 'check',
+		appOrigin: base,
+		production: false,
+		isStopping: () => false,
+		signIn: createSignIn({ db, logger, requireClientIp: false }),
+		chat,
+	})
+	const server = serve({ fetch: app.fetch, port: COMMAND_TURN_PORT, hostname: '127.0.0.1' })
+	const local = { base, port: COMMAND_TURN_PORT }
+	const accountId = sql(`select id from accounts where role = 'teacher' and status = 'active'`).rows[0].id
+	const original = sql(
+		`select chat_models as models, chat_model as model, chat_effort as effort, chat_monthly_cap_usd::text as cap from teacher_settings where account_id = ${quote(accountId)}`
+	).rows[0]
+	const clearCommands = () => sql(`delete from chat_commands where account_id = ${quote(accountId)}`, 'migrator').rowCount
+	try {
+		const cookie = await teacherCookie(local)
+		const as = (method, path, body) => send(local, method, path, { cookie, body })
+		console.log(`fixture commands removed ${clearCommands()}`)
+		await as('PATCH', '/settings/assistant', { models: null, model: null, effort: null, monthlyCapUsd: '10.00' })
+		const name = 'Alex Example 2206 Command'
+		const card = await createCard(ctx, name)
+		const binding = { studentId: card, text: name, start: 11, end: 11 + name.length }
+		const fresh = async () => {
+			const created = await as('POST', '/chat/conversations')
+			ctx.conversations.push(created.json.conversation.id)
+			return created.json.conversation.id
+		}
+		const settle = async (turnId) => {
+			const deadline = Date.now() + 20000
+			while (Date.now() < deadline) {
+				const res = await as('GET', `/chat/turns/${turnId}`)
+				if (res.status === 200 && !['accepted', 'running'].includes(res.json.turn.state)) return res.json.turn
+				await new Promise((resolve) => setTimeout(resolve, 50))
+			}
+			throw new Error('turn did not finish in time')
+		}
+		const turn = async (id, text, mentions = []) => {
+			const before = fake.calls.length
+			const sent = await as('POST', `/chat/conversations/${id}/messages`, { requestId: randomUUID(), text, mentions })
+			if (sent.status !== 201 || !sent.json.turn) return { sent, done: null, requests: [] }
+			const done = await settle(sent.json.turn.id)
+			return { sent, done, requests: fake.calls.slice(before) }
+		}
+		const lastUser = (request) => {
+			const content = request.messages.at(-1).content
+			return typeof content === 'string' ? content : JSON.stringify(content)
+		}
+		const replyRow = (done) => sql(`select body, blocks from chat_messages where id = ${quote(done.assistantMessageId)}`).rows[0]
+		const commandBlocks = (row) => row.blocks.filter((block) => block.type === 'command')
+		const create = async (input) => {
+			const made = await createCommand(db, accountId, input)
+			if (!made.ok) throw new Error(`command create failed ${made.error}`)
+			return made.command
+		}
+		const PROMPT = 'Prepare homework from the notes of the mentioned student.'
+		const homework = await create({
+			name: '/homework',
+			description: 'Homework from the notes',
+			prompt: PROMPT,
+			student: true,
+			tools: ['student_notes', 'lesson_dates'],
+			blocks: [
+				{ name: 'Exercises', format: 'list', template: '1. ... 2. ... 3. ...' },
+				{ name: 'Message', format: 'text', template: 'Hello! https://example.com/lesson' },
+			],
+		})
+		const names = (request) => (request.tools ?? []).map((item) => item.name).join()
+
+		fake.script.push(
+			use('student_notes', { student_id: card }),
+			jsonReply({ block_1: ['1. Read Unit 5', '2. Do Exercise 3'], block_2: 'Hello!\nSee https://example.com/lesson' })
+		)
+		const first = await turn(await fresh(), `/homework @${name}`, [binding])
+		const firstRow = first.done ? replyRow(first.done) : null
+		check(
+			'a stored command sends its text, the block rules, its tools and the response schema to the model',
+			first.done?.state === 'completed' &&
+				first.requests.length === 2 &&
+				names(first.requests[0]) === 'student_notes,lesson_dates' &&
+				Object.keys(first.requests[0].format.schema.properties).join() === 'block_1,block_2' &&
+				first.requests[0].format.schema.required.join() === 'block_1,block_2' &&
+				first.requests[1].format !== undefined &&
+				lastUser(first.requests[0]).includes(PROMPT) &&
+				lastUser(first.requests[0]).includes('block_1') &&
+				lastUser(first.requests[0]).includes('Template: 1. ... 2. ... 3. ...') &&
+				lastUser(first.requests[0]).includes(card),
+			first.done?.state
+		)
+		check(
+			'the JSON answer becomes one command block per key and no JSON is published as text',
+			firstRow !== null &&
+				firstRow.body === '' &&
+				commandBlocks(firstRow).length === 2 &&
+				commandBlocks(firstRow)[0].key === 'block_1' &&
+				commandBlocks(firstRow)[0].name === 'Exercises' &&
+				commandBlocks(firstRow)[0].format === 'list' &&
+				commandBlocks(firstRow)[0].text === '1. Read Unit 5\n2. Do Exercise 3' &&
+				commandBlocks(firstRow)[1].text === 'Hello!\nSee https://example.com/lesson' &&
+				commandBlocks(firstRow)[0].command === '/homework' &&
+				commandBlocks(firstRow)[0].revision === 1 &&
+				!firstRow.blocks.some((block) => block.type === 'withheld'),
+			JSON.stringify(firstRow)
+		)
+
+		fake.script.push(jsonReply({ block_1: [], block_2: 'Which student is this for?' }))
+		const bare = await turn(await fresh(), '/homework')
+		const bareRow = bare.done ? replyRow(bare.done) : null
+		check(
+			'a command without a mention gets the question as its text block and no empty block',
+			bare.done?.state === 'completed' &&
+				bareRow !== null &&
+				commandBlocks(bareRow).length === 1 &&
+				commandBlocks(bareRow)[0].key === 'block_2'
+		)
+
+		const quiz = await create({
+			name: '/quiz',
+			description: 'A quiz from the message',
+			prompt: 'Write a quiz from the text of the teacher.',
+			student: false,
+			tools: [],
+			blocks: [
+				{ name: 'Questions', format: 'list', template: '' },
+				{ name: 'Answers', format: 'text', template: '' },
+			],
+		})
+		fake.script.push(jsonReply({ block_1: ['Question one'], block_2: 'Answer one' }))
+		const generated = await turn(await fresh(), '/quiz Past simple, five questions')
+		const generatedRow = generated.done ? replyRow(generated.done) : null
+		check(
+			'a command without tools still gets the schema and answers with two blocks from the message text',
+			generated.done?.state === 'completed' &&
+				generated.requests.length === 1 &&
+				(generated.requests[0].tools ?? []).length === 0 &&
+				generated.requests[0].format !== undefined &&
+				commandBlocks(generatedRow).length === 2 &&
+				lastUser(generated.requests[0]).includes('The teacher wrote: Past simple, five questions')
+		)
+
+		fake.script.push(jsonReply('{"block_1": ["1. Rea', 'max_tokens'))
+		const cut = await turn(await fresh(), `/homework @${name}`, [binding])
+		const cutRow = cut.done ? replyRow(cut.done) : null
+		check(
+			'a response cut by max_tokens gives no command blocks and the max_tokens issue',
+			cut.done?.state === 'completed' &&
+				cut.done.issue === 'max_tokens' &&
+				cutRow !== null &&
+				commandBlocks(cutRow).length === 0 &&
+				cutRow.body === ''
+		)
+		fake.script.push(refuse())
+		const refused = await turn(await fresh(), `/homework @${name}`, [binding])
+		const refusedRow = refused.done ? replyRow(refused.done) : null
+		check(
+			'a refusal gives model_refused and no command blocks',
+			refused.done?.issue === 'model_refused' && refusedRow !== null && commandBlocks(refusedRow).length === 0
+		)
+		fake.script.push(jsonReply('this is not json'))
+		const broken = await turn(await fresh(), `/homework @${name}`, [binding])
+		const brokenRow = broken.done ? replyRow(broken.done) : null
+		check(
+			'an answer that is not the JSON of the schema gives no command blocks and a withheld marker',
+			broken.done?.state === 'completed' &&
+				brokenRow !== null &&
+				commandBlocks(brokenRow).length === 0 &&
+				brokenRow.blocks.some((block) => block.type === 'withheld')
+		)
+
+		fake.script.push(
+			jsonReply({
+				block_1: ['1. Read Unit 5', '2. Pay ₫500 now', '3. Do Exercise 3'],
+				block_2: 'Hello!\nYou have 3 lessons left.\nSee https://example.com/lesson',
+			})
+		)
+		const gated = await turn(await fresh(), `/homework @${name}`, [binding])
+		const gatedRow = gated.done ? replyRow(gated.done) : null
+		check(
+			'the soft gate keeps links and plain numbers and withholds money and lessons-left lines',
+			gatedRow !== null &&
+				commandBlocks(gatedRow)[0]?.text === '1. Read Unit 5\n3. Do Exercise 3' &&
+				commandBlocks(gatedRow)[1]?.text === 'Hello!\nSee https://example.com/lesson' &&
+				gatedRow.blocks.some((block) => block.type === 'withheld'),
+			JSON.stringify(gatedRow)
+		)
+
+		fake.script.push(use('propose_payment', { student_id: card, amount_text: '100' }), jsonReply({ block_1: ['1. Read'], block_2: 'Hi' }))
+		const guarded = await turn(await fresh(), `/homework @${name}`, [binding])
+		const guardResult = guarded.requests[1]?.messages.at(-1)?.content?.[0]
+		check(
+			'a tool outside the command set returns the read_only_command error',
+			guarded.done?.state === 'completed' &&
+				guardResult?.is_error === true &&
+				String(guardResult?.content).includes('read_only_command'),
+			JSON.stringify(guardResult)
+		)
+
+		fake.script.push(reject())
+		const rejected = await turn(await fresh(), `/homework @${name}`, [binding])
+		check(
+			'a 400 on a command turn ends it as command_rejected and logs the provider message',
+			rejected.done?.state === 'failed' &&
+				rejected.done.issue === 'command_rejected' &&
+				lines.some((line) => line.includes('Schema is too complex for compilation')),
+			rejected.done?.issue
+		)
+		fake.script.push(reject())
+		const plainRejected = await turn(await fresh(), 'Plan the next lesson')
+		check(
+			'a 400 on an ordinary turn stays provider_unavailable',
+			plainRejected.done?.state === 'failed' && plainRejected.done.issue === 'provider_unavailable',
+			plainRejected.done?.issue
+		)
+
+		fake.script.push(say('A plain answer.'))
+		const plain = await turn(await fresh(), 'Plan the next lesson')
+		check(
+			'an ordinary turn sends no response schema and the full tool list',
+			plain.done?.state === 'completed' &&
+				plain.requests[0].format === undefined &&
+				(plain.requests[0].tools ?? []).length > 8 &&
+				(plain.requests[0].tools ?? []).some((item) => item.name === 'today')
+		)
+
+		const archived = await setCommandStatus(db, accountId, quiz.id, 'archived', quiz.revision)
+		const callsBefore = fake.calls.length
+		const gone = await turn(await fresh(), '/quiz Past simple')
+		const attempts = gone.done
+			? sql(`select count(*)::int as n from chat_usage_attempts where turn_id = ${quote(gone.done.id)}`).rows[0].n
+			: -1
+		check(
+			'an archived command is refused as command_unavailable without a request to the model or a budget attempt',
+			archived.ok &&
+				gone.done?.issue === 'command_unavailable' &&
+				fake.calls.length === callsBefore &&
+				attempts === 0,
+			gone.done?.issue
+		)
+		check(
+			'the log has no command text and no fixture name',
+			!lines.join('').includes(PROMPT) && !lines.join('').includes(name)
+		)
+		console.log('NOTE the command_too_large guard needs more than 20 strict tools and no allowed tool is strict: it is covered by the synthetic set in chat-tools-schema.mjs')
+		return 'CHAT_COMMAND_TURN_OK'
+	} finally {
+		await chat.close()
+		server.close()
+		console.log(`fixture commands removed ${clearCommands()}`)
 		if (original?.cap)
 			sql(`update teacher_settings set chat_monthly_cap_usd = ${original.cap} where account_id = ${quote(accountId)}`)
 		sql(

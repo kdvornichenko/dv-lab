@@ -18,6 +18,11 @@ export function recordPresence(
 	signals.set(endpoint, { accountId, screen, studentId, at })
 }
 
+export function isPresentAnywhere(endpoint: string, now = new Date()): boolean {
+	const signal = signals.get(endpoint)
+	return signal !== undefined && now.getTime() - signal.at <= PRESENCE_FRESH_MS
+}
+
 export function isPresent(endpoint: string, screen: PushScreen, studentId: string | null, now = new Date()): boolean {
 	const signal = signals.get(endpoint)
 	if (!signal) return false
