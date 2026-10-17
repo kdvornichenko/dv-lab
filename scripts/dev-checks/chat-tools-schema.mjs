@@ -5,7 +5,7 @@ import { isDeepStrictEqual, parseEnv } from 'node:util'
 import { ROOT } from './paths.mjs'
 
 const { CHAT_TOOLS, CHAT_TOOL_ENTRIES, ESSAY_TOOLS, REVIEW_TOOLS } = await import(`${ROOT}/apps/api/src/chat/tools.ts`)
-const { allowedCommandTools, commandSchema, commandTools, isReadOnly, strictBudget, toAnthropicTool, withinBudget } =
+const { allowedCommandTools, commandSchema, isReadOnly, strictBudget, toAnthropicTool, withinBudget } =
 	await import(`${ROOT}/apps/api/src/chat/tool-registry.ts`)
 const { ESSAY_TOOL_NAME } = await import(`${ROOT}/apps/api/src/chat/essay.ts`)
 const { CHAT_REQUEST_LIMITS, CHAT_STEP_TOOLS } = await import(`${ROOT}/packages/contracts/src/index.ts`)
@@ -179,10 +179,7 @@ check(
 )
 check('commands: the today tool is allowed in a command', allowed.some((entry) => entry.name === 'today'))
 const everything = strictBudget(
-	commandTools(
-		CHAT_TOOL_ENTRIES,
-		allowed.map((entry) => entry.name)
-	).map(toAnthropicTool),
+	allowed.map(toAnthropicTool),
 	commandSchema(blockSpecs).schema
 )
 check('commands: every allowed tool and eight blocks stay within the limits', withinBudget(everything), JSON.stringify(everything))
@@ -207,7 +204,7 @@ check(
 	schemaText
 )
 console.log(`commands: /homework response schema ${schemaText}`)
-const homeworkTools = commandTools(CHAT_TOOL_ENTRIES, ['student_notes', 'lesson_dates']).map(toAnthropicTool)
+const homeworkTools = allowed.filter((entry) => ['student_notes', 'lesson_dates'].includes(entry.name)).map(toAnthropicTool)
 check('commands: the /homework tool set and schema are within the limits', withinBudget(strictBudget(homeworkTools, homework.schema)))
 
 const key = apiKey()

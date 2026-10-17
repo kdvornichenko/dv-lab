@@ -95,14 +95,6 @@ export function allowedCommandTools(entries: readonly ChatToolEntry[]): ChatTool
 	return entries.filter((entry) => (entry.effect === 'read' || entry.effect === 'show') && entry.review !== true)
 }
 
-export function commandTools(entries: readonly ChatToolEntry[], names: readonly string[]): ChatToolEntry[] {
-	const allowed = allowedCommandTools(entries)
-	for (const name of names) {
-		if (!allowed.some((entry) => entry.name === name)) throw new Error(`Tool ${name} is not allowed in a command`)
-	}
-	return allowed.filter((entry) => names.includes(entry.name))
-}
-
 export type CommandBlockSpec = { key: string; name: string; format: 'text' | 'list' }
 
 const LIST_ITEMS_MAX = 200
