@@ -12,6 +12,7 @@ export const NOTIFY_SETTINGS_DEFAULT = {
 	notifyLessonSoon: true,
 	notifyLessonMinutes: 30,
 	notifyPaysSoon: true,
+	notifyAssistant: false,
 } as const
 
 const timeZone = z.string().min(1).max(TIME_ZONE_MAX_LENGTH).refine(isTimeZone)
@@ -24,6 +25,7 @@ export const updateSettingsRequest = z
 		notifyLessonSoon: z.boolean().optional(),
 		notifyLessonMinutes: z.number().int().min(NOTIFY_LESSON_MINUTES_MIN).max(NOTIFY_LESSON_MINUTES_MAX).optional(),
 		notifyPaysSoon: z.boolean().optional(),
+		notifyAssistant: z.boolean().optional(),
 	})
 	.strict()
 	.refine(
@@ -32,7 +34,8 @@ export const updateSettingsRequest = z
 			input.defaultTimeZone !== undefined ||
 			input.notifyLessonSoon !== undefined ||
 			input.notifyLessonMinutes !== undefined ||
-			input.notifyPaysSoon !== undefined
+			input.notifyPaysSoon !== undefined ||
+			input.notifyAssistant !== undefined
 	)
 	.refine((input) =>
 		input.defaultTimeZone === undefined
@@ -48,6 +51,7 @@ export type TeacherSettings = {
 	notifyLessonSoon: boolean
 	notifyLessonMinutes: number
 	notifyPaysSoon: boolean
+	notifyAssistant: boolean
 }
 
 export type SettingsResponse = { settings: TeacherSettings }

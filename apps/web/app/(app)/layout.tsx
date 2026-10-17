@@ -35,14 +35,14 @@ async function AuthenticatedLayout({ children }: { children: ReactNode }) {
 	}
 	return (
 		<NuqsAdapter>
-			<AppShell key={me.account.id} account={me.account}>
-				<CalendarCommandProvider key={me.account.id} accountId={me.account.id}>
+			<CalendarCommandProvider key={me.account.id} accountId={me.account.id}>
+				<AppShell key={me.account.id} account={me.account}>
 					<SessionRenewal renewDue={me.renewDue} />
 					<PushPresence />
 					<VersionWatch version={version} />
 					{children}
-				</CalendarCommandProvider>
-			</AppShell>
+				</AppShell>
+			</CalendarCommandProvider>
 		</NuqsAdapter>
 	)
 }

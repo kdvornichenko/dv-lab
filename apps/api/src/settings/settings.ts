@@ -31,6 +31,7 @@ const settingsColumns = {
 	notifyLessonSoon: teacherSettings.notifyLessonSoon,
 	notifyLessonMinutes: teacherSettings.notifyLessonMinutes,
 	notifyPaysSoon: teacherSettings.notifyPaysSoon,
+	notifyAssistant: teacherSettings.notifyAssistant,
 }
 
 export async function readTeacherSettings(executor: DbExecutor, accountId: string): Promise<TeacherSettings> {
@@ -76,6 +77,7 @@ export function saveTeacherSettings(
 			...(input.notifyLessonSoon === undefined ? {} : { notifyLessonSoon: input.notifyLessonSoon }),
 			...(input.notifyLessonMinutes === undefined ? {} : { notifyLessonMinutes: input.notifyLessonMinutes }),
 			...(input.notifyPaysSoon === undefined ? {} : { notifyPaysSoon: input.notifyPaysSoon }),
+			...(input.notifyAssistant === undefined ? {} : { notifyAssistant: input.notifyAssistant }),
 		}
 		const [row] = await tx
 			.insert(teacherSettings)

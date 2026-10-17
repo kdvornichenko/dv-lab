@@ -609,6 +609,14 @@ Superseded by Phase 25.1 (owner decisions D5-D10, 2026-10-12). Its research and 
 **Depends on**: Phase 25.2
 **Plans**: not planned; the builder is generic, the owner fills real Edvibe templates in Settings, checks use one made-up command
 **UI hint**: yes
+**Notes**: Owner decisions 2026-10-16 from the Claude API review:
+- A command that only generates its answer returns blocks through a response schema (`output_config.format`); a command that reads records returns blocks through `show` tools, as `calendar_events` does. `tool_choice` stays `auto`: a forced tool call returns 400 on Sonnet 5.5, Opus 5.5 and Fable 5.1. One request holds at most 20 strict tools, 24 optional and 16 union parameters, the response schema included.
+- New read tools: `free_slots` (free time of a day; the working hours are a new setting in Settings → General) and `today` with `pays_soon` in one call over `readToday` and `paysSoonList`.
+- Fable 5.1 leaves the default model list (`CHAT_SETTINGS_DEFAULT`): Fable 5 and 5.1 require 30-day data retention.
+- Cache TTL stays 5 minutes until the usage of real turns is measured on the server; then the owner decides on `ttl: "1h"`.
+- `@anthropic-ai/sdk` goes from 0.133.0 to 0.135.0 in this phase.
+- The phase also carries the ChatPanel (design v123, code-sync 157) and the closed-chat signals (design v125, code-sync 158).
+- `25.3-AI-SPEC.md` (from `gsd-ai-integration-phase`) records these limits before planning.
 
 ### Phase 26: IELTS Section
 
@@ -625,10 +633,11 @@ Superseded by Phase 25.1 (owner decisions D5-D10, 2026-10-12). Its research and 
 
 **Plans**: 40 plans,112 tasks,35 waves; independently checked full scope; execution pending final24/25/22/23 source joins and migration/operator gates. See [26-PLAN-INDEX.md](phases/26-ielts-section/26-PLAN-INDEX.md).
 **UI hint**: yes
-**Notes**: ielts code is ported as is. A rollout is not started while an ielts room has active students.
+**Notes**: ielts code is ported as is. A rollout is not started while an ielts room has active students. Owner decision 2026-10-16: the chat `/essay` command also takes a student essay from the IELTS data by its id, not only pasted text; the 40 plans do not have it yet, so a plan is added before execution.
 
 ## Backlog
 
+- **Chat attachments (photos and PDF)**: owner decision 2026-10-16, a separate phase after Phase 26. The teacher sends a photo of homework or a PDF to the chat; files are stored on the server disk the same way as IELTS media. The Files API is not used (no zero data retention), and an image in a message resets the message cache.
 - **Base time zone as a setting**: promoted to Phase 21.1; requirements and accepted behavior are recorded there.
 - **Move form info line (design v40, optional)**: under the preview row of `LessonMoveForm` a caption for a marked lesson: "The mark stays: Done, deducts 1 lesson at the new time." (No-show with the flag off: "The mark stays: No-show, deducts nothing."; on or before the opening balance date: "The mark stays but is not counted: the new date is on or before the opening balance date (5 Oct)."). Not part of Phase 21 plans; add as a small plan after 21-08 or with the Google phases.
 

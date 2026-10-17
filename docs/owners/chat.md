@@ -22,10 +22,11 @@
 - `model-config.ts` — выбор модели и уровня, проверка выбора (`modelCapabilities`).
 - `provider.ts` — Messages API и Models API через SDK.
 - `tool-registry.ts` и `tools.ts` — инструменты модели: инструмент — одна запись `chatTool({...})` в `CHAT_TOOL_ENTRIES`, набор strict, пишущие инструменты и набор хода эссе (`ESSAY_TOOLS`) выводятся из записей, режим только для чтения — по объявленному действию (`effect`), инструмент с шагом стоит в `CHAT_STEP_TOOLS` контракта. У API есть предел размера грамматики строгих схем: при новых полях и инструментах — `scripts/dev-checks/chat-tools-schema.mjs` с ключом.
+- `commands.ts` — команды конструктора: хранение в `chat_commands` (имя после создания не меняется, архив вместо удаления, ревизия), проверка имён (встроенные зарезервированы) и инструментов (`allowedCommandTools`: только `read` и `show`), пределы `strictBudget`; маршруты `/settings/assistant/commands` (список, создание, правка, `archive`, `restore`, `limits`). Ход сохранённой команды — `runs.ts` (`findCommand`, `expandStoredCommand`): текст команды плюс абзац про блоки, набор инструментов команды, схема ответа `output_config.format` из `commandSchema` (ключи `block_N`), JSON разбирается только на `end_turn`, строки блока проходят мягкий gate `checkBlockLine`, один блок `command` на ключ; отказы `command_unavailable`, `command_too_large`, `command_rejected`.
 - `chat/prompts.ts` — тексты встроенных команд `/recap` и `/essay` (настройка учителя в `chat_command_prompts`, чтение в ходе — только `readCommandTexts`); маршруты `GET /settings/assistant/prompts` и `PUT /settings/assistant/prompts/:command`.
 - `note-writes.ts` и `change-notes.ts` — записи заметок и словаря из чата по правилу «добавление сразу, переписывание и удаление с текстом — через подтверждение».
 - `review.ts` — ревизия заметок и словаря командой `/review`.
-- `publish-gate.ts` — удержание предложений с числами без источника.
+- `publish-gate.ts` — удержание предложений с числами без источника; `checkBlockLine` — мягкий gate строк блока команды (ссылки и обычные числа проходят, денежный знак и число рядом со словами про баланс, оплату, остаток уроков удерживаются).
 - `runs.ts` и `turns.ts` — ходы модели, поток и `sweepInterrupted` при старте.
 
 ## Предложения изменений
@@ -44,6 +45,10 @@
 - `/help` (`HELP_COMMAND_TEXT`) отвечает приложение без хода модели (`helpCommand` в `actions.ts`, рядом с `/today`, `/tomorrow`, `/payments`): ответ — один блок `help` без текста, без хода в `chat_turns` и без попытки бюджета.
 - Вопрос словами о возможностях: модель вызывает инструмент `show_help` (`effect` `show`, без шага), он кладёт тот же блок `help`; правило в системной подсказке `runs.ts` — текста к блоку не писать.
 - Блок `help` хранит только тип: web рисует его по текущему `CHAT_COMMANDS` и разделам в `chat-help.tsx`, поэтому старые блоки в истории показывают актуальный список. Команды в блоке — кнопки, вставляют команду в поле тем же путём, что список нового чата, и выключены (`aria-disabled`), пока в поле есть текст или идёт ответ.
+
+## Инструмент `today`
+
+`today` (`effect` `show`, без шага) читает уроки учебного дня и список Pays soon одним снимком и кладёт два блока (`lessons`, `pays_soon`) тем же чтением, что `/today` и `/payments`; в ходе блоки публикуются сразу оба (`published` в `tool()` — список). Использование usage по попытке — `usageOf` (разбивка записи кэша 5m/1h и thinking-токены), строка лога `chat attempt settled` с `conversationId`, `command`, `requestIndex`; диагностика кэша — переменная `CHAT_CACHE_DIAGNOSTICS=1`.
 
 ## Эссе
 

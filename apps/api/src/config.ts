@@ -67,7 +67,7 @@ export type CalendarConfig =
 			keyring: Readonly<Record<string, Buffer>>
 	  }
 
-export type ChatConfig = { enabled: false } | { enabled: true; apiKey: string }
+export type ChatConfig = { enabled: false } | { enabled: true; apiKey: string; cacheDiagnostics: boolean }
 
 export type PushConfig = { enabled: false } | { enabled: true; publicKey: string; privateKey: string; subject: string }
 
@@ -121,7 +121,7 @@ function loadChatConfig(env: NodeJS.ProcessEnv): ChatConfig {
 	if (raw === undefined) return { enabled: false }
 	const apiKey = raw.trim()
 	if (apiKey === '') throw new Error('Invalid ANTHROPIC_API_KEY')
-	return { enabled: true, apiKey }
+	return { enabled: true, apiKey, cacheDiagnostics: env.CHAT_CACHE_DIAGNOSTICS?.trim() === '1' }
 }
 
 function loadCalendarConfig(env: NodeJS.ProcessEnv, base: BaseConfig): CalendarConfig {

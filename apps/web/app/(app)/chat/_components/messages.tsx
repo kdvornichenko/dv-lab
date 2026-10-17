@@ -33,6 +33,7 @@ import { BulkMoveProposal, isBulkMove } from './bulk-move-proposal'
 import { CalendarEvents } from './calendar-events'
 import { CalendarProposal } from './calendar-proposal'
 import { ChangeProposal } from './change-proposal'
+import { CommandBlock } from './command-block'
 import { ChatHelp } from './chat-help'
 import { ChatNoteChange } from './chat-note-change'
 import { ChatProgress } from './chat-progress'
@@ -157,6 +158,12 @@ function notice(block: ChatRefusedBlock, secondZone: string | null): Notice {
 				title: 'The assistant declined to answer this request.',
 				line: 'Try asking in other words.',
 			}
+		case 'command_unavailable':
+			return { tone: 'info', title: 'This command is not available.' }
+		case 'command_too_large':
+			return { tone: 'info', title: 'This command needs too many tools. Edit it in Settings.' }
+		case 'command_rejected':
+			return { tone: 'info', title: 'The model rejected this command. Check its blocks in Settings.' }
 		case 'model_unavailable':
 		case 'provider_unavailable':
 			return { tone: 'info', title: 'Model settings are unavailable. Refresh before sending.' }
@@ -267,6 +274,7 @@ function Block({
 	if (block.type === 'refused') return <Refused block={block} />
 	if (isRecordBlock(block)) return <RecordBlockView block={block} followUp={followUp} />
 	if (block.type === 'calendar_events') return <CalendarEvents block={block} />
+	if (block.type === 'command') return <CommandBlock block={block} />
 	if (block.type === 'action_link') return <ActionLink block={block} />
 	if (block.type === 'help') return <ChatHelp off={replies.commandsOff} onCommand={replies.onCommand} />
 	if (block.type === 'stopped') return <p className="text-caption text-muted-foreground">Reply stopped.</p>

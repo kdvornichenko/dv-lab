@@ -2,8 +2,8 @@
 
 import { useEffect, useRef, useState, type ReactNode } from 'react'
 
-import { AnimatePresence, m, useReducedMotion } from 'motion/react'
 import { Check, ChevronDown, Info, RotateCcw } from 'lucide-react'
+import { AnimatePresence, m, useReducedMotion } from 'motion/react'
 
 import { EFFORT_LABEL, EffortMeter, EffortSlider, clampEffort, highestEffort } from '@/components/app/effort-slider'
 import { Button } from '@/components/ui/button'
@@ -226,7 +226,7 @@ function ModelMenu({
 						/>
 					}
 				>
-					<span className="max-w-36 min-w-0 truncate leading-5 @max-[376px]:max-w-24">{name}</span>
+					<span className="max-w-36 min-w-0 @max-[376px]:max-w-24">{name}</span>
 					<ChevronDown size={12} aria-hidden className="shrink-0" />
 				</DropdownTrigger>
 			</Tooltip>

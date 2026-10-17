@@ -8,6 +8,10 @@ export function lessonLink(date: string, ref: ScheduleOccurrenceRef): string {
 	return `/schedule?week=${date}&lesson=${encodeURIComponent(encodeLessonRef(ref))}`
 }
 
+export function chatLink(conversationId: string): string {
+	return `/?chat=${conversationId}`
+}
+
 export function studentPaymentsLink(studentId: string): string {
 	return `/students/${studentId}?tab=payments`
 }

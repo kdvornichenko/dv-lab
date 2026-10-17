@@ -1,11 +1,13 @@
 'use client'
 
-import { COMMAND_ROWS } from './composer'
+import { commandRows } from './composer'
+import { useStoredCommands } from './use-commands'
 
 export function CommandList({ onPick }: { onPick: (text: string) => void }) {
+	const rows = commandRows(useStoredCommands())
 	return (
 		<ul aria-label="Commands" data-slot="chat-commands" className="flex w-full max-w-90 flex-col">
-			{COMMAND_ROWS.map((row) => (
+			{rows.map((row) => (
 				<li key={row.name}>
 					<button
 						type="button"

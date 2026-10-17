@@ -1,8 +1,8 @@
 import type Anthropic from '@anthropic-ai/sdk'
 
-import type { z } from 'zod'
+import { z } from 'zod'
 
-import type { ChatBlock } from '@dv-lab/contracts'
+import { CHAT_PROMPT_MAX_LENGTH, CHAT_REQUEST_LIMITS, type ChatBlock, type CommandLimits } from '@dv-lab/contracts'
 import type { Database, DbExecutor } from '@dv-lab/db'
 
 import type { EventTitles } from '../calendar/event-titles.ts'
@@ -89,4 +89,80 @@ export function toolEntry(entries: readonly ChatToolEntry[], name: string): Chat
 
 export function stepRule(entries: readonly ChatToolEntry[], name: string): ToolStep | null {
 	return toolEntry(entries, name)?.step ?? null
+}
+
+export function allowedCommandTools(entries: readonly ChatToolEntry[]): ChatToolEntry[] {
+	return entries.filter((entry) => (entry.effect === 'read' || entry.effect === 'show') && entry.review !== true)
+}
+
+export type CommandBlockSpec = { key: string; name: string; format: 'text' | 'list' }
+
+const LIST_ITEMS_MAX = 200
+
+export function commandSchema(blocks: readonly CommandBlockSpec[]) {
+	const properties: Record<string, object> = {}
+	const shape: Record<string, z.ZodType> = {}
+	for (const block of blocks) {
+		if (block.format === 'list') {
+			properties[block.key] = { type: 'array', items: { type: 'string' }, description: block.name }
+			shape[block.key] = z.array(z.string().max(CHAT_PROMPT_MAX_LENGTH)).max(LIST_ITEMS_MAX)
+		} else {
+			properties[block.key] = { type: 'string', description: block.name }
+			shape[block.key] = z.string().max(CHAT_PROMPT_MAX_LENGTH)
+		}
+	}
+	return {
+		schema: {
+			type: 'object',
+			properties,
+			required: blocks.map((block) => block.key),
+			additionalProperties: false,
+		},
+		input: z.strictObject(shape),
+	}
+}
+
+type SchemaShape = { properties?: unknown; required?: readonly string[] | null }
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+	return typeof value === 'object' && value !== null && !Array.isArray(value)
+}
+
+function schemaCounts(schema: SchemaShape): { optional: number; union: number } {
+	const properties = isRecord(schema.properties) ? schema.properties : {}
+	const required = new Set(schema.required ?? [])
+	let optional = 0
+	let union = 0
+	for (const [key, property] of Object.entries(properties)) {
+		if (isRecord(property) && (Array.isArray(property.type) || 'anyOf' in property)) union++
+		if (!required.has(key)) optional++
+	}
+	return { optional, union }
+}
+
+export function strictBudget(tools: readonly Anthropic.Tool[], format?: SchemaShape | null): CommandLimits {
+	let strict = 0
+	let optional = 0
+	let union = 0
+	for (const tool of tools) {
+		if (tool.strict !== true) continue
+		strict++
+		const counts = schemaCounts(tool.input_schema)
+		optional += counts.optional
+		union += counts.union
+	}
+	if (format) {
+		const counts = schemaCounts(format)
+		optional += counts.optional
+		union += counts.union
+	}
+	return { strict, optional, union }
+}
+
+export function withinBudget(limits: CommandLimits): boolean {
+	return (
+		limits.strict <= CHAT_REQUEST_LIMITS.strict &&
+		limits.optional <= CHAT_REQUEST_LIMITS.optional &&
+		limits.union <= CHAT_REQUEST_LIMITS.union
+	)
 }

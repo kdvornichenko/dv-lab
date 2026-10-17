@@ -23,6 +23,7 @@ import {
 } from '@dv-lab/contracts'
 
 import { ChatHeader } from './chat-header'
+import { useChatContext } from './chat-provider'
 import type { ReviewHandlers } from './chat-review'
 import { CommandList } from './command-list'
 import { Composer } from './composer'
@@ -30,8 +31,9 @@ import { DeleteConversationDialog, RenameConversationDialog } from './conversati
 import { ConversationList } from './conversation-list'
 import { ConversationRail, RAIL_MIN_WIDTH } from './conversation-rail'
 import { type ActiveReply, type CalendarHandlers, type ChangeHandlers, Messages, type ReplyHandlers } from './messages'
+import { PanelHeader } from './panel-header'
 import { StudentFacts, StudentFactsSkeleton } from './student-facts'
-import { useChat, useComposerDraft, useMentionStudents, type Draft, type ThreadState } from './use-chat'
+import { useComposerDraft, useMentionStudents, type Draft, type ThreadState } from './use-chat'
 
 type ReadState =
 	{ kind: 'loading' } | { kind: 'error' } | { kind: 'missing' } | { kind: 'ready'; facts: ChatStudentFacts }
@@ -189,20 +191,32 @@ function reviewDraft(student: { id: string; name: string }): Draft {
 	}
 }
 
+export type PanelActions = {
+	onClose: () => void
+	onOpenInChat: () => void
+	onOpenAsPanel?: () => void
+	floating?: boolean
+}
+
 export function ChatScreen({
 	studentId,
 	conversationId,
 	startNew,
 	startReview,
+	panel,
 }: {
 	studentId: string | null
 	conversationId: string | null
 	startNew: boolean
 	startReview: boolean
+	panel?: PanelActions
 }) {
 	const router = useRouter()
-	const chat = useChat(conversationId, { startNew })
-	const beginNew = chat.beginNew
+	const { chat, composer: sharedComposer } = useChatContext()
+	const adopt = chat.adopt
+	useEffect(() => {
+		if (panel === undefined) adopt(conversationId, startNew)
+	}, [panel, adopt, conversationId, startNew])
 	const area = useRef<HTMLDivElement>(null)
 	const wide = useWide(area)
 	const [wasWide, setWasWide] = useState(false)
@@ -218,8 +232,11 @@ export function ChatScreen({
 	const selected = conversations.find((item) => item.id === chat.selectedId) ?? null
 	const liveRenaming = renaming && (conversations.find((item) => item.id === renaming.id) ?? renaming)
 	const liveDeleting = deleting && (conversations.find((item) => item.id === deleting.id) ?? deleting)
+	const bare =
+		panel?.floating === true && chat.thread.kind === 'empty' && studentId === null
 	const loadingTitle = chat.selectedId !== null && chat.list.kind === 'loading'
-	const composer = useComposerDraft()
+	const ownComposer = useComposerDraft()
+	const composer = panel === undefined ? ownComposer : sharedComposer
 	const students = useMentionStudents()
 	const input = useRef<HTMLTextAreaElement>(null)
 	const shownId = useRef(chat.selectedId)
@@ -236,7 +253,6 @@ export function ChatScreen({
 	if (startNew !== seenNew) {
 		setSeenNew(startNew)
 		if (startNew) {
-			beginNew()
 			setAskNotice(null)
 			setDraft({ text: '', bindings: [], stale: false })
 			setPendingAsk(studentId)
@@ -378,68 +394,90 @@ export function ChatScreen({
 
 	return (
 		<div ref={area} className="flex min-h-0 flex-1">
-			<div className="flex min-h-0 min-w-0 flex-1 flex-col px-3 pt-4 pb-[max(0.75rem,var(--safe-bottom))] md:px-6 md:pb-6">
-				<div className="mx-auto w-full max-w-180 pb-4">
-					<ChatHeader
-						title={selected?.title ?? 'Chat'}
+			<div
+				className={
+					panel === undefined
+						? 'flex min-h-0 min-w-0 flex-1 flex-col px-3 pt-4 pb-[max(0.75rem,var(--safe-bottom))] md:px-6 md:pb-6'
+						: 'flex min-h-0 min-w-0 flex-1 flex-col px-3 pb-3'
+				}
+			>
+				{panel === undefined ? (
+					<div className="mx-auto w-full max-w-180 pb-4">
+						<ChatHeader
+							title={selected?.title ?? 'Chat'}
+							loadingTitle={loadingTitle}
+							compact={wide}
+							listOpen={listOpen}
+							onToggleList={() => setListOpen((open) => !open)}
+							onCreate={create}
+						/>
+					</div>
+				) : (
+					<PanelHeader
+						title={selected?.title ?? 'New chat'}
 						loadingTitle={loadingTitle}
-						compact={wide}
 						listOpen={listOpen}
+						disabled={chat.sending}
 						onToggleList={() => setListOpen((open) => !open)}
 						onCreate={create}
+						onOpenInChat={panel.onOpenInChat}
+						onOpenAsPanel={panel.onOpenAsPanel}
+						onClose={panel.onClose}
 					/>
-				</div>
+				)}
 				<div className="relative flex min-h-0 flex-1 flex-col" onKeyDown={onKeyDown}>
 					<div inert={listOpen} className="flex min-h-0 flex-1 flex-col gap-3">
-						<ScrollArea
-							className={`-mx-3 min-h-0 flex-1 transition-opacity ease-out motion-reduce:transition-none md:-mx-6 ${listOpen ? 'opacity-0 duration-[160ms]' : 'duration-[120ms]'}`}
-							viewportClassName="scroll-fade px-3 md:px-6 [&>div]:!min-w-0 [&>div]:flex [&>div]:min-h-full [&>div]:flex-col"
-						>
-							<div
-								role="log"
-								aria-label="Messages"
-								className="mx-auto flex min-h-full w-full max-w-180 flex-1 flex-col gap-4 pb-2 [&>:first-child]:mt-auto"
+						{bare ? null : (
+							<ScrollArea
+								className={`-mx-3 min-h-0 flex-1 transition-opacity ease-out motion-reduce:transition-none md:-mx-6 ${listOpen ? 'opacity-0 duration-[160ms]' : 'duration-[120ms]'}`}
+								viewportClassName="scroll-fade px-3 md:px-6 [&>div]:!min-w-0 [&>div]:flex [&>div]:min-h-full [&>div]:flex-col"
 							>
-								{studentId === null ? null : <StudentRecords key={studentId} studentId={studentId} />}
-								<Thread
-									state={chat.thread}
-									onUndo={(actionId) => void chat.undo(actionId)}
-									onChoose={choose}
-									onRefresh={chat.reloadThread}
-									calendar={{
-										onConfirm: (actionId) => void chat.confirmCalendar(actionId),
-										onDecline: chat.declineAction,
-										onCheck: chat.checkAction,
-									}}
-									changes={{
-										onConfirm: (actionId) => chat.decideChange(actionId, 'confirm'),
-										onDecline: (actionId) => chat.decideChange(actionId, 'decline'),
-										onRefresh: chat.refreshThread,
-										onUndo: chat.undo,
-									}}
-									reviews={{
-										onAnswer: answerReview,
-										onRun: (student) => sendCommand(reviewDraft(student)),
-										onUndo: chat.undo,
-									}}
-									replies={{
-										onAsk: () => later(() => input.current?.focus()),
-										onCheckStatus: chat.checkStatus,
-										onFollowUp: (student) => followUp(student),
-										onCommand: command,
-										busy: chat.sending || chat.reply !== null,
-										commandsOff: composer.draft.text !== '' || chat.sending || chat.reply !== null,
-									}}
-									active={
-										chat.reply === null
-											? null
-											: { messageId: chat.reply.turn.assistantMessageId, stopping: chat.reply.stopping }
-									}
-									empty={studentId === null}
-									onCommand={command}
-								/>
-							</div>
-						</ScrollArea>
+								<div
+									role="log"
+									aria-label="Messages"
+									className="mx-auto flex min-h-full w-full max-w-180 flex-1 flex-col gap-4 pb-2 [&>:first-child]:mt-auto"
+								>
+									{studentId === null ? null : <StudentRecords key={studentId} studentId={studentId} />}
+									<Thread
+										state={chat.thread}
+										onUndo={(actionId) => void chat.undo(actionId)}
+										onChoose={choose}
+										onRefresh={chat.reloadThread}
+										calendar={{
+											onConfirm: (actionId) => void chat.confirmCalendar(actionId),
+											onDecline: chat.declineAction,
+											onCheck: chat.checkAction,
+										}}
+										changes={{
+											onConfirm: (actionId) => chat.decideChange(actionId, 'confirm'),
+											onDecline: (actionId) => chat.decideChange(actionId, 'decline'),
+											onRefresh: chat.refreshThread,
+											onUndo: chat.undo,
+										}}
+										reviews={{
+											onAnswer: answerReview,
+											onRun: (student) => sendCommand(reviewDraft(student)),
+											onUndo: chat.undo,
+										}}
+										replies={{
+											onAsk: () => later(() => input.current?.focus()),
+											onCheckStatus: chat.checkStatus,
+											onFollowUp: (student) => followUp(student),
+											onCommand: command,
+											busy: chat.sending || chat.reply !== null,
+											commandsOff: composer.draft.text !== '' || chat.sending || chat.reply !== null,
+										}}
+										active={
+											chat.reply === null
+												? null
+												: { messageId: chat.reply.turn.assistantMessageId, stopping: chat.reply.stopping }
+										}
+										empty={studentId === null}
+										onCommand={command}
+									/>
+								</div>
+							</ScrollArea>
+						)}
 						<div className="mx-auto flex w-full max-w-180 flex-col gap-3">
 							{askNotice === null ? null : (
 								<Banner status="error">
@@ -487,7 +525,7 @@ export function ChatScreen({
 					</div>
 				</div>
 			</div>
-			{wide ? (
+			{wide && panel === undefined ? (
 				<ConversationRail
 					state={chat.list}
 					selectedId={chat.selectedId}

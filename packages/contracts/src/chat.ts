@@ -8,7 +8,7 @@ import {
 	calendarTimeZone,
 	nextLessonRead,
 } from './calendar.ts'
-import { CHAT_MODEL_ID_MAX_LENGTH, chatEffort } from './chat-settings.ts'
+import { CHAT_COMMAND_BLOCK_FORMATS, CHAT_MODEL_ID_MAX_LENGTH, chatEffort } from './chat-settings.ts'
 import { CLOCK_TIME_PATTERN, MARK_KINDS } from './schedule.ts'
 import {
 	AMOUNT_MINOR_MAX,
@@ -251,6 +251,9 @@ export const CHAT_REFUSAL_CODES = [
 	'credits_unavailable',
 	'provider_unavailable',
 	'model_refused',
+	'command_unavailable',
+	'command_too_large',
+	'command_rejected',
 ] as const
 
 export const chatRefusalCode = z.enum(CHAT_REFUSAL_CODES)
@@ -854,7 +857,22 @@ export const CHAT_COMMANDS = [
 
 export type ChatCommand = (typeof CHAT_COMMANDS)[number]
 
+export function isReservedCommandName(name: string): boolean {
+	const lower = name.toLowerCase()
+	return CHAT_COMMANDS.some((command) => command.name === lower)
+}
+
 export const chatHelpBlock = z.strictObject({ type: z.literal('help') })
+
+export const chatCommandBlock = z.strictObject({
+	type: z.literal('command'),
+	command: z.string(),
+	revision: z.number().int().min(1),
+	key: z.string(),
+	name: z.string(),
+	format: z.enum(CHAT_COMMAND_BLOCK_FORMATS),
+	text: z.string(),
+})
 
 export const CHAT_REVIEW_UNDO = ['available', 'undone', 'unavailable', 'none'] as const
 
@@ -922,6 +940,7 @@ export const chatBlock = z.discriminatedUnion('type', [
 	chatReviewResultBlock,
 	chatReviewOfferBlock,
 	chatHelpBlock,
+	chatCommandBlock,
 ])
 
 export const chatRecordsRefreshRequest = z.strictObject({ key: chatRecordsKey })
@@ -946,6 +965,7 @@ export type ChatCalendarEventsBlock = z.infer<typeof chatCalendarEventsBlock>
 export type ChatCalendarEventsGroup = z.infer<typeof chatCalendarEventsGroup>
 export type ChatActionLinkBlock = z.infer<typeof chatActionLinkBlock>
 export type ChatEssayBlock = z.infer<typeof chatEssayBlock>
+export type ChatCommandBlock = z.infer<typeof chatCommandBlock>
 export type ChatReviewResultBlock = z.infer<typeof chatReviewResultBlock>
 export type ChatReviewItem = z.infer<typeof chatReviewItem>
 export type ChatReviewOfferBlock = z.infer<typeof chatReviewOfferBlock>
@@ -1043,6 +1063,9 @@ export const CHAT_TURN_ISSUES = [
 	'budget_reached',
 	'budget_insufficient',
 	'model_refused',
+	'command_unavailable',
+	'command_too_large',
+	'command_rejected',
 	'max_tokens',
 	'request_limit',
 ] as const

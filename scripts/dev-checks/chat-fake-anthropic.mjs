@@ -303,6 +303,7 @@ function sleep(ms, signal) {
 
 function messagesResponse(body, signal) {
 	state.messages++
+	state.lastBody = body
 	const shape = plan(body)
 	if (shape.error) {
 		return json(400, { type: 'error', error: { type: shape.error, message: 'Your credit balance is too low.' } })

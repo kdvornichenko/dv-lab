@@ -20,12 +20,14 @@ import {
 	CHAT_STEP_TOOLS,
 	EVENT_TITLES_MAX_DAYS,
 	type MentionBinding,
+	type StoredCommand,
 	chatEffort,
 } from '@dv-lab/contracts'
 import { lessonDay, zonedParts } from '@dv-lab/core'
 import {
 	type Database,
 	type DbExecutor,
+	chatActions,
 	chatConversations,
 	chatMessages,
 	chatTurns,
@@ -37,9 +39,11 @@ import type { CalendarCommands } from '../calendar/commands.ts'
 import type { EventTitles } from '../calendar/event-titles.ts'
 import { studentGenders } from '../cards/cards.ts'
 import { clearReviewRunning, markReviewRunning, recordOffer, shouldOffer } from '../cards/note-reviews.ts'
+import type { AssistantEvent } from '../push/assistant.ts'
 import { readAssistantSettings, readTeacherSettings } from '../settings/settings.ts'
 import type { Admission, ChatContext, TurnStarter } from './actions.ts'
 import { markDispatched, markUnknown, release, reserveAttempt, settleAttempt, usageOf } from './budget.ts'
+import { commandToolEntries, expandStoredCommand, findCommand, readCommands } from './commands.ts'
 import { ESSAY_COMMAND } from './essay.ts'
 import { lessonDatesPeriod } from './facts.ts'
 import { replyMentions, studentNames } from './mentions.ts'
@@ -50,6 +54,7 @@ import { type ChatProvider, ProviderFault } from './provider.ts'
 import {
 	type GateContext,
 	type Issued,
+	checkBlockLine,
 	checkSentence,
 	citeKey,
 	gateContext,
@@ -61,7 +66,7 @@ import {
 } from './publish-gate.ts'
 import { REVIEW_ONE_STUDENT, REVIEW_TASK, REVIEW_COMMAND, type ReviewSession, reviewStudent } from './review.ts'
 import { nameConversation, titleAnswered } from './title.ts'
-import { type ToolContext, stepRule } from './tool-registry.ts'
+import { type ToolContext, chatTools, commandSchema, stepRule, strictBudget, withinBudget } from './tool-registry.ts'
 import { CHAT_TOOLS, CHAT_TOOL_ENTRIES, ESSAY_TOOLS, REVIEW_TOOLS, runTool, weekdayName } from './tools.ts'
 import { type NewTurn, type TurnRow, isActive, insertTurn, readTurn, toTurn } from './turns.ts'
 
@@ -92,6 +97,7 @@ type Run = {
 	essayTurn: boolean
 	review: ReviewSession | null
 	noteStudents: Set<string>
+	command: StoredCommand | null
 }
 
 type Ending = {
@@ -106,6 +112,8 @@ type ChatDeps = {
 	provider: ChatProvider
 	calendarCommands?: CalendarCommands
 	eventTitles?: EventTitles
+	cacheDiagnostics?: boolean
+	onTurnEnded?: (event: AssistantEvent) => Promise<void>
 }
 
 const MAX_REQUESTS = 6
@@ -139,9 +147,56 @@ const SYSTEM = [
 	`Events, ивенты, "the calendar" and "what is in the calendar" mean the events of the Google calendar: call calendar_events with the period (at most ${EVENT_TITLES_MAX_DAYS} days), with title when the teacher names a person or a part of the title and without title for every event of the period. lessons and lesson_dates are only for the lessons of the app. calendar_events only reads the calendar and changes nothing. Its events are shown in a block with a copy button: answer in one short sentence and do not list, count or retell the events, their dates, times or lengths. When the teacher asks to combine or merge the found events ("объедини", "одним списком"), call calendar_events again with the same period and title and merge true. When it returns calendar_not_connected, say in one sentence that Google Calendar is not connected.`,
 	'When a tool asks which lesson or refuses, tell the teacher in one short sentence and do not guess.',
 	'When the teacher asks what you can do, which commands there are or how to use the chat, or just writes help ("что ты умеешь", "какие команды", "help"), call show_help. The help block is the whole answer: write no text at all and never list the commands or your abilities yourself.',
+	'When the teacher asks what is today, who has lessons today and who pays soon, or for an overview of the day, call today. The lessons block and the pays soon block are the whole answer: write no text at all and never list or count the lessons or the students yourself.',
 	'Students have a gender: female, male or null (not set), given in Mentioned students and by find_students and student_facts. Choose the grammatical gender of words about a student by it: in Russian ученица or ученик, она or он and the past tense of verbs (пришла or пришёл); in English she or he. When the gender is null, word the sentence neutrally (the name, "the student", no gendered pronoun or past-tense ending) and never guess it from the name.',
 	'When the teacher asks for something you have no tool for, such as settings, or the name, the status, the sign-in account or the opening balance of a student, call open_page with the page where the teacher does it and write one short sentence that says you cannot do it from the chat, for example "I can\'t change this from the chat." (in Russian "Я не могу изменить это из чата."). Do not tell the teacher to enter it manually, do not explain how, and do not repeat any amount, number or count from the request. If no page fits, write the sentence alone.',
 ].join('\n')
+
+function commandBlocks(command: StoredCommand, schema: z.ZodType, message: Anthropic.Message): ChatBlock[] {
+	const text = message.content.map((block) => (block.type === 'text' ? block.text : '')).join('')
+	let value: unknown
+	try {
+		value = JSON.parse(text)
+	} catch {
+		return []
+	}
+	const parsed = schema.safeParse(value)
+	if (!parsed.success) return []
+	const data: unknown = parsed.data
+	const record = typeof data === 'object' && data !== null ? data : {}
+	let withheld = false
+	const keep = (line: string) => {
+		if (checkBlockLine(line) === 'publish') return true
+		withheld = true
+		return false
+	}
+	const blocks: ChatBlock[] = []
+	for (const spec of command.blocks) {
+		const raw: unknown = Reflect.get(record, spec.key)
+		const kept =
+			spec.format === 'list'
+				? (Array.isArray(raw) ? raw : []).map((item) => String(item).trim()).filter((item) => item !== '' && keep(item))
+				: (typeof raw === 'string' ? raw.split('\n') : []).filter((line) => line.trim() === '' || keep(line))
+		const body = kept.join('\n').trim()
+		if (body === '') continue
+		blocks.push({
+			type: 'command',
+			command: command.name,
+			revision: command.revision,
+			key: spec.key,
+			name: spec.name,
+			format: spec.format,
+			text: body,
+		})
+	}
+	if (withheld) blocks.push({ type: 'withheld' })
+	return blocks
+}
+
+function cacheMissReason(message: Anthropic.Message): string | null {
+	const reason: unknown = Reflect.get(Reflect.get(message, 'diagnostics') ?? {}, 'cache_miss_reason')
+	return typeof reason === 'string' ? reason : null
+}
 
 const ending = (state: Ending['state'], issue: ChatTurnIssue | null = null, blocks: ChatBlock[] = []): Ending => ({
 	state,
@@ -211,13 +266,19 @@ function blockNote(block: Exclude<ChatBlock, { type: 'suggestions' }>): string {
 			return `[Asked whether to review the notes of ${block.studentName}]`
 		case 'help':
 			return '[Showed the help: the commands and what the assistant can do]'
+		case 'command':
+			return `[Showed the block "${block.name}" of ${block.command}: ${block.text.slice(0, 400)}]`
 	}
 }
 
-function pastMessage(message: ChatMessage, texts: CommandTexts): Anthropic.MessageParam | null {
+function pastMessage(
+	message: ChatMessage,
+	texts: CommandTexts,
+	commands: readonly StoredCommand[]
+): Anthropic.MessageParam | null {
 	if (message.role === 'teacher') {
 		const lines = mentionLines(message.mentions)
-		const body = expandCommand(message, texts)
+		const body = expandCommand(message, texts, commands)
 		const text = lines.length === 0 ? body : `${body}\n\nMentioned:\n${lines.join('\n')}`
 		return { role: 'user', content: text }
 	}
@@ -228,7 +289,11 @@ function pastMessage(message: ChatMessage, texts: CommandTexts): Anthropic.Messa
 
 const RECAP_COMMAND = /^\s*\/recap\b\s*/iu
 
-function expandCommand(message: Pick<ChatMessage, 'body' | 'mentions'>, texts: CommandTexts): string {
+function expandCommand(
+	message: Pick<ChatMessage, 'body' | 'mentions'>,
+	texts: CommandTexts,
+	commands: readonly StoredCommand[]
+): string {
 	const body = message.body
 	if (REVIEW_COMMAND.test(body)) {
 		if (reviewStudent(body, message.mentions) === null) return REVIEW_ONE_STUDENT
@@ -236,7 +301,10 @@ function expandCommand(message: Pick<ChatMessage, 'body' | 'mentions'>, texts: C
 		return rest === '' ? REVIEW_TASK : `${REVIEW_TASK}\n\nThe teacher wrote: ${rest}`
 	}
 	const command = RECAP_COMMAND.test(body) ? RECAP_COMMAND : ESSAY_COMMAND.test(body) ? ESSAY_COMMAND : null
-	if (command === null) return body
+	if (command === null) {
+		const stored = findCommand(body, commands)
+		return stored === null ? body : expandStoredCommand(stored.command, stored.rest)
+	}
 	const rest = body.replace(command, '').trim()
 	const task = command === RECAP_COMMAND ? texts['/recap'] : texts['/essay']
 	return rest === '' ? task : `${task}\n\nThe teacher wrote: ${rest}`
@@ -247,7 +315,8 @@ function currentMessage(
 	zone: string,
 	now: Date,
 	genders: ReadonlyMap<string, Gender | null>,
-	texts: CommandTexts
+	texts: CommandTexts,
+	commands: readonly StoredCommand[]
 ): Anthropic.MessageParam {
 	const local = zonedParts(now, zone)
 	const lines = mentionLines(message.mentions, genders)
@@ -259,7 +328,7 @@ function currentMessage(
 		`Lesson day: ${day} (${weekdayName(new Date(`${day}T12:00:00Z`), 'UTC')})`,
 		...(lines.length === 0 ? [] : ['Mentioned students:', ...lines]),
 		'[Message]',
-		expandCommand(message, texts),
+		expandCommand(message, texts, commands),
 	]
 	return { role: 'user', content: context.join('\n') }
 }
@@ -335,6 +404,8 @@ export function createChat({
 	provider,
 	calendarCommands,
 	eventTitles,
+	cacheDiagnostics = false,
+	onTurnEnded,
 }: ChatDeps): ChatRunner & { name: string } {
 	const runs = new Map<string, Run>()
 	let closing = false
@@ -408,6 +479,10 @@ export function createChat({
 				.where(and(eq(chatTurns.id, turn.id), inArray(chatTurns.state, ACTIVE)))
 				.returning()
 			if (!row) return null
+			await tx
+				.update(chatConversations)
+				.set({ updatedAt: sql`clock_timestamp()` })
+				.where(eq(chatConversations.id, row.conversationId))
 			const steps: { seq: number; step: ChatStep }[] = []
 			const blocks: { seq: number; block: ChatBlock }[] = []
 			let message: ChatMessage | null = null
@@ -651,7 +726,21 @@ export function createChat({
 			run.review = { studentId: reviewed, read: null, finished: false }
 			await markReviewRunning(db, reviewed, turn.conversationId)
 		}
-		const tools = run.essayTurn ? ESSAY_TOOLS : run.review !== null ? REVIEW_TOOLS : CHAT_TOOLS
+		const commands = await readCommands(db, turn.accountId, null)
+		const found = run.essayTurn || run.review !== null ? null : findCommand(loaded.current.body, commands)
+		if (found !== null && found.command.status !== 'active')
+			return ending('completed', 'command_unavailable', [{ type: 'refused', code: 'command_unavailable' }])
+		run.command = found?.command ?? null
+		const format = run.command !== null && run.command.blocks.length > 0 ? commandSchema(run.command.blocks) : null
+		const tools = run.essayTurn
+			? ESSAY_TOOLS
+			: run.review !== null
+				? REVIEW_TOOLS
+				: run.command !== null
+					? chatTools(commandToolEntries(run.command))
+					: CHAT_TOOLS
+		if (run.command !== null && !withinBudget(strictBudget(tools, format?.schema ?? null)))
+			return ending('completed', 'command_too_large', [{ type: 'refused', code: 'command_too_large' }])
 		gate.dates.add(local.date)
 		gate.dates.add(lessonDay(start.now, zone))
 		gate.times.add(local.time)
@@ -662,17 +751,20 @@ export function createChat({
 			run.people.set(binding.studentId, binding.text.replace(/^@/u, ''))
 		}
 		const texts = await readCommandTexts(db, turn.accountId)
-		const past = loaded.past.map((message) => pastMessage(message, texts)).filter((message) => message !== null)
+		const past = loaded.past
+			.map((message) => pastMessage(message, texts, commands))
+			.filter((message) => message !== null)
 		const genders = await studentGenders(
 			db,
 			loaded.current.mentions.map((binding) => binding.studentId)
 		)
-		const current = currentMessage(loaded.current, zone, start.now, genders, texts)
+		const current = currentMessage(loaded.current, zone, start.now, genders, texts, commands)
 		const steps: Anthropic.MessageParam[] = []
 		const issued: Issued = new Map()
 		const shown = new Set<string>()
 		const out = publisher(run, turn, gate, issued)
 		let dropped = 0
+		let previousMessageId: string | null = null
 		const effort = chatEffort.parse(turn.effort)
 
 		const complete = (issue: ChatTurnIssue | null, blocks: ChatBlock[] = []) => {
@@ -716,6 +808,8 @@ export function createChat({
 						system: SYSTEM,
 						tools,
 						messages,
+						...(cacheDiagnostics ? { diagnostics: { previousMessageId } } : {}),
+						...(format === null ? {} : { format: { schema: format.schema } }),
 					},
 					run.controller.signal
 				)) {
@@ -724,12 +818,18 @@ export function createChat({
 							answering = { id: `answer-${request}`, tool: 'answer', state: 'running' }
 							await saveStep(run, turn, answering)
 						}
-						await out.text(event.text)
+						if (format === null) await out.text(event.text)
 					} else if (event.type === 'text_end') await out.boundary()
 					else final = event.message
 				}
 			} catch (error) {
 				const fault = error instanceof ProviderFault ? error : new ProviderFault('provider_unavailable')
+				const code =
+					fault.code === 'request_rejected'
+						? format !== null || run.command !== null
+							? 'command_rejected'
+							: 'provider_unavailable'
+						: fault.code
 				if (!(error instanceof ProviderFault)) logger.error({ err: error, turnId: turn.id }, 'chat stream failed')
 				if (fault.answered) await settleAttempt(db, logger, reserved.attemptId, ZERO_USAGE)
 				else await markUnknown(db, reserved.attemptId)
@@ -739,20 +839,22 @@ export function createChat({
 						attemptId: reserved.attemptId,
 						model: choice.model.id,
 						effort: choice.effort,
-						fault: fault.code,
+						fault: code,
 						aborted: fault.aborted,
 						answered: fault.answered,
+						...(fault.code === 'request_rejected' ? { detail: fault.detail } : {}),
 					},
 					'chat attempt ended without usage'
 				)
 				if (fault.aborted) return interruptedOr(run)
-				return ending('failed', fault.code, [{ type: 'refused', code: fault.code }])
+				return ending('failed', code, [{ type: 'refused', code }])
 			}
 			if (answering !== null) await saveStep(run, turn, { ...answering, state: 'done' })
 			if (final === null) {
 				await markUnknown(db, reserved.attemptId)
 				return ending('failed', 'provider_unavailable', [{ type: 'refused', code: 'provider_unavailable' }])
 			}
+			previousMessageId = final.id
 			const usage = usageOf(final.usage)
 			await settleAttempt(db, logger, reserved.attemptId, usage)
 			logger.info(
@@ -762,6 +864,10 @@ export function createChat({
 					model: choice.model.id,
 					effort: choice.effort,
 					stopReason: final.stop_reason,
+					conversationId: turn.conversationId,
+					command: run.command?.name ?? null,
+					requestIndex: request,
+					...(cacheDiagnostics ? { cacheMissReason: cacheMissReason(final) } : {}),
 					...usage,
 				},
 				'chat attempt settled'
@@ -791,6 +897,8 @@ export function createChat({
 				continue
 			}
 			await out.boundary()
+			if (format !== null && run.command !== null && final.stop_reason === 'end_turn')
+				return complete(null, commandBlocks(run.command, format.input, final))
 			return complete(final.stop_reason === 'max_tokens' ? 'max_tokens' : null)
 		}
 		return complete('request_limit')
@@ -812,8 +920,12 @@ export function createChat({
 			logger.info({ turnId: turn.id, tool: use.name, isError: true }, 'chat tool finished')
 			return { content: JSON.stringify({ error: 'read_only_review' }), isError: true, block: null }
 		}
+		if (run.command !== null && !commandToolEntries(run.command).some((item) => item.name === use.name)) {
+			logger.info({ turnId: turn.id, tool: use.name, isError: true }, 'chat tool finished')
+			return { content: JSON.stringify({ error: 'read_only_command' }), isError: true, block: null }
+		}
 		const chat = await context(turn.accountId)
-		let published: { seq: number; block: ChatBlock } | null = null
+		const published: { seq: number; block: ChatBlock }[] = []
 		const step = await stepOf(run, use, zone, chat.now)
 		if (step !== null) await saveStep(run, turn, step)
 		try {
@@ -822,7 +934,7 @@ export function createChat({
 				chat,
 				source: { conversationId: turn.conversationId, messageId: turn.teacherMessageId },
 				persist: async (executor, block) => {
-					published = { seq: await appendBlock(executor, turn, block), block }
+					published.push({ seq: await appendBlock(executor, turn, block), block })
 				},
 				issued,
 				shown: shownFacts,
@@ -839,10 +951,10 @@ export function createChat({
 				run.link = outcome.block
 				run.wroteBlock = true
 			}
-			const shown = published as { seq: number; block: ChatBlock } | null
-			if (shown !== null && turn.assistantMessageId !== null) {
+			if (published.length > 0 && turn.assistantMessageId !== null) {
 				run.wroteBlock = true
-				emit(run, { type: 'block', seq: shown.seq, messageId: turn.assistantMessageId, block: shown.block })
+				for (const shown of published)
+					emit(run, { type: 'block', seq: shown.seq, messageId: turn.assistantMessageId, block: shown.block })
 			}
 			logger.info({ turnId: turn.id, tool: use.name, isError: outcome.isError }, 'chat tool finished')
 			if (step !== null)
@@ -924,6 +1036,36 @@ export function createChat({
 		}
 		if (titleAnswered(result.state, result.issue) && !run.closing)
 			await nameConversation({ db, logger, provider }, turn, run.controller.signal)
+		if (onTurnEnded !== undefined && !run.closing) await announce(turn, onTurnEnded)
+	}
+
+	async function announce(turn: TurnRow, notify: (event: AssistantEvent) => Promise<void>): Promise<void> {
+		try {
+			const [conversation] = await db
+				.select({ title: chatConversations.title })
+				.from(chatConversations)
+				.where(eq(chatConversations.id, turn.conversationId))
+			const [pending] = await db
+				.select({ id: chatActions.id })
+				.from(chatActions)
+				.where(
+					and(
+						eq(chatActions.accountId, turn.accountId),
+						eq(chatActions.conversationId, turn.conversationId),
+						inArray(chatActions.kind, ['calendar', 'change']),
+						eq(chatActions.state, 'proposed')
+					)
+				)
+				.limit(1)
+			await notify({
+				accountId: turn.accountId,
+				conversationId: turn.conversationId,
+				title: conversation?.title ?? '',
+				waiting: pending !== undefined,
+			})
+		} catch (err) {
+			logger.warn({ err, turnId: turn.id }, 'chat turn end notification failed')
+		}
 	}
 
 	function launch(turnId: string) {
@@ -943,6 +1085,7 @@ export function createChat({
 			essayTurn: false,
 			review: null,
 			noteStudents: new Set(),
+			command: null,
 		}
 		runs.set(turnId, run)
 		run.done = execute(run)

@@ -45,6 +45,8 @@
 
 - Экран Today — `apps/web/app/(app)/_components`; минутное `now` — `use-minute-now.ts` (`useMinuteNow`), счётчики — `todayCounts` из core.
 - Settings → General — `apps/web/app/(app)/settings`: порог Pays soon и второй пояс.
+- Панель чата — `apps/web/app/(app)/chat/_components`: `ChatProvider` (`chat-provider.tsx`) держит над страницами один `useChat`, черновик панели, состояние панели (`useChatContext().panel`: `show`, `hide`, `toggle`, клавиша `]`, адрес `/?chat=<id>`) и сигнал закрытого чата (`chat-signals.ts`: `info` и `warning`, просмотр хранится в `localStorage`); `ChatPanel` (`chat-panel.tsx`) — третья область справа в `AppShell`, внутри `ChatScreen` с параметром `panel`; точка сигнала — на строке Chat в `app-sidebar.tsx`; `CalendarCommandProvider` стоит над `AppShell`.
+- Сохранённые команды конструктора в чате — `use-commands.ts` (меню слэша, список нового чата, справка).
 - Представление списка Students — `apps/web/app/(app)/students/_components/students-view.ts`.
 - Вкладка Lessons профиля — `apps/web/app/(app)/students/[id]/_components/lessons-tab.tsx`, поверх `GET /students/:id/lessons`.
 - Табы профиля монтируются при первом открытии и остаются смонтированными (`TabPanel keepMounted`), Unassigned payments на списке учеников так же.

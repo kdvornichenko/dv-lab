@@ -17,6 +17,7 @@ import {
 	SidebarGroup,
 	SidebarHeader,
 	SidebarMenu,
+	SidebarMenuBadge,
 	SidebarMenuButton,
 	SidebarMenuItem,
 	useSidebar,
@@ -24,6 +25,7 @@ import {
 
 import type { AccountSummary } from '@dv-lab/contracts'
 
+import { useChatContext } from '../chat/_components/chat-provider'
 import { ChangePasswordDialog } from './change-password-dialog'
 import { isSectionActive, sections } from './sections'
 import { useSignOut } from './use-sign-out'
@@ -40,6 +42,7 @@ export function AppSidebar({ account, onOpenSearch, onNavigate, pendingPath }: A
 	const pathname = pendingPath ?? currentPath
 	const { isMobile, setOpenMobile } = useSidebar()
 	const { signOut } = useSignOut()
+	const { signal } = useChatContext()
 	const [changePasswordOpen, setChangePasswordOpen] = useState(false)
 
 	function openSearch(initialQuery?: string) {
@@ -76,12 +79,20 @@ export function AppSidebar({ account, onOpenSearch, onNavigate, pendingPath }: A
 						<SidebarMenu aria-label="Sections">
 							{sections.map((section) => {
 								const active = isSectionActive(section, pathname)
+								const dot = section.id === 'chat' ? signal : null
 								return (
 									<SidebarMenuItem key={section.id}>
 										<SidebarMenuButton
 											icon={section.icon}
 											isActive={active}
 											aria-current={active ? 'page' : undefined}
+											aria-label={
+												dot === 'warning'
+													? 'Chat, waiting for your decision'
+													: dot === 'info'
+														? 'Chat, new reply'
+														: undefined
+											}
 											render={<Link href={section.href} onNavigate={() => onNavigate(section.href)} />}
 											onClick={() => {
 												if (isMobile) setOpenMobile(false)
@@ -89,6 +100,14 @@ export function AppSidebar({ account, onOpenSearch, onNavigate, pendingPath }: A
 										>
 											{section.label}
 										</SidebarMenuButton>
+										{dot === null ? null : (
+											<SidebarMenuBadge>
+												<span
+													aria-hidden
+													className={`size-2 rounded-full ring-2 ring-surface-1 ${dot === 'warning' ? 'bg-warning' : 'bg-info'}`}
+												/>
+											</SidebarMenuBadge>
+										)}
 									</SidebarMenuItem>
 								)
 							})}

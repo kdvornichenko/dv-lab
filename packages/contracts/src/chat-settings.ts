@@ -171,20 +171,6 @@ export const CHAT_SETTINGS_DEFAULT: AssistantSettings = {
 			recommendedEffort: 'medium',
 			pricing: { inputPerMTok: '4.00', cacheWrite5mPerMTok: '5.00', cacheReadPerMTok: '0.20', outputPerMTok: '20.00' },
 		},
-		{
-			id: 'claude-fable-5-1',
-			name: 'Fable 5.1',
-			description: 'Most capable, highest cost',
-			efforts: ['low', 'medium', 'high', 'xhigh', 'max'],
-			defaultEffort: 'medium',
-			recommendedEffort: 'medium',
-			pricing: {
-				inputPerMTok: '10.00',
-				cacheWrite5mPerMTok: '12.50',
-				cacheReadPerMTok: '0.25',
-				outputPerMTok: '50.00',
-			},
-		},
 	],
 	model: null,
 	effort: null,
@@ -228,3 +214,125 @@ export const saveCommandPromptRequest = z.strictObject({
 })
 
 export type SaveCommandPromptRequest = z.infer<typeof saveCommandPromptRequest>
+
+export const CHAT_COMMAND_NAME = /^\/[a-z][a-z0-9_-]{0,31}$/
+
+export const CHAT_COMMAND_BLOCK_FORMATS = ['text', 'list'] as const
+
+export const CHAT_COMMAND_STATUSES = ['active', 'archived'] as const
+
+export const CHAT_COMMAND_BLOCKS_MAX = 8
+
+export const CHAT_COMMAND_BLOCK_NAME_MAX = 60
+
+export const CHAT_COMMAND_DESCRIPTION_MAX = 120
+
+export const CHAT_COMMAND_TOOLS_MAX = 40
+
+export const CHAT_REQUEST_LIMITS = { strict: 20, optional: 24, union: 16 } as const
+
+const commandText = (min: number, max: number) =>
+	z
+		.string()
+		.transform((value) => value.trim())
+		.refine((value) => {
+			const length = [...value].length
+			return length >= min && length <= max && !value.includes('\u0000')
+		})
+
+const commandBlockFields = {
+	name: commandText(1, CHAT_COMMAND_BLOCK_NAME_MAX),
+	format: z.enum(CHAT_COMMAND_BLOCK_FORMATS),
+	template: commandText(0, CHAT_PROMPT_MAX_LENGTH),
+}
+
+export const commandBlockInput = z.strictObject(commandBlockFields)
+
+export type CommandBlockInput = z.infer<typeof commandBlockInput>
+
+export const commandBlock = z.strictObject({
+	key: z.string().regex(/^block_[1-9]$/),
+	name: z.string(),
+	format: z.enum(CHAT_COMMAND_BLOCK_FORMATS),
+	template: z.string(),
+})
+
+export type CommandBlock = z.infer<typeof commandBlock>
+
+export const commandLimits = z.strictObject({
+	strict: z.number().int().min(0),
+	optional: z.number().int().min(0),
+	union: z.number().int().min(0),
+})
+
+export type CommandLimits = z.infer<typeof commandLimits>
+
+export const storedCommand = z.strictObject({
+	id: z.uuid(),
+	name: z.string(),
+	description: z.string(),
+	prompt: z.string(),
+	student: z.boolean(),
+	tools: z.array(z.string()),
+	blocks: z.array(commandBlock),
+	status: z.enum(CHAT_COMMAND_STATUSES),
+	revision: z.number().int().min(1),
+	limits: commandLimits,
+})
+
+export type StoredCommand = z.infer<typeof storedCommand>
+
+export const allowedCommandTool = z.strictObject({ name: z.string(), effect: z.enum(['read', 'show']) })
+
+export const commandsResponse = z.strictObject({
+	commands: z.array(storedCommand),
+	allowedTools: z.array(allowedCommandTool),
+	limits: commandLimits,
+})
+
+export type CommandsResponse = z.infer<typeof commandsResponse>
+
+export const commandResponse = z.strictObject({ command: storedCommand })
+
+export type CommandResponse = z.infer<typeof commandResponse>
+
+const commandTools = z
+	.array(z.string().min(1).max(64))
+	.max(CHAT_COMMAND_TOOLS_MAX)
+	.refine((names) => new Set(names).size === names.length)
+
+const commandBlocks = z.array(commandBlockInput).max(CHAT_COMMAND_BLOCKS_MAX)
+
+const commandFields = {
+	description: commandText(1, CHAT_COMMAND_DESCRIPTION_MAX),
+	prompt: promptBody,
+	student: z.boolean(),
+	tools: commandTools,
+	blocks: commandBlocks,
+}
+
+export const createCommandRequest = z.strictObject({
+	name: z.string().regex(CHAT_COMMAND_NAME),
+	...commandFields,
+})
+
+export type CreateCommandRequest = z.infer<typeof createCommandRequest>
+
+export const updateCommandRequest = z.strictObject({
+	...commandFields,
+	expectedRevision: z.number().int().min(1),
+})
+
+export type UpdateCommandRequest = z.infer<typeof updateCommandRequest>
+
+export const commandStatusRequest = z.strictObject({ expectedRevision: z.number().int().min(1) })
+
+export type CommandStatusRequest = z.infer<typeof commandStatusRequest>
+
+export const commandLimitsRequest = z.strictObject({ tools: commandTools, blocks: commandBlocks })
+
+export type CommandLimitsRequest = z.infer<typeof commandLimitsRequest>
+
+export const commandLimitsResponse = z.strictObject({ limits: commandLimits })
+
+export type CommandLimitsResponse = z.infer<typeof commandLimitsResponse>
