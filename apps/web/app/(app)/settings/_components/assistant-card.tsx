@@ -21,6 +21,7 @@ import {
 } from '@dv-lab/contracts'
 
 import { useToast } from '../../_components/toasts'
+import { CommandsCard } from './assistant-commands'
 import { ModelsForm } from './assistant-models'
 import { CommandPromptsCard, PrivacyCard } from './assistant-prompts'
 import { BudgetUsage } from './budget-usage'
@@ -378,6 +379,7 @@ export function AssistantCard() {
 			<ModelsCard state={state} />
 			<BudgetCard state={state} />
 			<CommandPromptsCard />
+			<CommandsCard />
 			<PrivacyCard />
 		</div>
 	)
