@@ -41,7 +41,7 @@ export function PanelHeader({
 			<Tooltip content="All chats" delayDuration={200}>
 				<Button
 					data-all-chats=""
-					variant="outline"
+					variant="secondary"
 					size="icon-compact"
 					aria-label="All chats"
 					aria-expanded={listOpen}
@@ -53,24 +53,24 @@ export function PanelHeader({
 				</Button>
 			</Tooltip>
 			<Tooltip content="New chat" delayDuration={200}>
-				<Button variant="outline" size="icon-compact" aria-label="New chat" disabled={disabled} onClick={onCreate}>
+				<Button variant="secondary" size="icon-compact" aria-label="New chat" disabled={disabled} onClick={onCreate}>
 					<Plus />
 				</Button>
 			</Tooltip>
 			{onOpenAsPanel === undefined ? null : (
 				<Tooltip content="Open as panel" delayDuration={200}>
-					<Button variant="outline" size="icon-compact" aria-label="Open as panel" onClick={onOpenAsPanel}>
+					<Button variant="secondary" size="icon-compact" aria-label="Open as panel" onClick={onOpenAsPanel}>
 						<PanelRight />
 					</Button>
 				</Tooltip>
 			)}
 			<Tooltip content="Open in chat" delayDuration={200}>
-				<Button variant="outline" size="icon-compact" aria-label="Open in chat" onClick={onOpenInChat}>
+				<Button variant="secondary" size="icon-compact" aria-label="Open in chat" onClick={onOpenInChat}>
 					<Maximize2 />
 				</Button>
 			</Tooltip>
 			<Tooltip content="Close chat" delayDuration={200}>
-				<Button variant="outline" size="icon-compact" aria-label="Close chat" onClick={onClose}>
+				<Button variant="secondary" size="icon-compact" aria-label="Close chat" onClick={onClose}>
 					<X />
 				</Button>
 			</Tooltip>
