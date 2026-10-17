@@ -27,6 +27,7 @@ type ChatContextValue = {
 	composer: ReturnType<typeof useComposerDraft>
 	panel: ChatPanelState
 	signal: ChatSignal
+	star: { open: boolean; setOpen: (open: boolean) => void }
 }
 
 const ChatContext = createContext<ChatContextValue | null>(null)
@@ -61,6 +62,7 @@ export function ChatProvider({ children }: { children: ReactNode }) {
 	const arrival = useSearchParams().get('chat')
 	const [viewport, setViewport] = useState(0)
 	const [chosen, setChosen] = useState(false)
+	const [starOpen, setStarOpen] = useState(false)
 	const available = viewport >= PANEL_MIN_VIEWPORT && !onChatPage
 	const adopt = chat.adopt
 
@@ -114,7 +116,7 @@ export function ChatProvider({ children }: { children: ReactNode }) {
 		if (clean !== undefined) router.replace(clean, { scroll: false })
 	}, [arrival, viewport, available, adopt, router])
 
-	const signal = useChatSignal(chat.list, (chosen && available) || onChatPage, chat.reply !== null)
+	const signal = useChatSignal(chat.list, (chosen && available) || onChatPage || starOpen, chat.reply !== null)
 	const panel: ChatPanelState = {
 		open: chosen && available,
 		available,
@@ -124,5 +126,5 @@ export function ChatProvider({ children }: { children: ReactNode }) {
 		hide,
 		toggle,
 	}
-	return <ChatContext.Provider value={{ chat, composer, panel, signal }}>{children}</ChatContext.Provider>
+	return <ChatContext.Provider value={{ chat, composer, panel, signal, star: { open: starOpen, setOpen: setStarOpen } }}>{children}</ChatContext.Provider>
 }

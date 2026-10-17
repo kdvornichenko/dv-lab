@@ -4,6 +4,8 @@ import { useEffect, useRef } from "react";
 
 export type AssistantStarProps = {
   followPointer?: boolean;
+  busy?: boolean;
+  hop?: number;
   className?: string;
 };
 
@@ -25,7 +27,7 @@ const GLANCES = [
 
 const about = (x: number, y: number, t: string) => `translate(${x} ${y}) ${t} translate(${-x} ${-y})`;
 
-export function AssistantStar({ followPointer = true, className }: AssistantStarProps) {
+export function AssistantStar({ followPointer = true, busy = false, hop = 0, className }: AssistantStarProps) {
   const root = useRef<HTMLDivElement>(null);
   const floatRef = useRef<SVGGElement>(null);
   const turnRef = useRef<SVGGElement>(null);
@@ -34,6 +36,13 @@ export function AssistantStar({ followPointer = true, className }: AssistantStar
   const rightEye = useRef<SVGGElement>(null);
   const shineRef = useRef<SVGGElement>(null);
   const shadowRef = useRef<SVGEllipseElement>(null);
+  const busyRef = useRef(busy);
+  const hopRef = useRef(hop);
+
+  useEffect(() => {
+    busyRef.current = busy;
+    hopRef.current = hop;
+  });
 
   useEffect(() => {
     const el = root.current;
@@ -52,23 +61,27 @@ export function AssistantStar({ followPointer = true, className }: AssistantStar
     let frame = 0;
     let last = 0;
     let time = 0;
+    let hopAt = -1;
+    let seenHop = hopRef.current;
 
     const blinkScale = (since: number, length = 0.16) => (since < 0 || since > length ? 1 : 1 - 0.9 * Math.sin((since / length) * Math.PI));
 
     const draw = () => {
-      const float = still ? 0 : Math.sin(time * 1.1) * 5;
+      const hopT = (time - hopAt) / 0.5;
+      const jump = hopAt < 0 || hopT > 1 ? 0 : Math.sin(hopT * Math.PI) * 14;
+      const float = still ? 0 : Math.sin(time * 1.1) * 5 - jump;
       const breathe = still ? 0 : Math.sin(time * 1.1 + Math.PI / 2) * 0.012;
       const sy = 1 + breathe - squish.p * 0.12;
       const sx = 1 - breathe + squish.p * 0.1;
       floatRef.current?.setAttribute("transform", `translate(0 ${float.toFixed(2)}) ${about(CX, BOTTOM, `scale(${sx.toFixed(4)} ${sy.toFixed(4)})`)}`);
-      turnRef.current?.setAttribute("transform", `translate(${(look.x * 4).toFixed(2)} ${(look.y * 2).toFixed(2)}) ${about(CX, CY, `rotate(${(look.x * 2.5).toFixed(2)}) scale(${(1 - Math.abs(look.x) * 0.025).toFixed(4)} 1)`)}`);
+      turnRef.current?.setAttribute("transform", `translate(${(look.x * 4).toFixed(2)} ${(look.y * 2).toFixed(2)}) ${about(CX, CY, `rotate(${(look.x * 2.5 + (busyRef.current ? Math.sin((time * Math.PI * 2) / 1.2) * 7 : 0)).toFixed(2)}) scale(${(1 - Math.abs(look.x) * 0.025).toFixed(4)} 1)`)}`);
       eyesRef.current?.setAttribute("transform", `translate(${(look.x * 12).toFixed(2)} ${(look.y * 7).toFixed(2)})`);
       shineRef.current?.setAttribute("transform", `translate(${(-look.x * 7).toFixed(2)} ${(-look.y * 3).toFixed(2)})`);
       const both = blinkAt < 0 ? 1 : Math.min(blinkScale(time - blinkAt), blinkTwice ? blinkScale(time - blinkAt - 0.26) : 1);
       const wink = blinkScale(time - winkAt, 0.34);
       leftEye.current?.setAttribute("transform", about(EYES.left, EYES.y, `scale(1 ${both.toFixed(3)})`));
       rightEye.current?.setAttribute("transform", about(EYES.right, EYES.y, `scale(1 ${Math.min(both, wink).toFixed(3)})`));
-      const lift = (float + 5) / 10;
+      const lift = Math.min(1, Math.max(0, (float + 5) / 10));
       shadowRef.current?.setAttribute("transform", about(CX, SHADOW_Y, `scale(${(1 - lift * 0.12).toFixed(3)} 1)`));
       shadowRef.current?.setAttribute("opacity", (0.9 - lift * 0.3).toFixed(3));
     };
@@ -78,7 +91,15 @@ export function AssistantStar({ followPointer = true, className }: AssistantStar
       last = now;
       time += dt;
 
-      if (!pointer && time > nextGlance) {
+      if (hopRef.current !== seenHop) {
+        seenHop = hopRef.current;
+        hopAt = time;
+        winkAt = time + 0.15;
+      }
+      if (busyRef.current) {
+        target.x = -1;
+        target.y = -0.7;
+      } else if (!pointer && time > nextGlance) {
         const g = GLANCES[Math.floor(Math.random() * GLANCES.length)];
         target.x = g.x;
         target.y = g.y;

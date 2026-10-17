@@ -19,6 +19,7 @@ import type { AccountSummary } from '@dv-lab/contracts'
 import { ChatPanel } from '../chat/_components/chat-panel'
 import { ChatProvider } from '../chat/_components/chat-provider'
 import { AppSidebar } from './app-sidebar'
+import { AssistantStarLayer } from './assistant-star-layer'
 import { CommandPalette } from './command-palette'
 import { sectionForPath } from './sections'
 import { ToastProvider } from './toasts'
@@ -122,6 +123,7 @@ export function AppShell({ account, children }: { account: AccountSummary; child
 						</SidebarInset>
 						<ChatPanel />
 					</SidebarProvider>
+					<AssistantStarLayer />
 					<CommandPalette
 						key={palette.key}
 						open={palette.open}

@@ -191,7 +191,12 @@ function reviewDraft(student: { id: string; name: string }): Draft {
 	}
 }
 
-export type PanelActions = { onClose: () => void; onOpenInChat: () => void }
+export type PanelActions = {
+	onClose: () => void
+	onOpenInChat: () => void
+	onOpenAsPanel?: () => void
+	floating?: boolean
+}
 
 export function ChatScreen({
 	studentId,
@@ -227,6 +232,8 @@ export function ChatScreen({
 	const selected = conversations.find((item) => item.id === chat.selectedId) ?? null
 	const liveRenaming = renaming && (conversations.find((item) => item.id === renaming.id) ?? renaming)
 	const liveDeleting = deleting && (conversations.find((item) => item.id === deleting.id) ?? deleting)
+	const bare =
+		panel?.floating === true && chat.thread.kind === 'empty' && studentId === null
 	const loadingTitle = chat.selectedId !== null && chat.list.kind === 'loading'
 	const ownComposer = useComposerDraft()
 	const composer = panel === undefined ? ownComposer : sharedComposer
@@ -414,60 +421,63 @@ export function ChatScreen({
 						onToggleList={() => setListOpen((open) => !open)}
 						onCreate={create}
 						onOpenInChat={panel.onOpenInChat}
+						onOpenAsPanel={panel.onOpenAsPanel}
 						onClose={panel.onClose}
 					/>
 				)}
 				<div className="relative flex min-h-0 flex-1 flex-col" onKeyDown={onKeyDown}>
 					<div inert={listOpen} className="flex min-h-0 flex-1 flex-col gap-3">
-						<ScrollArea
-							className={`-mx-3 min-h-0 flex-1 transition-opacity ease-out motion-reduce:transition-none md:-mx-6 ${listOpen ? 'opacity-0 duration-[160ms]' : 'duration-[120ms]'}`}
-							viewportClassName="scroll-fade px-3 md:px-6 [&>div]:!min-w-0 [&>div]:flex [&>div]:min-h-full [&>div]:flex-col"
-						>
-							<div
-								role="log"
-								aria-label="Messages"
-								className="mx-auto flex min-h-full w-full max-w-180 flex-1 flex-col gap-4 pb-2 [&>:first-child]:mt-auto"
+						{bare ? null : (
+							<ScrollArea
+								className={`-mx-3 min-h-0 flex-1 transition-opacity ease-out motion-reduce:transition-none md:-mx-6 ${listOpen ? 'opacity-0 duration-[160ms]' : 'duration-[120ms]'}`}
+								viewportClassName="scroll-fade px-3 md:px-6 [&>div]:!min-w-0 [&>div]:flex [&>div]:min-h-full [&>div]:flex-col"
 							>
-								{studentId === null ? null : <StudentRecords key={studentId} studentId={studentId} />}
-								<Thread
-									state={chat.thread}
-									onUndo={(actionId) => void chat.undo(actionId)}
-									onChoose={choose}
-									onRefresh={chat.reloadThread}
-									calendar={{
-										onConfirm: (actionId) => void chat.confirmCalendar(actionId),
-										onDecline: chat.declineAction,
-										onCheck: chat.checkAction,
-									}}
-									changes={{
-										onConfirm: (actionId) => chat.decideChange(actionId, 'confirm'),
-										onDecline: (actionId) => chat.decideChange(actionId, 'decline'),
-										onRefresh: chat.refreshThread,
-										onUndo: chat.undo,
-									}}
-									reviews={{
-										onAnswer: answerReview,
-										onRun: (student) => sendCommand(reviewDraft(student)),
-										onUndo: chat.undo,
-									}}
-									replies={{
-										onAsk: () => later(() => input.current?.focus()),
-										onCheckStatus: chat.checkStatus,
-										onFollowUp: (student) => followUp(student),
-										onCommand: command,
-										busy: chat.sending || chat.reply !== null,
-										commandsOff: composer.draft.text !== '' || chat.sending || chat.reply !== null,
-									}}
-									active={
-										chat.reply === null
-											? null
-											: { messageId: chat.reply.turn.assistantMessageId, stopping: chat.reply.stopping }
-									}
-									empty={studentId === null}
-									onCommand={command}
-								/>
-							</div>
-						</ScrollArea>
+								<div
+									role="log"
+									aria-label="Messages"
+									className="mx-auto flex min-h-full w-full max-w-180 flex-1 flex-col gap-4 pb-2 [&>:first-child]:mt-auto"
+								>
+									{studentId === null ? null : <StudentRecords key={studentId} studentId={studentId} />}
+									<Thread
+										state={chat.thread}
+										onUndo={(actionId) => void chat.undo(actionId)}
+										onChoose={choose}
+										onRefresh={chat.reloadThread}
+										calendar={{
+											onConfirm: (actionId) => void chat.confirmCalendar(actionId),
+											onDecline: chat.declineAction,
+											onCheck: chat.checkAction,
+										}}
+										changes={{
+											onConfirm: (actionId) => chat.decideChange(actionId, 'confirm'),
+											onDecline: (actionId) => chat.decideChange(actionId, 'decline'),
+											onRefresh: chat.refreshThread,
+											onUndo: chat.undo,
+										}}
+										reviews={{
+											onAnswer: answerReview,
+											onRun: (student) => sendCommand(reviewDraft(student)),
+											onUndo: chat.undo,
+										}}
+										replies={{
+											onAsk: () => later(() => input.current?.focus()),
+											onCheckStatus: chat.checkStatus,
+											onFollowUp: (student) => followUp(student),
+											onCommand: command,
+											busy: chat.sending || chat.reply !== null,
+											commandsOff: composer.draft.text !== '' || chat.sending || chat.reply !== null,
+										}}
+										active={
+											chat.reply === null
+												? null
+												: { messageId: chat.reply.turn.assistantMessageId, stopping: chat.reply.stopping }
+										}
+										empty={studentId === null}
+										onCommand={command}
+									/>
+								</div>
+							</ScrollArea>
+						)}
 						<div className="mx-auto flex w-full max-w-180 flex-col gap-3">
 							{askNotice === null ? null : (
 								<Banner status="error">

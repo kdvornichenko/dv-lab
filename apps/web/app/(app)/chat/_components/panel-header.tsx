@@ -1,6 +1,6 @@
 'use client'
 
-import { List, Maximize2, Plus, X } from 'lucide-react'
+import { List, Maximize2, PanelRight, Plus, X } from 'lucide-react'
 
 import { Button } from '@/components/ui/button'
 import { Skeleton } from '@/components/ui/skeleton'
@@ -14,6 +14,7 @@ export function PanelHeader({
 	onToggleList,
 	onCreate,
 	onOpenInChat,
+	onOpenAsPanel,
 	onClose,
 }: {
 	title: string
@@ -23,6 +24,7 @@ export function PanelHeader({
 	onToggleList: () => void
 	onCreate: () => void
 	onOpenInChat: () => void
+	onOpenAsPanel?: () => void
 	onClose: () => void
 }) {
 	return (
@@ -55,6 +57,13 @@ export function PanelHeader({
 					<Plus />
 				</Button>
 			</Tooltip>
+			{onOpenAsPanel === undefined ? null : (
+				<Tooltip content="Open as panel" delayDuration={200}>
+					<Button variant="outline" size="icon-compact" aria-label="Open as panel" onClick={onOpenAsPanel}>
+						<PanelRight />
+					</Button>
+				</Tooltip>
+			)}
 			<Tooltip content="Open in chat" delayDuration={200}>
 				<Button variant="outline" size="icon-compact" aria-label="Open in chat" onClick={onOpenInChat}>
 					<Maximize2 />
