@@ -75,6 +75,7 @@ export type ChangeRefusal =
 	| 'invalid_amount'
 	| 'invalid_lessons'
 	| 'date_in_future'
+	| 'already_proposed'
 	| 'invalid_note'
 	| 'student_not_found'
 	| CardRefusal
@@ -188,23 +189,28 @@ async function cardOf(executor: DbExecutor, studentId: string) {
 	return row ?? null
 }
 
-async function withdrawEarlierPayments(tx: DbExecutor, context: ChatContext, source: ActionSource, studentId: string) {
-	const earlier = await tx
-		.select({ id: chatActions.id, target: chatActions.target })
+async function alreadyProposed(tx: DbExecutor, context: ChatContext, source: ActionSource, target: PaymentTarget) {
+	const rows = await tx
+		.select({ target: chatActions.target })
 		.from(chatActions)
 		.where(
 			and(
 				eq(chatActions.accountId, context.accountId),
 				eq(chatActions.messageId, source.messageId),
-				eq(chatActions.kind, 'change'),
-				eq(chatActions.state, 'proposed')
+				eq(chatActions.kind, 'change')
 			)
 		)
-		.for('update')
-	for (const row of earlier) {
-		const target = paymentTarget.safeParse(row.target)
-		if (target.success && target.data.studentId === studentId) await settle(tx, row.id, 'refused', { kind: 'declined' })
-	}
+	return rows.some((row) => {
+		const stored = paymentTarget.safeParse(row.target)
+		return (
+			stored.success &&
+			stored.data.studentId === target.studentId &&
+			stored.data.amountMinor === target.amountMinor &&
+			stored.data.currency === target.currency &&
+			stored.data.paidOn === target.paidOn &&
+			stored.data.lessonsHundredths === target.lessonsHundredths
+		)
+	})
 }
 
 async function preparePayment(
@@ -258,7 +264,7 @@ async function preparePayment(
 		note: input.data.note,
 		guard: { cardRevision: card.revision, timeZone: zone },
 	}
-	await withdrawEarlierPayments(tx, context, source, card.id)
+	if (await alreadyProposed(tx, context, source, target)) return refused('already_proposed')
 	const actionId = await insertAction(tx, {
 		accountId: context.accountId,
 		...source,
