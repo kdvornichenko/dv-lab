@@ -1,5 +1,6 @@
 import { startApi, teacherCookie } from '../schedule-api/io.ts'
 import { sectionBalance, sectionFlag } from './balance.ts'
+import { sectionChatEnds } from './chat-ends.ts'
 import { PORT, check, failures, recordFailure, removeOwn, removeTails, todayVn } from './context.ts'
 import { sectionCut, sectionRace } from './cut-race.ts'
 import { removeLedgerTails, sectionLedger } from './ledger.ts'
@@ -21,6 +22,7 @@ const SECTIONS: Record<string, (ctx: Context) => Promise<string>> = {
 	today: sectionToday,
 	ledger: sectionLedger,
 	lessons: sectionLessons,
+	chatends: sectionChatEnds,
 }
 
 const section = process.argv[2]
