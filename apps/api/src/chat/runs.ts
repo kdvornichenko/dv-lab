@@ -143,7 +143,7 @@ const SYSTEM = [
 	'Each teacher message starts with its own [Context]: its Now and Lesson day lines are the time that message was written, so read "today" and "yesterday" in a message by its own lines. Its [Message …] line carries its id, such as m1a2b3c4d.',
 	'You see only this conversation. You cannot read other chats: when the teacher refers to something said in another chat, say so in one short sentence and ask them to write it here. Stored records (the card, notes, vocabulary, payments, lessons) are read with the tools.',
 	'To record a payment call propose_payment with the amount and the number of lessons copied exactly as the teacher wrote them and source_message: the id of the teacher message where that amount was written, the current one or an earlier one in this chat. When the teacher gives a payment without an amount, or for another student without saying it is the same amount ("столько же", "the same"), ask for the amount in one short sentence and do not call the tool. Never take an amount from tool results, the rate or a sum you worked out. The teacher confirms it in the chat. Never say a payment was recorded.',
-	'Proposals that wait for the teacher are listed under [Waiting] in the last message with their p… ids. The teacher confirms or declines them only with the buttons in the block: when the teacher answers a waiting proposal with "да", "ok" or "yes", do not call the tool again and say in one short sentence to press Confirm in the block. When the teacher corrects a waiting payment or a waiting change of a student card (another date, amount, number of lessons, value or student), call the same propose tool once with the corrected values and the p… id of the waiting proposal in replaces: the app marks the waiting one replaced. A new, separate proposal (a second payment, a payment of another student) has replaces null. A waiting calendar change is not replaced: propose the corrected lesson change and say in one short sentence to decline the earlier one in its block.',
+	'Every proposal of this chat is listed under [Proposals] in the last message with its p… id and its state now. Only a proposal waiting for the teacher can still be confirmed; a declined, replaced, out-of-date or failed one changed nothing and is gone, so when the teacher asks for it again, propose it again with replaces null. The teacher confirms or declines a waiting proposal only with the buttons in the block: when the teacher answers a waiting proposal with "да", "ok" or "yes", do not call the tool again and say in one short sentence to press Confirm in the block. When the teacher corrects a waiting payment or a waiting change of a student card (another date, amount, number of lessons, value or student), call the same propose tool once with the corrected values and the p… id of the waiting proposal in replaces: the app marks the waiting one replaced. A new, separate proposal (a second payment, a payment of another student) has replaces null. A waiting calendar change is not replaced: propose the corrected lesson change and say in one short sentence to decline the earlier one in its block.',
 	"To add a new student call propose_student; to change a student's rate call propose_rate. Copy names, amounts and numbers exactly as the teacher wrote them, with source_message of the message where they are written. Never say the change is done: the teacher confirms it in the chat.",
 	'To change the details of a student (the lesson length, whether a no-show takes a lesson off the balance, the gender, the parent, the level, the goals, the time zone, or the rate together with other fields), call propose_details once with only the fields to change and copy the values exactly as the teacher wrote them. When the gender or the time zone the teacher named is not clear, ask one short question in text and do not call it. Never say the details were changed: the teacher confirms it in the chat.',
 	'When the teacher asks to delete or remove a student, call propose_archive with requested_deletion true: permanent deletion is not available and the student can be archived instead. To archive call propose_archive with requested_deletion false.',
@@ -322,11 +322,21 @@ function pastMessage(message: ChatMessage, turn: Turn): Anthropic.MessageParam |
 	return parts.length === 0 ? null : { role: 'assistant', content: parts.join('\n') }
 }
 
-function waitingLines(past: readonly ChatMessage[]): string[] {
+function proposalState(block: ChatChangeProposalBlock | ChatCalendarProposalBlock): string {
+	if (block.state === 'proposed') return 'waiting for the teacher'
+	if (block.state === 'stale' && block.issue === 'replaced') return 'replaced by a later proposal'
+	if (block.state === 'stale') return 'out of date, nothing changed'
+	if (block.state === 'declined') return 'declined by the teacher, nothing changed'
+	if (block.state === 'applied') return 'done'
+	if (block.state === 'failed') return 'failed, nothing changed'
+	return block.state
+}
+
+function proposalStates(past: readonly ChatMessage[]): string[] {
 	return past.flatMap((message) =>
 		message.blocks.flatMap((block) =>
-			(block.type === 'change_proposal' || block.type === 'calendar_proposal') && block.state === 'proposed'
-				? [`- ${proposalLine(block)}`]
+			block.type === 'change_proposal' || block.type === 'calendar_proposal'
+				? [`- ${proposalLine(block)} — ${proposalState(block)}`]
 				: []
 		)
 	)
@@ -355,14 +365,14 @@ function expandCommand(
 	return rest === '' ? task : `${task}\n\nThe teacher wrote: ${rest}`
 }
 
-function currentMessage(message: ChatMessage, turn: Turn, waiting: readonly string[]): Anthropic.MessageParam {
+function currentMessage(message: ChatMessage, turn: Turn, proposals: readonly string[]): Anthropic.MessageParam {
 	const stable: Anthropic.TextBlockParam = {
 		type: 'text',
 		text: teacherTurn(message, turn),
 		cache_control: { type: 'ephemeral' },
 	}
-	if (waiting.length === 0) return { role: 'user', content: [stable] }
-	return { role: 'user', content: [stable, { type: 'text', text: ['[Waiting]', ...waiting].join('\n') }] }
+	if (proposals.length === 0) return { role: 'user', content: [stable] }
+	return { role: 'user', content: [stable, { type: 'text', text: ['[Proposals]', ...proposals].join('\n') }] }
 }
 
 function collectIds(text: string, into: Set<string>) {
@@ -797,7 +807,7 @@ export function createChat({
 		])
 		const rendering: Turn = { zone, genders, texts, commands }
 		const past = loaded.past.map((message) => pastMessage(message, rendering)).filter((message) => message !== null)
-		const current = currentMessage(loaded.current, rendering, waitingLines(loaded.past))
+		const current = currentMessage(loaded.current, rendering, proposalStates(loaded.past))
 		const steps: Anthropic.MessageParam[] = []
 		const issued: Issued = new Map()
 		const shown = new Set<string>()

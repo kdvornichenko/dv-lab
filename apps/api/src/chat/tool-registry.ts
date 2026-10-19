@@ -64,7 +64,7 @@ const CITE_PROPERTIES = {
 	replaces: {
 		type: ['string', 'null'],
 		description:
-			'The p… id of a proposal listed under [Waiting] that this call corrects (another date, amount, number of lessons, value or student): the app marks it replaced. null for a new, separate proposal, such as a second payment of the same student or a payment of another student ("@B the same", "столько же").',
+			'The p… id of a proposal waiting for the teacher under [Proposals] that this call corrects (another date, amount, number of lessons, value or student): the app marks it replaced. null for a new, separate proposal, such as a second payment of the same student or a payment of another student ("@B the same", "столько же").',
 	},
 }
 
