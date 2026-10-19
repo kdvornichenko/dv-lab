@@ -331,9 +331,11 @@ export function ChatScreen({
 		later(() => input.current?.focus())
 	}
 
+	const queuedHere = chat.queue.some((item) => item.conversationId === chat.selectedId)
+
 	async function send() {
 		const draft = composer.draft
-		if (chat.reply !== null || chat.sending) {
+		if (chat.reply !== null || chat.sending || queuedHere) {
 			if (chat.enqueue(draft)) {
 				composer.clear()
 				setAskNotice(null)
@@ -470,8 +472,8 @@ export function ChatScreen({
 											onCheckStatus: chat.checkStatus,
 											onFollowUp: (student) => followUp(student),
 											onCommand: command,
-											busy: chat.sending || chat.reply !== null,
-											commandsOff: composer.draft.text !== '' || chat.sending || chat.reply !== null,
+											busy: chat.sending || chat.reply !== null || queuedHere,
+											commandsOff: composer.draft.text !== '' || chat.sending || chat.reply !== null || queuedHere,
 										}}
 										active={
 											chat.reply === null

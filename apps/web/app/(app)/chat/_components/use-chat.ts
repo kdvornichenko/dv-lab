@@ -910,9 +910,9 @@ export function useChat(initialConversationId: string | null, options: { startNe
 	)
 
 	useEffect(() => {
-		if (replying || sending || head === undefined || head.state !== 'waiting') return
+		if (replying || sending || shownThread.kind !== 'ready' || head === undefined || head.state !== 'waiting') return
 		void drain(head)
-	}, [replying, sending, head, drain])
+	}, [replying, sending, shownThread.kind, head, drain])
 
 	const queued = queue.length > 0
 	useEffect(() => {
