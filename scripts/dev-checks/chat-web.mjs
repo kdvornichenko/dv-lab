@@ -1859,7 +1859,7 @@ async function sectionStream() {
 				const resumed = await replyText(page)
 				check('after a reload during the reply the same text is back', resumed.startsWith(later), resumed)
 				await page.getByText(FAKE_LAST).waitFor({ timeout: 30000 })
-				await page.locator(SEND).waitFor({ timeout: 15000 })
+				await page.locator('[data-slot="chat-stop"]').waitFor({ state: 'detached', timeout: 15000 })
 				check(
 					'the reply finishes once, with one turn and no second request after the reload',
 					conversationId !== null && JSON.stringify(turns(conversationId)) === '["completed"]',
@@ -1889,7 +1889,7 @@ async function sectionStream() {
 				)
 				await page.locator(STOP).click()
 				await page.getByText('Reply stopped.').waitFor({ timeout: 15000 })
-				await page.locator(SEND).waitFor({ timeout: 15000 })
+				await page.locator('[data-slot="chat-stop"]').waitFor({ state: 'detached', timeout: 15000 })
 				const states = conversationId ? turns(conversationId) : []
 				check(
 					'Stop reply ends the turn as stopped and keeps the text that arrived',
@@ -2397,7 +2397,7 @@ async function sectionModels() {
 				sql(`update chat_budget_periods set spent_nano = 0, held_nano = 0 where id = '${periodId}'`)
 				await page.setViewportSize({ width: 375, height: 800 })
 				await page.goto(`${BASE}/chat?c=${conversationId}`)
-				await page.locator(SEND).waitFor({ timeout: 30000 })
+				await page.locator('[data-slot="chat-stop"]').waitFor({ state: 'detached', timeout: 30000 })
 				const box = await page.locator(SEND).boundingBox()
 				check('on 375px Send stays inside the screen', box !== null && box.x + box.width <= 375, JSON.stringify(box))
 				check(
@@ -2449,7 +2449,7 @@ async function sectionDelete() {
 				await page.keyboard.type('Plan the next lesson for my group')
 				await page.keyboard.press('Enter')
 				await page.getByText(FAKE_LAST).waitFor({ timeout: 30000 })
-				await page.locator(SEND).waitFor({ timeout: 15000 })
+				await page.locator('[data-slot="chat-stop"]').waitFor({ state: 'detached', timeout: 15000 })
 				const id = new URL(page.url()).searchParams.get('c')
 				if (id) conversations.push(id)
 				check('a conversation with a finished reply exists', id !== null)
@@ -2895,7 +2895,7 @@ async function sectionPreviewLive() {
 				const readsBefore = listReads.length
 				await page.keyboard.press('Enter')
 				await page.getByText(FAKE_LAST).waitFor({ timeout: 30000 })
-				await page.locator(SEND).waitFor({ timeout: 15000 })
+				await page.locator('[data-slot="chat-stop"]').waitFor({ state: 'detached', timeout: 15000 })
 				const id = new URL(page.url()).searchParams.get('c')
 				if (id) conversations.push(id)
 				check('a conversation with a finished reply exists', id !== null)

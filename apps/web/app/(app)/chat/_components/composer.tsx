@@ -12,24 +12,19 @@ import {
 	type RefObject,
 } from 'react'
 
-import { AnimatePresence } from 'motion/react'
 import { ArrowUp, Info, RefreshCw, Square } from 'lucide-react'
+import { AnimatePresence } from 'motion/react'
 
 import { Button } from '@/components/ui/button'
 import { Skeleton } from '@/components/ui/skeleton'
 import { Elevated } from '@/lib/elevated'
 
-import {
-	CHAT_COMMANDS,
-	CHAT_MESSAGE_MAX,
-	type MentionBinding,
-	type StudentLessonOption,
-} from '@dv-lab/contracts'
+import { CHAT_COMMANDS, CHAT_MESSAGE_MAX, type MentionBinding, type StudentLessonOption } from '@dv-lab/contracts'
 
 import { BudgetNotice } from './budget-notice'
 import { MentionPopup, popupOptionId, type PopupItem, type PopupState } from './mention-popup'
 import { ModelControls, choiceUnavailable, readChoice } from './model-controls'
-import { type StoredCommandRow, useStoredCommands } from './use-commands'
+import { QueueTray } from './queue-tray'
 import {
 	insertMention,
 	matchStudents,
@@ -39,7 +34,9 @@ import {
 	type ChatModels,
 	type Draft,
 	type MentionStudents,
+	type QueuedMessage,
 } from './use-chat'
+import { type StoredCommandRow, useStoredCommands } from './use-commands'
 
 type Trigger = { kind: 'mention'; from: number; query: string } | { kind: 'command'; query: string } | null
 
@@ -134,7 +131,10 @@ export function Composer({
 	disabled,
 	sending,
 	onSend,
-	replying,
+	running,
+	queue,
+	onRemoveQueued,
+	onRetryQueued,
 	stopping,
 	onStop,
 	inputRef,
@@ -148,7 +148,10 @@ export function Composer({
 	disabled: boolean
 	sending: boolean
 	onSend: () => void
-	replying: boolean
+	running: boolean
+	queue: readonly QueuedMessage[]
+	onRemoveQueued: (id: string) => void
+	onRetryQueued: (id: string) => void
 	stopping: boolean
 	onStop: () => void
 	inputRef: RefObject<HTMLTextAreaElement | null>
@@ -163,7 +166,7 @@ export function Composer({
 	const configFailed = models.assistant.kind === 'failed'
 	const closed = reached || unavailable || configFailed
 	const tooLong = Array.from(draft.text).length > CHAT_MESSAGE_MAX
-	const canSend = !disabled && !replying && !sending && !draft.stale && !closed && !tooLong && draft.text.trim() !== ''
+	const canSend = !disabled && !draft.stale && !closed && !tooLong && draft.text.trim() !== ''
 	const listId = useId()
 	const backdrop = useRef<HTMLDivElement>(null)
 	const pendingCaret = useRef<number | null>(null)
@@ -190,7 +193,6 @@ export function Composer({
 	const open =
 		focused &&
 		!disabled &&
-		!replying &&
 		!reached &&
 		trigger !== null &&
 		triggerAt !== dismissed &&
@@ -295,6 +297,7 @@ export function Composer({
 	return (
 		<div className="flex flex-col gap-2" onMouseDown={focusField}>
 			{budget ? <BudgetNotice budget={budget} /> : null}
+			<QueueTray queue={queue} onRemove={onRemoveQueued} onRetry={onRetryQueued} />
 			<div className="relative">
 				<AnimatePresence>
 					{open ? (
@@ -330,9 +333,9 @@ export function Composer({
 							)}
 							value={draft.text}
 							rows={1}
-							disabled={disabled || replying || reached}
+							disabled={disabled || reached}
 							placeholder={
-								reached ? 'Monthly budget reached' : replying ? 'Wait for the reply, or stop it' : PLACEHOLDER
+								reached ? 'Monthly budget reached' : running ? 'Next message, sent after the reply' : PLACEHOLDER
 							}
 							aria-label="Message"
 							role="combobox"
@@ -364,40 +367,41 @@ export function Composer({
 					</div>
 					<div className="flex items-center justify-between gap-2">
 						<div className="min-w-0 flex-1">
-							<ModelControls
-								models={models}
-								disabled={disabled || replying || reached}
-								menuOpen={menuOpen}
-								onMenuOpenChange={setMenuOpen}
-							/>
+							{running ? (
+								<Button
+									variant="secondary"
+									size="compact"
+									leadingIcon={Square}
+									data-slot="chat-stop"
+									className="rounded-full"
+									loading={stopping}
+									onClick={onStop}
+								>
+									{stopping ? 'Stopping reply…' : 'Stop reply'}
+								</Button>
+							) : (
+								<ModelControls
+									models={models}
+									disabled={disabled || reached}
+									menuOpen={menuOpen}
+									onMenuOpenChange={setMenuOpen}
+								/>
+							)}
 						</div>
-						{replying ? (
-							<Button
-								variant="secondary"
-								size="compact"
-								leadingIcon={Square}
-								data-slot="chat-stop"
-								className="rounded-full"
-								loading={stopping}
-								onClick={onStop}
-							>
-								{stopping ? 'Stopping reply…' : 'Stop reply'}
-							</Button>
-						) : (
-							<Button
-								variant="primary"
-								size="icon-compact"
-								aria-label="Send"
-								data-slot="chat-send"
-								className="rounded-full"
-								loading={sending}
-								disabled={!canSend}
-								onMouseDown={(event) => event.preventDefault()}
-								onClick={onSend}
-							>
-								<ArrowUp />
-							</Button>
-						)}
+						<Button
+							variant="primary"
+							size="icon-compact"
+							aria-label={running ? 'Send after the reply' : 'Send'}
+							title={running ? 'Send after the reply' : undefined}
+							data-slot="chat-send"
+							className="rounded-full"
+							loading={sending && !running}
+							disabled={!canSend}
+							onMouseDown={(event) => event.preventDefault()}
+							onClick={onSend}
+						>
+							<ArrowUp />
+						</Button>
 					</div>
 				</Elevated>
 			</div>

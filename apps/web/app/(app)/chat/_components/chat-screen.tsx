@@ -232,8 +232,7 @@ export function ChatScreen({
 	const selected = conversations.find((item) => item.id === chat.selectedId) ?? null
 	const liveRenaming = renaming && (conversations.find((item) => item.id === renaming.id) ?? renaming)
 	const liveDeleting = deleting && (conversations.find((item) => item.id === deleting.id) ?? deleting)
-	const bare =
-		panel?.floating === true && chat.thread.kind === 'empty' && studentId === null
+	const bare = panel?.floating === true && chat.thread.kind === 'empty' && studentId === null
 	const loadingTitle = chat.selectedId !== null && chat.list.kind === 'loading'
 	const ownComposer = useComposerDraft()
 	const composer = panel === undefined ? ownComposer : sharedComposer
@@ -333,9 +332,16 @@ export function ChatScreen({
 	}
 
 	async function send() {
-		if (await chat.send(composer.draft)) {
+		const draft = composer.draft
+		if (chat.reply !== null || chat.sending) {
+			if (chat.enqueue(draft)) {
+				composer.clear()
+				setAskNotice(null)
+			}
+		} else {
 			composer.clear()
 			setAskNotice(null)
+			if (!(await chat.send(draft))) composer.setDraft(draft)
 		}
 		later(() => input.current?.focus())
 	}
@@ -495,10 +501,13 @@ export function ChatScreen({
 								onType={composer.type}
 								students={students.state}
 								onRetryStudents={students.retry}
-								disabled={listOpen || chat.sending}
+								disabled={listOpen || (chat.sending && chat.selectedId === null)}
 								sending={chat.sending}
 								onSend={() => void send()}
-								replying={chat.reply !== null}
+								running={chat.reply !== null}
+								queue={chat.queue}
+								onRemoveQueued={chat.dequeue}
+								onRetryQueued={chat.retryQueued}
 								stopping={chat.reply?.stopping ?? false}
 								onStop={() => void chat.stop()}
 								inputRef={input}
