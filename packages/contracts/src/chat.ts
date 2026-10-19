@@ -26,7 +26,12 @@ export const chatRecordsQuery = z.strictObject({ studentId: z.uuid() })
 export type ChatRecordsQuery = z.infer<typeof chatRecordsQuery>
 
 export const chatBalanceEnds = z.discriminatedUnion('state', [
-	z.strictObject({ state: z.literal('on'), date: z.string(), startsAt: z.string() }),
+	z.strictObject({
+		state: z.literal('on'),
+		date: z.string(),
+		startsAt: z.string(),
+		ref: calendarOccurrenceRef.optional(),
+	}),
 	z.strictObject({ state: z.literal('now') }),
 	z.strictObject({ state: z.literal('beyond') }),
 ])

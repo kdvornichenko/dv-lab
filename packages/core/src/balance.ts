@@ -43,21 +43,22 @@ export function studentBalance(
 
 export type BalanceForecastLesson = { startsAt: Date; durationMinutes: number }
 
-export type BalanceRunsOut = { kind: 'on'; startsAt: Date } | { kind: 'now' } | { kind: 'beyond' }
+export type BalanceRunsOut<T extends BalanceForecastLesson> =
+	{ kind: 'on'; lesson: T } | { kind: 'now' } | { kind: 'beyond' }
 
-export function balanceRunsOut(
+export function balanceRunsOut<T extends BalanceForecastLesson>(
 	balanceMinutes: number,
 	openingOn: string,
-	lessons: readonly BalanceForecastLesson[],
+	lessons: readonly T[],
 	timeZone: string
-): BalanceRunsOut {
+): BalanceRunsOut<T> {
 	if (balanceMinutes <= 0) return { kind: 'now' }
 	let left = balanceMinutes
 	const ordered = [...lessons].sort((a, b) => a.startsAt.getTime() - b.startsAt.getTime())
 	for (const lesson of ordered) {
 		if (!countsAfterOpening(scheduleDate(lesson.startsAt, timeZone), openingOn)) continue
 		left -= lesson.durationMinutes
-		if (left <= 0) return { kind: 'on', startsAt: lesson.startsAt }
+		if (left <= 0) return { kind: 'on', lesson }
 	}
 	return { kind: 'beyond' }
 }

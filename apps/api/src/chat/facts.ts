@@ -47,10 +47,11 @@ async function readBalanceEnds(
 			const kind = dateKind(block, context.now)
 			return kind === 'ahead' || kind === 'unmarked'
 		})
-		.map((block) => ({ startsAt: new Date(block.startsAt), durationMinutes: block.durationMinutes }))
+		.map((block) => ({ startsAt: new Date(block.startsAt), durationMinutes: block.durationMinutes, ref: block.ref }))
 	const ends = balanceRunsOut(balanceMinutes, openingOn, lessons, zone)
 	if (ends.kind !== 'on') return { state: ends.kind }
-	return { state: 'on', date: lessonDay(ends.startsAt, zone), startsAt: ends.startsAt.toISOString() }
+	const { startsAt, ref } = ends.lesson
+	return { state: 'on', date: lessonDay(startsAt, zone), startsAt: startsAt.toISOString(), ref }
 }
 
 export async function readChatFacts(
