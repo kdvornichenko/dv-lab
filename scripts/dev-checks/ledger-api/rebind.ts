@@ -67,9 +67,9 @@ async function pay(ctx: Context, studentId: string, paidOn: string, lessons: num
 }
 
 export async function sectionRebind(ctx: Context) {
-	const hour = await card(ctx, 'Alex Example 2130', 60)
-	const long = await card(ctx, 'Alex Example 2131', 90)
-	const spare = await card(ctx, 'Alex Example 2132', 60)
+	const hour = await card(ctx, 'Alex Example 2190', 60)
+	const long = await card(ctx, 'Alex Example 2191', 90)
+	const spare = await card(ctx, 'Alex Example 2192', 60)
 	const opening = core.addDays(ctx.today, -30)
 	for (const id of [hour, long, spare]) await setOpening(ctx, id, 0, opening)
 	const paidOn = core.addDays(opening, 1)

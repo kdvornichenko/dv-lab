@@ -2,6 +2,7 @@ import { eq } from 'drizzle-orm'
 
 import {
 	CHAT_LESSON_DATES_DAYS_MAX,
+	type ChatBalanceEnds,
 	type ChatDay,
 	type ChatDayLesson,
 	type ChatFactsBlock,
@@ -13,7 +14,7 @@ import {
 	type ChatStudentFacts,
 	type ScheduleBlock,
 } from '@dv-lab/contracts'
-import { addDays, lessonDay, paysSoonList, startOfLessonDay } from '@dv-lab/core'
+import { MARK_LOOKBACK_DAYS, addDays, balanceRunsOut, lessonDay, paysSoonList, startOfLessonDay } from '@dv-lab/core'
 import { type DbExecutor, students } from '@dv-lab/db'
 
 import type { CardReadContext } from '../cards/card-facts.ts'
@@ -26,6 +27,33 @@ export type ChatRecordsBlock = ChatFactsBlock | ChatLessonsBlock | ChatPaysSoonB
 
 export type LessonDatesPeriod = { from: string; to: string }
 
+const BALANCE_ENDS_DAYS = 366
+
+async function readBalanceEnds(
+	executor: DbExecutor,
+	context: CardReadContext,
+	studentId: string,
+	balanceMinutes: number,
+	openingOn: string
+): Promise<ChatBalanceEnds> {
+	const zone = context.defaultTimeZone
+	const today = lessonDay(context.now, zone)
+	const earliest = addDays(today, -MARK_LOOKBACK_DAYS)
+	const from = startOfLessonDay(openingOn > earliest ? openingOn : earliest, zone)
+	const to = startOfLessonDay(addDays(today, BALANCE_ENDS_DAYS), zone)
+	const window = await readWindowBlocks(executor, context, { from, to, studentIds: [studentId] })
+	const lessons = window.blocks
+		.filter((block) => {
+			const kind = dateKind(block, context.now)
+			return kind === 'ahead' || kind === 'unmarked'
+		})
+		.map((block) => ({ startsAt: new Date(block.startsAt), durationMinutes: block.durationMinutes, ref: block.ref }))
+	const ends = balanceRunsOut(balanceMinutes, openingOn, lessons, zone)
+	if (ends.kind !== 'on') return { state: ends.kind }
+	const { startsAt, ref } = ends.lesson
+	return { state: 'on', date: lessonDay(startsAt, zone), startsAt: startsAt.toISOString(), ref }
+}
+
 export async function readChatFacts(
 	executor: DbExecutor,
 	context: CardReadContext,
@@ -34,6 +62,14 @@ export async function readChatFacts(
 ): Promise<ChatStudentFacts | null> {
 	const card = await getCard(executor, studentId, context)
 	if (card === null) return null
+	const [opening] = await executor
+		.select({ openingOn: students.openingBalanceOn })
+		.from(students)
+		.where(eq(students.id, studentId))
+	const balanceEnds =
+		card.balanceMinutes === null || !opening?.openingOn
+			? null
+			: await readBalanceEnds(executor, context, studentId, card.balanceMinutes, opening.openingOn)
 	return {
 		student: {
 			id: card.id,
@@ -42,6 +78,7 @@ export async function readChatFacts(
 			defaultLessonMinutes: card.defaultLessonMinutes,
 		},
 		balanceMinutes: card.balanceMinutes,
+		...(balanceEnds === null ? {} : { balanceEnds }),
 		nextLesson: card.nextLesson,
 		paysSoon: paysSoonList([card], paysSoonLessons).length > 0,
 		paysSoonLessons,

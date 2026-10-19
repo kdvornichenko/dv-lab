@@ -18,7 +18,7 @@ import { zoneLabel } from '@/lib/time-zones'
 import { cn } from '@/lib/utils'
 
 import { TEXT_LINK_LOOK } from './agent-links'
-import { BalanceFact, Fact, NextLessonFact } from './student-facts'
+import { BalanceEndsFact, BalanceFact, Fact, NextLessonFact } from './student-facts'
 
 const OPEN_DELAY = 300
 const CLOSE_DELAY = 150
@@ -115,6 +115,7 @@ function ReadyFacts({ facts }: { facts: Extract<StudentRecords, { kind: 'ready' 
 		<div className="flex flex-col gap-3 tabular-nums">
 			<BalanceFact facts={facts} />
 			<NextLessonFact facts={facts} secondZone={secondZone} />
+			<BalanceEndsFact facts={facts} secondZone={secondZone} />
 		</div>
 	)
 }

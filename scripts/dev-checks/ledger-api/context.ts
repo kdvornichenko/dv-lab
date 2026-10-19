@@ -8,7 +8,7 @@ export const VN = core.SCHEDULE_TIME_ZONE
 
 export const PORT = 4202
 
-export const FIXTURE_PREFIXES = ['Alex Example 211', 'Alex Example 212', 'Alex Example 213']
+export const FIXTURE_PREFIXES = ['Alex Example 211', 'Alex Example 212', 'Alex Example 213', 'Alex Example 219']
 
 export let failures = 0
 
