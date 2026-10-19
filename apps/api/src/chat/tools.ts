@@ -685,7 +685,7 @@ function receipt(block: ChatBlock): unknown {
 }
 
 const PAGE_NOTE =
-	'The teacher sees a link to this page under your answer. Write one short sentence that says what you cannot do from the chat. Do not tell the teacher to do it manually or how, and do not repeat any number, amount or count from the request.'
+	'The teacher sees a link to this page under your answer. Write one short sentence that says what you cannot do from the chat, unless you already wrote it before this call: then write nothing more. Do not tell the teacher to do it manually or how, and do not repeat any number, amount or count from the request.'
 
 const DIALOG_KIND = { payment: 'payments', details: 'overview' } as const
 
