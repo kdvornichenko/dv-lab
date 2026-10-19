@@ -4,6 +4,7 @@ import { closeSync, existsSync, openSync, readFileSync, unlinkSync, writeFileSyn
 import http from 'node:http'
 import net from 'node:net'
 
+import { lastMarker } from '../../apps/api/src/chat/refs.ts'
 import { ROOT, STATE_DIR } from './paths.mjs'
 
 export { ROOT, STATE_DIR }
@@ -223,4 +224,15 @@ export async function studentCookie(api) {
 	const again = await signIn(api, STUDENT_LOGIN, password)
 	if (!again) throw new Error('student fixture sign-in failed')
 	return again
+}
+
+export function requestText(content) {
+	if (typeof content === 'string') return content
+	return (content ?? []).map((part) => (part.type === 'text' ? part.text : '')).join('\n')
+}
+
+export function withSource(entries, name, input, request) {
+	if (!entries.some((entry) => entry.name === name && entry.cites === true) || 'source_message' in input) return input
+	const asked = request.messages.filter((item) => item.role === 'user').map((item) => requestText(item.content))
+	return { ...input, source_message: lastMarker(asked.join('\n'))?.ref ?? 'm00000000' }
 }

@@ -7,6 +7,8 @@ import { z } from 'zod'
 import {
 	type ChatActionLinkBlock,
 	type ChatBlock,
+	type ChatCalendarProposalBlock,
+	type ChatChangeProposalBlock,
 	type ChatExcerptBlock,
 	type ChatMessage,
 	type ChatStep,
@@ -23,7 +25,7 @@ import {
 	type StoredCommand,
 	chatEffort,
 } from '@dv-lab/contracts'
-import { lessonDay, zonedParts } from '@dv-lab/core'
+import { formatHundredths, lessonDay, minorToInput, zonedParts } from '@dv-lab/core'
 import {
 	type Database,
 	type DbExecutor,
@@ -64,6 +66,7 @@ import {
 	resolveCites,
 	sentenceSplitter,
 } from './publish-gate.ts'
+import { messageMarker, proposalRef } from './refs.ts'
 import { REVIEW_ONE_STUDENT, REVIEW_TASK, REVIEW_COMMAND, type ReviewSession, reviewStudent } from './review.ts'
 import { nameConversation, titleAnswered } from './title.ts'
 import { type ToolContext, chatTools, commandSchema, stepRule, strictBudget, withinBudget } from './tool-registry.ts'
@@ -117,6 +120,7 @@ type ChatDeps = {
 }
 
 const MAX_REQUESTS = 6
+const DROP_STEP = 20
 const BODY_MAX = 200000
 const ACTIVE: string[] = [...CHAT_ACTIVE_TURN_STATES]
 const UUID = /[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}/giu
@@ -126,6 +130,7 @@ const SYSTEM = [
 	"You are the assistant of one English teacher inside the teacher's workspace app. You help with students, lessons, notes and lesson outcomes.",
 	'Answer in the language the teacher writes in. Keep answers short. Light markdown is fine: short paragraphs, bullet lists and **bold**; no tables and no headings.',
 	'End the answer when the question is answered. Do not offer next steps or more help unless the teacher asked for them: no closing lines like "I can suggest ideas…", "If you tell me…, I will mark…", "Would you like me to…" or "Let me know…".',
+	'Everything you write in one answer is shown as one reply, with the blocks of the tools under the text. Text you wrote before a tool call is already shown: after the tool results never repeat it, only add what is new, or nothing. Never point at a block by its place ("above", "below", "выше", "ниже"); say "in the block" if you must.',
 	'A lesson day runs from 02:00 to 02:00 of the next date. "Today", "tonight" and "yesterday" mean the date on the Lesson day line and the day before it, not the calendar date on the Now line; use the Lesson day date for lessons, lesson_dates, mark_lesson and add_comment. Only new_date of propose_lesson_change is the calendar date of the new time.',
 	'Use the tools to read stored records. Never invent students, lessons, dates or records.',
 	'Do not write numbers about balances, lessons left, counts of lessons, minutes, hours, payments, debts or money: the app shows such facts in its own blocks. When the teacher asks about them, call student_facts.',
@@ -136,8 +141,11 @@ const SYSTEM = [
 	'When the teacher asks for ideas, exercises or a task, write them in your answer as finished sentences: a short paragraph or a short markdown list the teacher can copy. The rule to keep answers short does not apply to such materials: they must be useful and as long as the task needs. When the materials are for a mentioned student, call student_notes first and read the profile (level and goals), the notes and the vocabulary. Set the difficulty by the goal and the level, not by the simplest wording: for an exam goal such as IELTS use the register, structures and topics of that exam. Take topics and examples from the interests and notes of the student, and use the words from the vocabulary when the teacher asks for them. Never invent facts about the student that are not in the records, and do not hand over generic sentences that would suit any student.',
 	'mark_lesson and add_comment change data: use them only when the teacher clearly asks for that change. propose_lesson_change only proposes; the teacher confirms it in the chat.',
 	'Notes and vocabulary change only when the teacher asks. Before writing call student_notes and read the blocks. To add to the notes call note_write for the block that fits with its whole new text: the current text with the new lines added. Keep every existing line exactly as it is, do not repeat what is already written and never add separate dated entries. Create a block with note_block_create only when no block fits; never rename or move blocks. To delete a block call note_block_delete. To add words call vocabulary_add; to remove words call vocabulary_remove with the term_id values from student_notes. The app decides what is saved at once and what the teacher must confirm: any rewrite, shortening or clearing of a block and deleting a block with text become a question to the teacher. Tell the result from the tool status and never say a change was made while it waits for the teacher. Money, lessons and the fields of the card are never written into notes: use the propose tools for them.',
-	'To record a payment call propose_payment with the amount and the number of lessons copied exactly as the teacher wrote them; the teacher confirms it in the chat. Never say a payment was recorded.',
-	"To add a new student call propose_student; to change a student's rate call propose_rate. Copy names, amounts and numbers exactly as the teacher wrote them. Never say the change is done: the teacher confirms it in the chat.",
+	'Each teacher message starts with its own [Context]: its Now and Lesson day lines are the time that message was written, so read "today" and "yesterday" in a message by its own lines. Its [Message …] line carries its id, such as m1a2b3c4d.',
+	'You see only this conversation. You cannot read other chats: when the teacher refers to something said in another chat, say so in one short sentence and ask them to write it here. Stored records (the card, notes, vocabulary, payments, lessons) are read with the tools.',
+	'To record a payment call propose_payment with the amount and the number of lessons copied exactly as the teacher wrote them and source_message: the id of the teacher message where that amount was written, the current one or an earlier one in this chat. When the teacher gives a payment without an amount, or for another student without saying it is the same amount ("столько же", "the same"), ask for the amount in one short sentence and do not call the tool. Never take an amount from tool results, the rate or a sum you worked out. The teacher confirms it in the chat. Never say a payment was recorded.',
+	'Every proposal of this chat is listed under [Proposals] in the last message with its p… id and its state now. Only a proposal waiting for the teacher can still be confirmed; a declined, replaced, out-of-date or failed one changed nothing and is gone, so when the teacher asks for it again, propose it again with replaces null. The teacher confirms or declines a waiting proposal only with the buttons in the block: when the teacher answers a waiting proposal with "да", "ok" or "yes", do not call the tool again and say in one short sentence to press Confirm in the block. When the teacher corrects a waiting payment or a waiting change of a student card (another date, amount, number of lessons, value or student), call the same propose tool once with the corrected values and the p… id of the waiting proposal in replaces: the app marks the waiting one replaced. A new, separate proposal (a second payment, a payment of another student) has replaces null. A waiting calendar change is not replaced: propose the corrected lesson change and say in one short sentence to decline the earlier one in its block.',
+	"To add a new student call propose_student; to change a student's rate call propose_rate. Copy names, amounts and numbers exactly as the teacher wrote them, with source_message of the message where they are written. Never say the change is done: the teacher confirms it in the chat.",
 	'To change the details of a student (the lesson length, whether a no-show takes a lesson off the balance, the gender, the parent, the level, the goals, the time zone, or the rate together with other fields), call propose_details once with only the fields to change and copy the values exactly as the teacher wrote them. When the gender or the time zone the teacher named is not clear, ask one short question in text and do not call it. Never say the details were changed: the teacher confirms it in the chat.',
 	'When the teacher asks to delete or remove a student, call propose_archive with requested_deletion true: permanent deletion is not available and the student can be archived instead. To archive call propose_archive with requested_deletion false.',
 	'When the teacher asks to delete or remove any other record and you have no tool that removes it, answer with one sentence "This record cannot be removed in chat. Review its available actions in the existing screen." (in Russian "Эту запись нельзя удалить в чате. Посмотрите доступные действия на её странице.") and call open_page with the page of that record. Do not list steps.',
@@ -223,9 +231,8 @@ function blockNote(block: Exclude<ChatBlock, { type: 'suggestions' }>): string {
 		case 'action_result':
 			return `[Saved: ${block.kind}${block.mark ? ` ${block.mark}` : ''} for ${block.studentName}]`
 		case 'calendar_proposal':
-			return `[Proposed calendar change: ${block.operation} for ${block.studentName}]`
 		case 'change_proposal':
-			return `[Proposed: ${block.change.operation} for ${block.change.operation === 'create_card' ? block.change.displayName : block.change.studentName}]`
+			return `[Proposed ${proposalLine(block)}]`
 		case 'note_change':
 			return block.mode === 'proposal'
 				? `[Proposed notes change: ${block.change} for ${block.studentName}]`
@@ -271,20 +278,69 @@ function blockNote(block: Exclude<ChatBlock, { type: 'suggestions' }>): string {
 	}
 }
 
-function pastMessage(
-	message: ChatMessage,
-	texts: CommandTexts,
+function proposalLine(block: ChatChangeProposalBlock | ChatCalendarProposalBlock): string {
+	if (block.type === 'calendar_proposal')
+		return `${proposalRef(block.actionId)}: calendar ${block.operation} for ${block.studentName}`
+	const change = block.change
+	const name = change.operation === 'create_card' ? change.displayName : change.studentName
+	if (change.operation !== 'record_payment') return `${proposalRef(block.actionId)}: ${change.operation} for ${name}`
+	const lessons = change.lessonsHundredths === null ? '' : `, lessons ${formatHundredths(change.lessonsHundredths)}`
+	return `${proposalRef(block.actionId)}: record_payment for ${name}: ${minorToInput(change.amountMinor, change.currency)} ${change.currency}, paid_on ${change.paidOn}${lessons}`
+}
+
+type Turn = {
+	zone: string
+	genders: ReadonlyMap<string, Gender | null>
+	texts: CommandTexts
 	commands: readonly StoredCommand[]
-): Anthropic.MessageParam | null {
-	if (message.role === 'teacher') {
-		const lines = mentionLines(message.mentions)
-		const body = expandCommand(message, texts, commands)
-		const text = lines.length === 0 ? body : `${body}\n\nMentioned:\n${lines.join('\n')}`
-		return { role: 'user', content: text }
-	}
+}
+
+function teacherTurn(message: ChatMessage, turn: Turn): string {
+	const at = new Date(message.createdAt)
+	const local = zonedParts(at, turn.zone)
+	const lines = mentionLines(message.mentions, turn.genders)
+	const day = lessonDay(at, turn.zone)
+	return [
+		'[Context]',
+		`Teacher time zone: ${turn.zone}`,
+		`Now: ${local.date} ${local.time} (${weekdayName(at, turn.zone)})`,
+		`Lesson day: ${day} (${weekdayName(new Date(`${day}T12:00:00Z`), 'UTC')})`,
+		...(lines.length === 0 ? [] : ['Mentioned students:', ...lines]),
+		messageMarker(message.id),
+		expandCommand(message, turn.texts, turn.commands),
+	].join('\n')
+}
+
+function pastMessage(message: ChatMessage, turn: Turn): Anthropic.MessageParam | null {
+	if (message.role === 'teacher') return { role: 'user', content: [{ type: 'text', text: teacherTurn(message, turn) }] }
 	const notes = message.blocks.filter((block) => block.type !== 'suggestions').map(blockNote)
-	const parts = [message.body.trim(), ...notes].filter((part) => part !== '')
+	const lines = mentionLines(message.mentions)
+	const parts = [
+		message.body.trim(),
+		...notes,
+		...(lines.length === 0 ? [] : [`Mentioned:\n${lines.join('\n')}`]),
+	].filter((part) => part !== '')
 	return parts.length === 0 ? null : { role: 'assistant', content: parts.join('\n') }
+}
+
+function proposalState(block: ChatChangeProposalBlock | ChatCalendarProposalBlock): string {
+	if (block.state === 'proposed') return 'waiting for the teacher'
+	if (block.state === 'stale' && block.issue === 'replaced') return 'replaced by a later proposal'
+	if (block.state === 'stale') return 'out of date, nothing changed'
+	if (block.state === 'declined') return 'declined by the teacher, nothing changed'
+	if (block.state === 'applied') return 'done'
+	if (block.state === 'failed') return 'failed, nothing changed'
+	return block.state
+}
+
+function proposalStates(past: readonly ChatMessage[]): string[] {
+	return past.flatMap((message) =>
+		message.blocks.flatMap((block) =>
+			block.type === 'change_proposal' || block.type === 'calendar_proposal'
+				? [`- ${proposalLine(block)} — ${proposalState(block)}`]
+				: []
+		)
+	)
 }
 
 const RECAP_COMMAND = /^\s*\/recap\b\s*/iu
@@ -310,27 +366,14 @@ function expandCommand(
 	return rest === '' ? task : `${task}\n\nThe teacher wrote: ${rest}`
 }
 
-function currentMessage(
-	message: ChatMessage,
-	zone: string,
-	now: Date,
-	genders: ReadonlyMap<string, Gender | null>,
-	texts: CommandTexts,
-	commands: readonly StoredCommand[]
-): Anthropic.MessageParam {
-	const local = zonedParts(now, zone)
-	const lines = mentionLines(message.mentions, genders)
-	const day = lessonDay(now, zone)
-	const context = [
-		'[Context]',
-		`Teacher time zone: ${zone}`,
-		`Now: ${local.date} ${local.time} (${weekdayName(now, zone)})`,
-		`Lesson day: ${day} (${weekdayName(new Date(`${day}T12:00:00Z`), 'UTC')})`,
-		...(lines.length === 0 ? [] : ['Mentioned students:', ...lines]),
-		'[Message]',
-		expandCommand(message, texts, commands),
-	]
-	return { role: 'user', content: context.join('\n') }
+function currentMessage(message: ChatMessage, turn: Turn, proposals: readonly string[]): Anthropic.MessageParam {
+	const stable: Anthropic.TextBlockParam = {
+		type: 'text',
+		text: teacherTurn(message, turn),
+		cache_control: { type: 'ephemeral' },
+	}
+	if (proposals.length === 0) return { role: 'user', content: [stable] }
+	return { role: 'user', content: [stable, { type: 'text', text: ['[Proposals]', ...proposals].join('\n') }] }
 }
 
 function collectIds(text: string, into: Set<string>) {
@@ -592,6 +635,7 @@ export function createChat({
 	function publisher(run: Run, turn: TurnRow, gate: GateContext, issued: Issued) {
 		const splitter = sentenceSplitter()
 		const quoted = new Set<string>()
+		const said = new Set<string>()
 		let length = 0
 		let withheld = 0
 		let published = 0
@@ -641,6 +685,13 @@ export function createChat({
 				withheld++
 				return
 			}
+			const key = cited.text
+				.toLocaleLowerCase()
+				.replace(/[\s.!?…]+/gu, ' ')
+				.trim()
+			const long = key.split(' ').length >= 3
+			if (long && said.has(key)) return
+			if (long) said.add(key)
 			const text =
 				cited.text.trim() === '' && cited.excerpts.length > 0 ? cited.text.replace(/[^\n]/gu, '') : cited.text
 			if (text !== '') await writeText(text)
@@ -750,15 +801,22 @@ export function createChat({
 			learnName(gate, binding.text.replace(/^@/u, ''))
 			run.people.set(binding.studentId, binding.text.replace(/^@/u, ''))
 		}
+		for (const message of loaded.past) {
+			if (message.role !== 'teacher') continue
+			learnWhen(gate, message.body, zone, year)
+			for (const binding of message.mentions) learnName(gate, binding.text.replace(/^@/u, ''))
+		}
 		const texts = await readCommandTexts(db, turn.accountId)
-		const past = loaded.past
-			.map((message) => pastMessage(message, texts, commands))
-			.filter((message) => message !== null)
-		const genders = await studentGenders(
-			db,
-			loaded.current.mentions.map((binding) => binding.studentId)
-		)
-		const current = currentMessage(loaded.current, zone, start.now, genders, texts, commands)
+		const genders = await studentGenders(db, [
+			...new Set(
+				[...loaded.past, loaded.current]
+					.filter((message) => message.role === 'teacher')
+					.flatMap((message) => message.mentions.map((binding) => binding.studentId))
+			),
+		])
+		const rendering: Turn = { zone, genders, texts, commands }
+		const past = loaded.past.map((message) => pastMessage(message, rendering)).filter((message) => message !== null)
+		const current = currentMessage(loaded.current, rendering, proposalStates(loaded.past))
 		const steps: Anthropic.MessageParam[] = []
 		const issued: Issued = new Map()
 		const shown = new Set<string>()
@@ -786,7 +844,7 @@ export function createChat({
 			while (inputUpperBound({ system: SYSTEM, tools, messages }) > choice.maxInputTokens) {
 				if (dropped >= past.length)
 					return ending('completed', 'budget_insufficient', [{ type: 'refused', code: 'budget_insufficient' }])
-				dropped++
+				dropped = (Math.floor(dropped / DROP_STEP) + 1) * DROP_STEP
 				while (dropped < past.length && past[dropped]?.role === 'assistant') dropped++
 				messages = [...past.slice(dropped), current, ...steps]
 			}

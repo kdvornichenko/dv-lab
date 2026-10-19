@@ -18,7 +18,8 @@ export type CompleteRequest = Omit<ProviderRequest, 'tools'>
 export type ProviderEvent =
 	{ type: 'text'; text: string } | { type: 'text_end' } | { type: 'final'; message: Anthropic.Message }
 
-export type ProviderFaultCode = 'credits_unavailable' | 'model_unavailable' | 'provider_unavailable' | 'request_rejected'
+export type ProviderFaultCode =
+	'credits_unavailable' | 'model_unavailable' | 'provider_unavailable' | 'request_rejected'
 
 export class ProviderFault extends Error {
 	readonly code: ProviderFaultCode
@@ -79,7 +80,7 @@ export function createChatProvider({ apiKey }: { apiKey: string }): ChatProvider
 						...(request.format ? { format: { type: 'json_schema' as const, schema: request.format.schema } } : {}),
 					},
 					cache_control: { type: 'ephemeral' },
-					system: request.system,
+					system: [{ type: 'text', text: request.system, cache_control: { type: 'ephemeral' } }],
 					...(request.tools.length > 0 ? { tools: request.tools, tool_choice: { type: 'auto' as const } } : {}),
 					messages: request.messages,
 					...(request.diagnostics

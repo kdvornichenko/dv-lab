@@ -4,7 +4,7 @@ import { createRequire } from 'node:module'
 import { isDeepStrictEqual, parseEnv } from 'node:util'
 
 import * as core from '../../packages/core/src/index.ts'
-import { ENV_TEST, ROOT, call, quote, sql, studentCookie, teacherCookie } from './api.mjs'
+import { ENV_TEST, ROOT, call, quote, requestText, sql, studentCookie, teacherCookie, withSource } from './api.mjs'
 import { removeCards } from './ledger-api/context.ts'
 
 const SECTIONS = ['payment', 'cards', 'deletions', 'essay', 'details']
@@ -19,6 +19,7 @@ const { createApp } = await import(`${ROOT}/apps/api/src/app.ts`)
 const { createSignIn } = await import(`${ROOT}/apps/api/src/auth/sign-in.ts`)
 const { createChat } = await import(`${ROOT}/apps/api/src/chat/runs.ts`)
 const { ProviderFault } = await import(`${ROOT}/apps/api/src/chat/provider.ts`)
+const { CHAT_TOOL_ENTRIES: REGISTRY } = await import(`${ROOT}/apps/api/src/chat/tools.ts`)
 const { readAssistantSettings, saveAssistantSettings } = await import(`${ROOT}/apps/api/src/settings/settings.ts`)
 const { chatActionResponse, chatConversationReadResponse } = await import(`${ROOT}/packages/contracts/src/index.ts`)
 
@@ -88,7 +89,12 @@ function say(text) {
 
 function use(name, input) {
 	return async function* toolUse(request) {
-		const block = { type: 'tool_use', id: `toolu_${randomUUID().slice(0, 8)}`, name, input }
+		const block = {
+			type: 'tool_use',
+			id: `toolu_${randomUUID().slice(0, 8)}`,
+			name,
+			input: withSource(REGISTRY, name, input, request),
+		}
 		yield { type: 'final', message: message(request.model, [block], 'tool_use') }
 	}
 }
@@ -1651,7 +1657,7 @@ async function essay() {
 	unsubscribe?.()
 	const reply = replyRow(turnId)
 	const calls = fake.calls.slice(callsBefore)
-	const asked = calls[0]?.messages.at(-1)?.content ?? ''
+	const asked = requestText(calls[0]?.messages.at(-1)?.content ?? '')
 	check(
 		'/essay sends only the essay_feedback tool and the essay task with the text as data',
 		calls.length === 2 &&

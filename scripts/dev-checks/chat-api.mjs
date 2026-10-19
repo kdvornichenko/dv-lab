@@ -14,7 +14,7 @@ import {
 	commandsResponse,
 } from '../../packages/contracts/src/index.ts'
 import * as core from '../../packages/core/src/index.ts'
-import { ENV_TEST, ROOT, STUDENT_LOGIN } from './api.mjs'
+import { ENV_TEST, ROOT, STUDENT_LOGIN, requestText } from './api.mjs'
 import { removeCards } from './ledger-api/context.ts'
 import { call, quote, sql, startApi, studentCookie, teacherCookie } from './schedule-api/io.ts'
 
@@ -3384,7 +3384,7 @@ async function sectionPrompts(ctx) {
 			const done = await settle(sent.json.turn.id)
 			return { done, requests: fake.calls.slice(before) }
 		}
-		const lastUser = (request) => String(request.messages.at(-1).content)
+		const lastUser = (request) => requestText(request.messages.at(-1).content)
 		const recap = (id) => turn(id, `/recap @${name}`, [binding])
 
 		const listed = await as('GET', '/settings/assistant/prompts')
@@ -3439,7 +3439,7 @@ async function sectionPrompts(ctx) {
 		check(
 			'an earlier /recap in the history goes to the model with the same saved text',
 			next.requests[0].messages.some(
-				(message) => message.role === 'user' && String(message.content).startsWith(CUSTOM_RECAP)
+				(message) => message.role === 'user' && requestText(message.content).includes(`]\n${CUSTOM_RECAP}`)
 			)
 		)
 
@@ -3841,8 +3841,7 @@ async function sectionCommandTurn(ctx) {
 			return { sent, done, requests: fake.calls.slice(before) }
 		}
 		const lastUser = (request) => {
-			const content = request.messages.at(-1).content
-			return typeof content === 'string' ? content : JSON.stringify(content)
+			return requestText(request.messages.at(-1).content)
 		}
 		const replyRow = (done) =>
 			sql(`select body, blocks from chat_messages where id = ${quote(done.assistantMessageId)}`).rows[0]

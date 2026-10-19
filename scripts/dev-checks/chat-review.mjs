@@ -4,7 +4,7 @@ import { createRequire } from 'node:module'
 import { parseEnv } from 'node:util'
 
 import { chatActionResponse, chatConversationReadResponse, undoResponse } from '../../packages/contracts/src/index.ts'
-import { ENV_TEST, call, quote, sql, teacherCookie } from './api.mjs'
+import { ENV_TEST, call, quote, requestText, sql, teacherCookie } from './api.mjs'
 import { removeCards } from './ledger-api/context.ts'
 
 const PORT = 4259
@@ -310,7 +310,7 @@ async function sectionRun(h, ctx) {
 	check(
 		'the /review turn offers only review_read and apply_review and the review task',
 		JSON.stringify(request?.tools.map((tool) => tool.name)) === JSON.stringify(['review_read', 'apply_review']) &&
-			String(request?.messages.at(-1)?.content).includes('Call review_read first'),
+			requestText(request?.messages.at(-1)?.content).includes('Call review_read first'),
 		JSON.stringify(request?.tools.map((tool) => tool.name))
 	)
 	const readResult = JSON.parse(toolResultOf(h.fake.calls.at(-2)))

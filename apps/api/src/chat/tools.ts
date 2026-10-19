@@ -65,6 +65,7 @@ import {
 } from './facts.ts'
 import { type NoteOutcome, addVocabulary, createNoteBlock, removeVocabulary } from './note-writes.ts'
 import { citeKey } from './publish-gate.ts'
+import { type Cited, NO_CITE } from './refs.ts'
 import { REVIEW_TOOL_ENTRIES } from './review.ts'
 import {
 	type ChatToolEntry,
@@ -246,15 +247,19 @@ function failure(code: string): ToolOutcome {
 	return { content: JSON.stringify({ error: code }), isError: true, block: null }
 }
 
+const SOURCE_NOTE =
+	'source_message must be the id from the [Message …] line of a teacher message in this chat, such as m1a2b3c4d. Call the tool again with that id.'
+
 const PAYMENT_REFUSAL_NOTES: Record<string, string> = {
 	amount_not_in_message:
-		'Do not call the tool again. Tell the teacher in one short sentence that the amount and the number of lessons must be in this message, and ask them to write it again.',
+		'The amount and the number of lessons must be written in the teacher message given in source_message or in the current message. Call the tool again only with the id of the message where the teacher wrote them; otherwise ask the teacher in one short sentence to write the amount, without any number of your own.',
 	already_proposed:
 		'The same payment is already shown in the chat and waits for the teacher. Do not call the tool again; tell the teacher in one short sentence to confirm it there, without the amount, the currency or the number of lessons.',
 }
 
 function refusal(code: string, operation: ChangeRequest['operation']): ToolOutcome {
-	const note = operation === 'record_payment' ? PAYMENT_REFUSAL_NOTES[code] : undefined
+	const note =
+		code === 'source_not_found' ? SOURCE_NOTE : operation === 'record_payment' ? PAYMENT_REFUSAL_NOTES[code] : undefined
 	return {
 		content: JSON.stringify({ error: code, ...(note === undefined ? {} : { note }) }),
 		isError: true,
@@ -680,7 +685,7 @@ function receipt(block: ChatBlock): unknown {
 }
 
 const PAGE_NOTE =
-	'The teacher sees a link to this page under your answer. Write one short sentence that says what you cannot do from the chat. Do not tell the teacher to do it manually or how, and do not repeat any number, amount or count from the request.'
+	'The teacher sees a link to this page under your answer. Write one short sentence that says what you cannot do from the chat, unless you already wrote it before this call: then write nothing more. Do not tell the teacher to do it manually or how, and do not repeat any number, amount or count from the request.'
 
 const DIALOG_KIND = { payment: 'payments', details: 'overview' } as const
 
@@ -717,8 +722,8 @@ async function openPage(context: ToolContext, input: z.infer<(typeof inputs)['op
 	return { content: JSON.stringify({ status: 'shown', kind, note: PAGE_NOTE }), isError: false, block }
 }
 
-async function propose(context: ToolContext, request: ChangeRequest): Promise<ToolOutcome> {
-	const outcome = await proposeChange(context.db, context.chat, context.source, request, context.persist)
+async function propose(context: ToolContext, request: ChangeRequest, cited: Cited = NO_CITE): Promise<ToolOutcome> {
+	const outcome = await proposeChange(context.db, context.chat, context.source, request, context.persist, cited)
 	if (outcome.kind === 'refused') return refusal(outcome.code, request.operation)
 	return { content: JSON.stringify(receipt(outcome.block)), isError: false, block: outcome.block }
 }
@@ -1068,7 +1073,7 @@ export const CHAT_TOOL_ENTRIES: readonly ChatToolEntry[] = [
 	chatTool({
 		name: 'propose_payment',
 		description:
-			'Propose recording a payment. amount_text and lessons_text are copied exactly as the teacher wrote them, the number without the currency; lessons_text null when the teacher gave no number of lessons; currency: the one the teacher named, otherwise null; paid_on YYYY-MM-DD: set it whenever the teacher named a payment date ("May 10", "on October 16", "10.05"), with the year of the Now line, or the previous year when that date would be in the future, or the year the teacher wrote; null only when the teacher named no date, which means today; note only when the teacher gave one, otherwise omit it. Nothing is recorded until the teacher confirms in the chat.',
+			'Propose recording a payment. source_message is the message where the teacher wrote the amount; when the teacher says "the same", "столько же" about an amount written earlier, it is the message with that amount. amount_text and lessons_text are copied exactly as the teacher wrote them, the number without the currency; lessons_text null when the teacher gave no number of lessons; currency: the one the teacher named, otherwise null; paid_on YYYY-MM-DD: set it whenever the teacher named a payment date ("May 10", "on October 16", "10.05"), with the year of the Now line, or the previous year when that date would be in the future, or the year the teacher wrote; null only when the teacher named no date, which means today; note only when the teacher gave one, otherwise omit it. Nothing is recorded until the teacher confirms in the chat.',
 		input: inputs.propose_payment,
 		properties: {
 			student_id: string,
@@ -1079,19 +1084,24 @@ export const CHAT_TOOL_ENTRIES: readonly ChatToolEntry[] = [
 			note: string,
 		},
 		optional: ['note'],
+		cites: true,
 		strict: true,
 		effect: 'propose',
 		step: studentStep,
-		run: (context, input) =>
-			propose(context, {
-				operation: 'record_payment',
-				studentId: input.student_id,
-				amountText: input.amount_text,
-				currency: input.currency,
-				paidOn: input.paid_on,
-				lessonsText: input.lessons_text,
-				note: input.note,
-			}),
+		run: (context, input, cited) =>
+			propose(
+				context,
+				{
+					operation: 'record_payment',
+					studentId: input.student_id,
+					amountText: input.amount_text,
+					currency: input.currency,
+					paidOn: input.paid_on,
+					lessonsText: input.lessons_text,
+					note: input.note,
+				},
+				cited
+			),
 	}),
 	chatTool({
 		name: 'propose_student',
@@ -1106,18 +1116,23 @@ export const CHAT_TOOL_ENTRIES: readonly ChatToolEntry[] = [
 			gender: { type: 'string', enum: [...GENDERS] },
 		},
 		optional: ['rate_text', 'currency', 'lesson_minutes', 'gender'],
+		cites: true,
 		strict: false,
 		effect: 'propose',
 		step: plainStep,
-		run: (context, input) =>
-			propose(context, {
-				operation: 'create_card',
-				displayName: input.display_name,
-				rateText: input.rate_text,
-				currency: input.currency,
-				lessonMinutes: input.lesson_minutes,
-				gender: input.gender,
-			}),
+		run: (context, input, cited) =>
+			propose(
+				context,
+				{
+					operation: 'create_card',
+					displayName: input.display_name,
+					rateText: input.rate_text,
+					currency: input.currency,
+					lessonMinutes: input.lesson_minutes,
+					gender: input.gender,
+				},
+				cited
+			),
 	}),
 	chatTool({
 		name: 'propose_rate',
@@ -1131,17 +1146,22 @@ export const CHAT_TOOL_ENTRIES: readonly ChatToolEntry[] = [
 			clear: boolean,
 		},
 		optional: ['rate_text', 'currency'],
+		cites: true,
 		strict: false,
 		effect: 'propose',
 		step: studentStep,
-		run: (context, input) =>
-			propose(context, {
-				operation: 'set_rate',
-				studentId: input.student_id,
-				rateText: input.rate_text,
-				currency: input.currency,
-				clear: input.clear,
-			}),
+		run: (context, input, cited) =>
+			propose(
+				context,
+				{
+					operation: 'set_rate',
+					studentId: input.student_id,
+					rateText: input.rate_text,
+					currency: input.currency,
+					clear: input.clear,
+				},
+				cited
+			),
 	}),
 	chatTool({
 		name: 'propose_details',
@@ -1171,23 +1191,28 @@ export const CHAT_TOOL_ENTRIES: readonly ChatToolEntry[] = [
 			'goals_text',
 			'time_zone',
 		],
+		cites: true,
 		strict: false,
 		effect: 'propose',
 		step: studentStep,
-		run: (context, input) =>
-			propose(context, {
-				operation: 'set_details',
-				studentId: input.student_id,
-				rateText: input.rate_text,
-				currency: input.currency,
-				lessonMinutesText: input.lesson_minutes_text,
-				noShowDeducts: input.no_show_deducts,
-				gender: input.gender,
-				parentText: input.parent_text,
-				levelText: input.level_text,
-				goalsText: input.goals_text,
-				timeZone: input.time_zone,
-			}),
+		run: (context, input, cited) =>
+			propose(
+				context,
+				{
+					operation: 'set_details',
+					studentId: input.student_id,
+					rateText: input.rate_text,
+					currency: input.currency,
+					lessonMinutesText: input.lesson_minutes_text,
+					noShowDeducts: input.no_show_deducts,
+					gender: input.gender,
+					parentText: input.parent_text,
+					levelText: input.level_text,
+					goalsText: input.goals_text,
+					timeZone: input.time_zone,
+				},
+				cited
+			),
 	}),
 	chatTool({
 		name: 'propose_archive',
@@ -1255,20 +1280,25 @@ export const CHAT_TOOL_ENTRIES: readonly ChatToolEntry[] = [
 			from: string,
 		},
 		optional: ['time_zone', 'from'],
+		cites: true,
 		strict: false,
 		effect: 'propose',
 		step: studentStep,
-		run: (context, input) =>
-			propose(context, {
-				operation: 'bulk_move',
-				studentId: input.student_id,
-				fromWeekday: weekdayNumber(input.from_weekday),
-				fromTime: input.from_time,
-				toWeekday: weekdayNumber(input.to_weekday),
-				toTime: input.to_time,
-				zoneText: input.time_zone,
-				from: input.from,
-			}),
+		run: (context, input, cited) =>
+			propose(
+				context,
+				{
+					operation: 'bulk_move',
+					studentId: input.student_id,
+					fromWeekday: weekdayNumber(input.from_weekday),
+					fromTime: input.from_time,
+					toWeekday: weekdayNumber(input.to_weekday),
+					toTime: input.to_time,
+					zoneText: input.time_zone,
+					from: input.from,
+				},
+				cited
+			),
 	}),
 	chatTool({
 		name: 'open_page',

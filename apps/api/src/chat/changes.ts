@@ -1,4 +1,4 @@
-import { and, desc, eq, isNull, lt, or, sql } from 'drizzle-orm'
+import { and, eq, isNull, like, lte, ne, or, sql } from 'drizzle-orm'
 import { z } from 'zod'
 
 import {
@@ -56,6 +56,7 @@ import {
 } from './change-deletions.ts'
 import { applyNoteChange, noteTargets } from './change-notes.ts'
 import { blocksOf, changeView, insertAction, noteChangeView, repliesOf, reviewOfferView } from './messages.ts'
+import { type Cited, NO_CITE, messagePrefix, proposalPrefix } from './refs.ts'
 
 type PaymentRequest = {
 	operation: 'record_payment'
@@ -76,6 +77,7 @@ export type ChangeRefusal =
 	| 'invalid_lessons'
 	| 'date_in_future'
 	| 'already_proposed'
+	| 'source_not_found'
 	| 'invalid_note'
 	| 'student_not_found'
 	| CardRefusal
@@ -156,9 +158,12 @@ function saidIn(message: string): Said {
 	}
 }
 
-const TEACHER_TEXT_EARLIER = 19
-
-async function teacherText(executor: DbExecutor, accountId: string, messageId: string): Promise<string | null> {
+async function teacherText(
+	executor: DbExecutor,
+	accountId: string,
+	messageId: string,
+	sourceMessage: string | null
+): Promise<string | null> {
 	const [current] = await executor
 		.select({ conversationId: chatMessages.conversationId, body: chatMessages.body })
 		.from(chatMessages)
@@ -171,7 +176,10 @@ async function teacherText(executor: DbExecutor, accountId: string, messageId: s
 			)
 		)
 	if (!current) return null
-	const earlier = await executor
+	if (sourceMessage === null) return current.body
+	const ref = messagePrefix(sourceMessage)
+	if (ref === null) return null
+	const [cited] = await executor
 		.select({ body: chatMessages.body })
 		.from(chatMessages)
 		.where(
@@ -180,12 +188,43 @@ async function teacherText(executor: DbExecutor, accountId: string, messageId: s
 				eq(chatMessages.accountId, accountId),
 				eq(chatMessages.role, 'teacher'),
 				isNull(chatMessages.redactedAt),
-				lt(chatMessages.createdAt, sql`(select created_at from chat_messages where id = ${messageId})`)
+				like(sql`${chatMessages.id}::text`, `${ref}%`),
+				lte(chatMessages.createdAt, sql`(select created_at from chat_messages where id = ${messageId})`)
 			)
 		)
-		.orderBy(desc(chatMessages.createdAt))
-		.limit(TEACHER_TEXT_EARLIER)
-	return [current.body, ...earlier.map((row) => row.body)].join('\n')
+		.limit(1)
+	if (!cited) return null
+	return cited.body === current.body ? current.body : `${cited.body}\n${current.body}`
+}
+
+async function supersede(
+	tx: DbExecutor,
+	context: ChatContext,
+	source: ActionSource,
+	operation: string,
+	replaces: string | null
+): Promise<void> {
+	const named = replaces === null ? null : proposalPrefix(replaces)
+	if (named === null) return
+	const waiting = await tx
+		.select({ id: chatActions.id, target: chatActions.target })
+		.from(chatActions)
+		.where(
+			and(
+				eq(chatActions.accountId, context.accountId),
+				eq(chatActions.conversationId, source.conversationId),
+				eq(chatActions.kind, 'change'),
+				eq(chatActions.state, 'proposed'),
+				ne(chatActions.messageId, source.messageId),
+				like(sql`${chatActions.id}::text`, `${named}%`)
+			)
+		)
+		.for('update')
+	for (const row of waiting) {
+		const old = storedTarget.safeParse(row.target)
+		if (old.success && old.data.operation === operation)
+			await settle(tx, row.id, 'refused', { kind: 'stale', issue: 'replaced' })
+	}
 }
 
 async function cardOf(executor: DbExecutor, studentId: string) {
@@ -235,10 +274,12 @@ async function preparePayment(
 	tx: DbExecutor,
 	context: ChatContext,
 	source: ActionSource,
-	request: PaymentRequest
+	request: PaymentRequest,
+	cited: Cited
 ): Promise<ProposeOutcome> {
-	const message = await teacherText(tx, context.accountId, source.messageId)
-	if (message === null || !writtenIn(message, request.amountText)) return refused('amount_not_in_message')
+	const message = await teacherText(tx, context.accountId, source.messageId, cited.sourceMessage)
+	if (message === null) return refused('source_not_found')
+	if (!writtenIn(message, request.amountText)) return refused('amount_not_in_message')
 	if (request.lessonsText !== null && !writtenIn(message, request.lessonsText)) return refused('amount_not_in_message')
 	const card = await cardOf(tx, request.studentId)
 	if (card === null) return refused('student_not_found')
@@ -283,6 +324,7 @@ async function preparePayment(
 		guard: { cardRevision: card.revision, timeZone: zone },
 	}
 	if (await alreadyProposed(tx, context, source, target)) return refused('already_proposed')
+	await supersede(tx, context, source, target.operation, cited.replaces)
 	const actionId = await insertAction(tx, {
 		accountId: context.accountId,
 		...source,
@@ -324,9 +366,12 @@ async function stage(
 	tx: DbExecutor,
 	context: ChatContext,
 	source: ActionSource,
-	preview: Preview
+	preview: Preview,
+	replaces: string | null = null
 ): Promise<ProposeOutcome> {
 	if (preview.kind === 'refused') return refused(preview.code)
+	const target = storedTarget.safeParse(preview.target)
+	if (target.success) await supersede(tx, context, source, target.data.operation, replaces)
 	const actionId = await insertAction(tx, {
 		accountId: context.accountId,
 		...source,
@@ -345,21 +390,24 @@ async function prepare(
 	tx: DbExecutor,
 	context: ChatContext,
 	source: ActionSource,
-	request: ChangeRequest
+	request: ChangeRequest,
+	cited: Cited
 ): Promise<ProposeOutcome> {
 	switch (request.operation) {
 		case 'record_payment':
-			return preparePayment(tx, context, source, request)
+			return preparePayment(tx, context, source, request, cited)
 		case 'delete_payment':
 		case 'remove_entry':
 			return stage(tx, context, source, await previewDeletion(tx, context, request))
 		case 'bulk_move': {
-			const message = await teacherText(tx, context.accountId, source.messageId)
-			return stage(tx, context, source, await proposeBulkMove(tx, context, message ?? '', request))
+			const message = await teacherText(tx, context.accountId, source.messageId, cited.sourceMessage)
+			if (message === null) return refused('source_not_found')
+			return stage(tx, context, source, await proposeBulkMove(tx, context, message, request), cited.replaces)
 		}
 		default: {
-			const message = await teacherText(tx, context.accountId, source.messageId)
-			return stage(tx, context, source, await previewCardChange(tx, saidIn(message ?? ''), request))
+			const message = await teacherText(tx, context.accountId, source.messageId, cited.sourceMessage)
+			if (message === null) return refused('source_not_found')
+			return stage(tx, context, source, await previewCardChange(tx, saidIn(message), request), cited.replaces)
 		}
 	}
 }
@@ -369,10 +417,11 @@ export function proposeChange(
 	context: ChatContext,
 	source: ActionSource,
 	request: ChangeRequest,
-	persist: (tx: DbExecutor, block: ChatChangeProposalBlock) => Promise<void>
+	persist: (tx: DbExecutor, block: ChatChangeProposalBlock) => Promise<void>,
+	cited: Cited = NO_CITE
 ): Promise<ProposeOutcome> {
 	return db.transaction(async (tx) => {
-		const outcome = await prepare(tx, context, source, request)
+		const outcome = await prepare(tx, context, source, request, cited)
 		if (outcome.kind === 'proposed') await persist(tx, outcome.block)
 		return outcome
 	})
