@@ -1574,7 +1574,13 @@ function held(next) {
 		release = resolve
 	})
 	async function* step(request, signal) {
-		await opened
+		await new Promise((resolve, reject) => {
+			if (signal.aborted) reject(new ProviderFault('provider_unavailable', { aborted: true }))
+			signal.addEventListener('abort', () => reject(new ProviderFault('provider_unavailable', { aborted: true })), {
+				once: true,
+			})
+			void opened.then(resolve)
+		})
 		yield* next(request, signal)
 	}
 	return { step, release }
