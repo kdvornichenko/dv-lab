@@ -250,7 +250,7 @@ const PAYMENT_REFUSAL_NOTES: Record<string, string> = {
 	amount_not_in_message:
 		'Do not call the tool again. Tell the teacher in one short sentence that the amount and the number of lessons must be in this message, and ask them to write it again.',
 	already_proposed:
-		'The same payment is already shown. Do not call the tool again; write one short sentence without the amount, the currency or the number of lessons.',
+		'The same payment is already shown in the chat and waits for the teacher. Do not call the tool again; tell the teacher in one short sentence to confirm it there, without the amount, the currency or the number of lessons.',
 }
 
 function refusal(code: string, operation: ChangeRequest['operation']): ToolOutcome {

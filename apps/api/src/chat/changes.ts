@@ -1,4 +1,4 @@
-import { and, eq, isNull, sql } from 'drizzle-orm'
+import { and, desc, eq, isNull, lt, or, sql } from 'drizzle-orm'
 import { z } from 'zod'
 
 import {
@@ -156,9 +156,11 @@ function saidIn(message: string): Said {
 	}
 }
 
+const TEACHER_TEXT_EARLIER = 19
+
 async function teacherText(executor: DbExecutor, accountId: string, messageId: string): Promise<string | null> {
-	const [row] = await executor
-		.select({ body: chatMessages.body })
+	const [current] = await executor
+		.select({ conversationId: chatMessages.conversationId, body: chatMessages.body })
 		.from(chatMessages)
 		.where(
 			and(
@@ -168,7 +170,22 @@ async function teacherText(executor: DbExecutor, accountId: string, messageId: s
 				isNull(chatMessages.redactedAt)
 			)
 		)
-	return row?.body ?? null
+	if (!current) return null
+	const earlier = await executor
+		.select({ body: chatMessages.body })
+		.from(chatMessages)
+		.where(
+			and(
+				eq(chatMessages.conversationId, current.conversationId),
+				eq(chatMessages.accountId, accountId),
+				eq(chatMessages.role, 'teacher'),
+				isNull(chatMessages.redactedAt),
+				lt(chatMessages.createdAt, sql`(select created_at from chat_messages where id = ${messageId})`)
+			)
+		)
+		.orderBy(desc(chatMessages.createdAt))
+		.limit(TEACHER_TEXT_EARLIER)
+	return [current.body, ...earlier.map((row) => row.body)].join('\n')
 }
 
 async function cardOf(executor: DbExecutor, studentId: string) {
@@ -196,8 +213,9 @@ async function alreadyProposed(tx: DbExecutor, context: ChatContext, source: Act
 		.where(
 			and(
 				eq(chatActions.accountId, context.accountId),
-				eq(chatActions.messageId, source.messageId),
-				eq(chatActions.kind, 'change')
+				eq(chatActions.conversationId, source.conversationId),
+				eq(chatActions.kind, 'change'),
+				or(eq(chatActions.messageId, source.messageId), eq(chatActions.state, 'proposed'))
 			)
 		)
 	return rows.some((row) => {
