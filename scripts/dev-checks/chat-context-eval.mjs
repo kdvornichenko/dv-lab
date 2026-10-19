@@ -759,7 +759,13 @@ try {
 } finally {
 	await chat.close()
 	server.close()
-	if (ownConversations.length > 0) removeChats(`id in (${ownConversations.map(quote).join(', ')})`)
+	if (ownConversations.length > 0) {
+		const own = ownConversations.map(quote).join(', ')
+		sql(
+			`update chat_budget_periods p set spent_nano = greatest(0, p.spent_nano - spent.total) from (select period_id, sum(coalesce(cost_nano, 0)) as total from chat_usage_attempts where conversation_id in (${own}) and state = 'settled' group by period_id) spent where p.id = spent.period_id`
+		)
+		removeChats(`id in (${own})`)
+	}
 	if (ownCards.length > 0) removeCards(`id in (${ownCards.map(quote).join(', ')}) and import_key is null`)
 	if (accountId)
 		sql(
