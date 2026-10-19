@@ -124,7 +124,7 @@ async function send(page, text) {
 }
 
 async function waitIdle(page) {
-	await page.locator(SEND).waitFor({ timeout: 30000 })
+	await page.locator('[data-slot="chat-stop"]').waitFor({ state: 'detached', timeout: 30000 })
 	await page.waitForFunction((selector) => document.querySelector(selector)?.disabled === false, FIELD, {
 		timeout: 30000,
 	})

@@ -134,7 +134,7 @@ async function askPayment(page, before) {
 		{ selector: '[data-slot="chat-change"]', count: before },
 		{ timeout: 30000 }
 	)
-	await page.locator(SEND).waitFor({ timeout: 30000 })
+	await page.locator('[data-slot="chat-stop"]').waitFor({ state: 'detached', timeout: 30000 })
 	return page.locator(CHANGE).last()
 }
 
@@ -749,7 +749,7 @@ async function askBlock(page, shown, text, mention) {
 		{ selector: CHANGE, count: shown },
 		{ timeout: 30000 }
 	)
-	await page.locator(SEND).waitFor({ timeout: 30000 })
+	await page.locator('[data-slot="chat-stop"]').waitFor({ state: 'detached', timeout: 30000 })
 	return page.locator(CHANGE).nth(shown)
 }
 
@@ -1123,7 +1123,7 @@ async function sectionProposals() {
 				const seriesBefore = tally().series
 				await sendIn(page, changeCount, '[fake:end]', PN.end)
 				await page.getByText('I could not prepare that change.').waitFor({ timeout: 30000 })
-				await page.locator(SEND).waitFor({ timeout: 30000 })
+				await page.locator('[data-slot="chat-stop"]').waitFor({ state: 'detached', timeout: 30000 })
 				check(
 					'ending a series with no Google connection gives a refusal text, no decision block and no schedule write',
 					(await page.locator(CHANGE).count()) === changeCount &&
@@ -1445,7 +1445,7 @@ async function sectionBulk() {
 				const commandsBefore = commands()
 				await typeSend(page, '[fake:bulk] from: tuesday 16:00 to: wednesday 18:00', BULK_NAME)
 				await page.getByText(OUTCOME_LINE).waitFor({ timeout: 30000 })
-				await page.locator(SEND).waitFor({ timeout: 30000 })
+				await page.locator('[data-slot="chat-stop"]').waitFor({ state: 'detached', timeout: 30000 })
 				const realChat = new URL(page.url()).searchParams.get('c')
 				if (realChat) conversations.push(realChat)
 				check(
@@ -1547,7 +1547,7 @@ async function sectionBulk() {
 							timeout: 15000,
 						}
 					)
-					await page.locator(SEND).waitFor({ timeout: 15000 })
+					await page.locator('[data-slot="chat-stop"]').waitFor({ state: 'detached', timeout: 15000 })
 				}
 				const blockAt = (n) => page.locator(BULK).nth(n)
 				const states = (block) =>
@@ -1811,7 +1811,7 @@ async function sectionEssay() {
 						!earlyText.includes('Lexical resource'),
 					earlyText.replace(/\n/g, ' | ')
 				)
-				await page.locator(SEND).waitFor({ timeout: 40000 })
+				await page.locator('[data-slot="chat-stop"]').waitFor({ state: 'detached', timeout: 40000 })
 				const full = await essays().first().innerText()
 				check(
 					'after the reply the label stays above the feedback text, the outcome is complete and no incomplete line',
@@ -1847,7 +1847,7 @@ async function sectionEssay() {
 				await page.waitForTimeout(1500)
 				await page.locator(STOP).click()
 				await page.getByText('Feedback incomplete').waitFor({ timeout: 30000 })
-				await page.locator(SEND).waitFor({ timeout: 30000 })
+				await page.locator('[data-slot="chat-stop"]').waitFor({ state: 'detached', timeout: 30000 })
 				const second = essays().nth(1)
 				const stoppedText = await second.innerText()
 				check(
@@ -1929,7 +1929,7 @@ async function sectionEssay() {
 					unavailableText.replace(/\n/g, ' | ')
 				)
 				await shot(page, 'changes-essay', 'unavailable')
-				await page.locator(SEND).waitFor({ timeout: 15000 })
+				await page.locator('[data-slot="chat-stop"]').waitFor({ state: 'detached', timeout: 15000 })
 				await page.locator(FIELD).fill('synthetic task two')
 				await page.locator(SEND).click()
 				await page.waitForFunction(
@@ -1993,7 +1993,7 @@ function listReads(page) {
 async function finishTurn(page, text) {
 	await typeSend(page, text)
 	await page.locator(STOP).waitFor({ timeout: 15000 })
-	await page.locator(SEND).waitFor({ timeout: 30000 })
+	await page.locator('[data-slot="chat-stop"]').waitFor({ state: 'detached', timeout: 30000 })
 	return Date.now()
 }
 
@@ -2768,7 +2768,7 @@ async function askNote(page, text, mention) {
 		{ selector: NOTE_BLOCK, count: before },
 		{ timeout: 30000 }
 	)
-	await page.locator(SEND).waitFor({ timeout: 30000 })
+	await page.locator('[data-slot="chat-stop"]').waitFor({ state: 'detached', timeout: 30000 })
 	return page.locator(NOTE_BLOCK).nth(before)
 }
 
@@ -3130,7 +3130,7 @@ async function sectionNotes() {
 				await page.locator(SEND).click()
 				await page.locator('[data-role="teacher"]').first().waitFor({ timeout: 30000 })
 				track()
-				await page.locator(SEND).waitFor({ timeout: 30000 })
+				await page.locator('[data-slot="chat-stop"]').waitFor({ state: 'detached', timeout: 30000 })
 				const bubble = page.locator('[data-role="teacher"] [data-slot="chat-essay-bubble"]').first()
 				await bubble.waitFor({ timeout: 15000 })
 				const essayHeight = await bubble
@@ -3272,7 +3272,7 @@ async function sectionReview() {
 				}
 				const count = (selector) => page.locator(selector).count()
 				const messages = () => count('[data-message-id]')
-				const idle = () => page.locator(SEND).waitFor({ timeout: 30000 })
+				const idle = () => page.locator('[data-slot="chat-stop"]').waitFor({ state: 'detached', timeout: 30000 })
 				const askAbout = async (key) => {
 					setSection(RV[key], 'goals', 'Line one')
 					const goals = sectionOf(RV[key], 'goals')

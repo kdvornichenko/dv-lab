@@ -46,6 +46,14 @@ export type MentionStudents = { kind: 'loading' } | { kind: 'error' } | { kind: 
 
 export type Draft = { text: string; bindings: MentionBinding[]; stale: boolean }
 
+export type QueuedMessage = {
+	id: string
+	conversationId: string
+	text: string
+	bindings: MentionBinding[]
+	state: 'waiting' | 'sending' | 'failed'
+}
+
 const EMPTY_DRAFT: Draft = { text: '', bindings: [], stale: false }
 
 function searchKey(value: string): string {
@@ -772,7 +780,7 @@ export function useChat(initialConversationId: string | null, options: { startNe
 	}, [activeId, commitThread, putFirst, refreshAssistant, select, setPending])
 
 	const send = useCallback(
-		async (draft: Draft): Promise<boolean> => {
+		async (draft: Draft, quiet = false): Promise<boolean> => {
 			if (sendingRef.current || draft.stale || draft.text.trim() === '') return false
 			cancelTitleWatch()
 			sendingRef.current = true
@@ -781,7 +789,7 @@ export function useChat(initialConversationId: string | null, options: { startNe
 			try {
 				const conversationId = await openConversation()
 				if (conversationId === null) {
-					setSendFailed(true)
+					if (!quiet) setSendFailed(true)
 					return false
 				}
 				const mentions = JSON.stringify(draft.bindings)
@@ -800,7 +808,7 @@ export function useChat(initialConversationId: string | null, options: { startNe
 				const parsed = result.ok ? sendMessageResponse.safeParse(result.data) : null
 				if (!parsed?.success) {
 					if (result.status === 404) void load(true)
-					setSendFailed(true)
+					if (!quiet) setSendFailed(true)
 					return false
 				}
 				pending.current = null
@@ -850,6 +858,69 @@ export function useChat(initialConversationId: string | null, options: { startNe
 	useEffect(() => {
 		if (!replying) refreshAssistant()
 	}, [replying, refreshAssistant])
+
+	const [queue, setQueue] = useState<QueuedMessage[]>([])
+	const draining = useRef<string | null>(null)
+	const head = queue.find((item) => item.conversationId === activeId)
+
+	const enqueue = useCallback(
+		(draft: Draft): boolean => {
+			if (activeId === null || draft.stale || draft.text.trim() === '') return false
+			setQueue((items) => [
+				...items,
+				{
+					id: crypto.randomUUID(),
+					conversationId: activeId,
+					text: draft.text,
+					bindings: draft.bindings,
+					state: 'waiting',
+				},
+			])
+			return true
+		},
+		[activeId]
+	)
+
+	const dequeue = useCallback((id: string) => setQueue((items) => items.filter((item) => item.id !== id)), [])
+
+	const retryQueued = useCallback(
+		(id: string) =>
+			setQueue((items) => items.map((item) => (item.id === id ? { ...item, state: 'waiting' as const } : item))),
+		[]
+	)
+
+	const drain = useCallback(
+		async (item: QueuedMessage) => {
+			if (draining.current === item.id) return
+			draining.current = item.id
+			await Promise.resolve()
+			setQueue((items) =>
+				items.map((entry) => (entry.id === item.id ? { ...entry, state: 'sending' as const } : entry))
+			)
+			const sent = await send({ text: item.text, bindings: item.bindings, stale: false }, true)
+			draining.current = null
+			if (!mounted.current) return
+			setQueue((items) =>
+				sent
+					? items.filter((entry) => entry.id !== item.id)
+					: items.map((entry) => (entry.id === item.id ? { ...entry, state: 'failed' as const } : entry))
+			)
+		},
+		[send]
+	)
+
+	useEffect(() => {
+		if (replying || sending || shownThread.kind !== 'ready' || head === undefined || head.state !== 'waiting') return
+		void drain(head)
+	}, [replying, sending, shownThread.kind, head, drain])
+
+	const queued = queue.length > 0
+	useEffect(() => {
+		if (!queued) return
+		const warn = (event: BeforeUnloadEvent) => event.preventDefault()
+		window.addEventListener('beforeunload', warn)
+		return () => window.removeEventListener('beforeunload', warn)
+	}, [queued])
 
 	const shownCalendar = useCallback(
 		(conversationId: string, block: ChatCalendarProposalBlock) => {
@@ -1068,6 +1139,7 @@ export function useChat(initialConversationId: string | null, options: { startNe
 				(item) => item.id !== conversation.id
 			)
 			commit({ kind: 'ready', conversations: remaining })
+			setQueue((items) => items.filter((item) => item.conversationId !== conversation.id))
 			if (activeId === conversation.id) select(latestConversation(remaining)?.id ?? null)
 			void load(true)
 			return 'deleted'
@@ -1089,6 +1161,10 @@ export function useChat(initialConversationId: string | null, options: { startNe
 		beginNew,
 		adopt,
 		send,
+		queue: queue.filter((item) => item.conversationId === activeId),
+		enqueue,
+		dequeue,
+		retryQueued,
 		undo,
 		confirmCalendar,
 		declineAction,
