@@ -12,7 +12,7 @@ import { GRID_MINUTES, gridClock, gridSlot } from './calendar-layout'
 import { HOLD_MS, HOLD_SLOP, vibrate } from './use-touch-hold'
 import type { SlotChoice } from './week-grid'
 
-export const SLOT_MINUTES = 15
+export const SLOT_MINUTES = 5
 const GRID_SLOTS = GRID_MINUTES / SLOT_MINUTES
 const DRAG_THRESHOLD = 4
 const CLICK_FRAME_MINUTES = 60

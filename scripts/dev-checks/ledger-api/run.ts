@@ -8,6 +8,7 @@ import { sectionLessons } from './lessons.ts'
 import { sectionMarks } from './marks.ts'
 import { sectionMoves } from './moves.ts'
 import { sectionPast } from './past.ts'
+import { sectionRebind } from './rebind.ts'
 import { sectionToday } from './today.ts'
 import type { Context, Api } from './types.ts'
 
@@ -22,6 +23,7 @@ const SECTIONS: Record<string, (ctx: Context) => Promise<string>> = {
 	today: sectionToday,
 	ledger: sectionLedger,
 	lessons: sectionLessons,
+	rebind: sectionRebind,
 	chatends: sectionChatEnds,
 }
 

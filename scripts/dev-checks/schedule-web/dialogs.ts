@@ -64,7 +64,7 @@ export async function dialogFacts(page: Page) {
 			dateLabel: read('new-lesson-date')?.getAttribute('aria-label'),
 			time: read('new-lesson-time')?.textContent?.trim(),
 			length: (element.querySelector<HTMLElement>('#new-lesson-length') as HTMLInputElement | null)?.value,
-			student: read('new-lesson-student')?.textContent?.trim(),
+			student: (read('new-lesson-student') as HTMLInputElement | null)?.value?.trim(),
 			repeats: read('new-lesson-repeats')?.textContent?.trim(),
 			zone: element.querySelector<HTMLElement>('[data-slot="new-lesson-zone"]')?.textContent,
 			repeatNote: element.querySelector<HTMLElement>('[data-slot="new-lesson-repeat-note"]')?.textContent,

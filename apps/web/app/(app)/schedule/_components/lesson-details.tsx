@@ -10,6 +10,7 @@ import { zonedParts } from '@dv-lab/core'
 
 import { LessonComments } from './lesson-comments'
 import type { PairTarget } from './lesson-dialog'
+import { LessonStudentField, type LessonStudent } from './lesson-student-field'
 import { commentsPath } from './schedule-prefetch'
 
 function Detail({ label, wide, children }: { label: string; wide?: boolean; children: ReactNode }) {
@@ -83,6 +84,8 @@ export function LessonDetails({
 	mainTimeZone,
 	secondZone,
 	commentRef,
+	student,
+	studentLocked = false,
 	started = false,
 	now,
 }: {
@@ -91,6 +94,8 @@ export function LessonDetails({
 	mainTimeZone: string
 	secondZone: string | null
 	commentRef?: ScheduleOccurrenceRef
+	student?: LessonStudent
+	studentLocked?: boolean
 	started?: boolean
 	now?: Date
 }) {
@@ -100,6 +105,11 @@ export function LessonDetails({
 	return (
 		<>
 			<dl className="grid gap-4 rounded-xl bg-hover p-4 sm:grid-cols-2">
+				{student !== undefined && commentRef !== undefined ? (
+					<Detail label="Student" wide>
+						<LessonStudentField lessonRef={commentRef} student={student} disabled={studentLocked} />
+					</Detail>
+				) : null}
 				<Detail label="Length">{block.durationMinutes} min</Detail>
 				<Detail label="Repeats">
 					{series === null ? (

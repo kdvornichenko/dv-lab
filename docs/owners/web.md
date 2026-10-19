@@ -18,6 +18,8 @@
 
 ## Общие компоненты
 
+- Выбор ученика (и аккаунта ученика) — только `apps/web/components/app/search-select.tsx` (`SearchSelect`: `Combobox` и `ComboboxInput` из `components/ui/combobox`, поиск по `nameMatches` из core, пустой результат «No students found»). Формы New lesson, Add payment, Assign payment, Link account, Assign события и смены ученика урока берут его; `Select` без поиска для ученика не используется. Приёмка — `scripts/dev-checks/pickers-web.mjs`.
+
 - Страницы 404 и ошибки — `apps/web/components/app/status-pages.tsx`; корневые `not-found.tsx`, `error.tsx` и `global-error.tsx` только вызывают их. Ошибка чтения целого экрана — `apps/web/components/app/read-error.tsx`. Ошибка чтения вкладки профиля — `apps/web/components/app/records-unread.tsx`. Скелетоны — `apps/web/components/ui/skeleton.tsx`.
 - Вид markdown в web — `apps/web/components/app/markdown-view.tsx` (`react-markdown` со `skipHtml`). Превью в одну-две строки — `MarkdownPreview` оттуда же: заголовки жирным, пункты через «•», ссылки текстом, без блоков, ссылок и картинок; на нём превью Overview и тексты заметок и комментариев в предложениях чата.
 - Строки денег, уроков и дат оплат — `apps/web/components/app/ledger-text.tsx` поверх `packages/core`. Остаток и долг — `apps/web/components/app/student-balance.tsx` поверх core.
@@ -44,7 +46,7 @@
 ## Экраны и точки входа
 
 - Экран Today — `apps/web/app/(app)/_components`; минутное `now` — `use-minute-now.ts` (`useMinuteNow`), счётчики — `todayCounts` из core.
-- Settings → General — `apps/web/app/(app)/settings`: порог Pays soon и второй пояс.
+- Settings → General — `apps/web/app/(app)/settings`: основной пояс, второй пояс, пояс новых карточек (`student-zone-card.tsx`, `teacher_settings.student_time_zone`) и порог Pays soon.
 - Панель чата — `apps/web/app/(app)/chat/_components`: `ChatProvider` (`chat-provider.tsx`) держит над страницами один `useChat`, черновик панели, состояние панели (`useChatContext().panel`: `show`, `hide`, `toggle`, клавиша `]`, адрес `/?chat=<id>`) и сигнал закрытого чата (`chat-signals.ts`: `info` и `warning`, просмотр хранится в `localStorage`); `ChatPanel` (`chat-panel.tsx`) — третья область справа в `AppShell`, внутри `ChatScreen` с параметром `panel`; точка сигнала — на строке Chat в `app-sidebar.tsx`; `CalendarCommandProvider` стоит над `AppShell`.
 - Сохранённые команды конструктора в чате — `use-commands.ts` (меню слэша, список нового чата, справка).
 - Представление списка Students — `apps/web/app/(app)/students/_components/students-view.ts`.

@@ -10,6 +10,8 @@ import {
 
 export const SCHEDULE_TIME_ZONE = 'Asia/Ho_Chi_Minh'
 
+export const STUDENT_TIME_ZONE_DEFAULT = 'Europe/Moscow'
+
 export function scheduleDate(instant: Date, timeZone: string): string {
 	return zonedParts(instant, timeZone).date
 }

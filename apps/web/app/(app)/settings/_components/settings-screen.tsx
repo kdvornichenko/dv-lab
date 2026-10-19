@@ -22,6 +22,7 @@ import { CalendarCard } from './calendar-card'
 import { NotificationsCards } from './notifications-card'
 import { PaymentsCard } from './payments-card'
 import { activeTabOf, resolveTab } from './settings-tabs'
+import { StudentZoneCard } from './student-zone-card'
 import { ZoneChangeDialog, type ZoneChangeExample } from './zone-change-dialog'
 
 type LoadState = 'loading' | 'ready' | 'failed'
@@ -97,6 +98,10 @@ function useSettings() {
 		>
 	) {
 		setSettings((current) => (current === null ? null : { ...current, ...fields }))
+	}
+
+	function saveStudentZone(value: string) {
+		setSettings((current) => (current === null ? null : { ...current, studentTimeZone: value }))
 	}
 
 	function refresh() {
@@ -188,7 +193,20 @@ function useSettings() {
 		}
 	}
 
-	return { settings, loadState, candidate, pending, error, saveThreshold, saveNotify, refresh, choose, close, confirm }
+	return {
+		settings,
+		loadState,
+		candidate,
+		pending,
+		error,
+		saveThreshold,
+		saveNotify,
+		saveStudentZone,
+		refresh,
+		choose,
+		close,
+		confirm,
+	}
 }
 
 function useLessonExample(): ZoneChangeExample | null {
@@ -399,6 +417,11 @@ export function SettingsScreen() {
 							mainTimeZone={mainTimeZone}
 							now={now}
 							disabled={state.pending || state.loadState !== 'ready'}
+						/>
+						<StudentZoneCard
+							value={state.settings?.studentTimeZone ?? null}
+							now={now}
+							onSaved={state.saveStudentZone}
 						/>
 						<PaymentsCard value={state.settings?.paysSoonLessons ?? null} onSaved={state.saveThreshold} />
 						<NotificationsCards settings={state.settings} onSaved={state.saveNotify} />

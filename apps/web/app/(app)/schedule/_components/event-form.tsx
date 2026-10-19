@@ -254,7 +254,7 @@ export function TimeRows({
 						aria-describedby={`${prefix}-time-note ${prefix}-time-dst`}
 						value={time}
 						onValueChange={fields.setTime}
-						minuteStep={15}
+						minuteStep={5}
 						hourCycle={24}
 						disabled={pending}
 						invalid={Boolean(fields.shown('time'))}
@@ -273,7 +273,7 @@ export function TimeRows({
 						aria-describedby={`${prefix}-end-note`}
 						value={fields.end}
 						onValueChange={fields.chooseEnd}
-						minuteStep={15}
+						minuteStep={5}
 						hourCycle={24}
 						disabled={pending || time === null}
 						className="w-full"

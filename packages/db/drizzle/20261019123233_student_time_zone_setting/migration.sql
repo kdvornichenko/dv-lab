@@ -1,0 +1,1 @@
+ALTER TABLE "teacher_settings" ADD COLUMN "student_time_zone" text DEFAULT 'Europe/Moscow' NOT NULL;

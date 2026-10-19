@@ -2,9 +2,9 @@
 
 import { useEffect, useRef, useState } from 'react'
 
+import { SearchSelect } from '@/components/app/search-select'
 import { Banner, BannerTitle } from '@/components/ui/banner'
 import { Button } from '@/components/ui/button'
-import { Select, SelectContent, SelectItem, SelectTrigger } from '@/components/ui/select'
 import { apiRequest } from '@/lib/api-client'
 
 import type { StudentDetail, StudentResponse, StudentRow, StudentsResponse } from '@dv-lab/contracts'
@@ -42,6 +42,7 @@ export function PaymentStudentPicker({ disabled, onChoose }: PaymentStudentPicke
 		setStudentId(value)
 		setFailed(false)
 		onChoose(null)
+		if (value === '') return
 		const id = ++requests.current
 		const result = await apiRequest<StudentResponse>('GET', `/students/${encodeURIComponent(value)}`)
 		if (id !== requests.current) return
@@ -53,27 +54,24 @@ export function PaymentStudentPicker({ disabled, onChoose }: PaymentStudentPicke
 	}
 
 	const rows = state.kind === 'ready' ? state.rows : []
+	const options = rows.map((row) => ({ value: row.id, label: row.displayName }))
 	const blocked = state.kind !== 'ready' || rows.length === 0
 	return (
 		<div className="flex min-w-0 flex-col gap-2">
 			<label htmlFor="record-payment-student" className="text-body text-muted-foreground">
 				Student
 			</label>
-			<Select value={studentId} onValueChange={(value) => void choose(value)} disabled={disabled || blocked}>
-				<SelectTrigger
-					id="record-payment-student"
-					className="w-full min-w-0"
-					placeholder={state.kind === 'loading' ? 'Loading students…' : 'Choose a student'}
-					autoFocus
-				/>
-				<SelectContent>
-					{rows.map((row, index) => (
-						<SelectItem key={row.id} index={index} value={row.id}>
-							{row.displayName}
-						</SelectItem>
-					))}
-				</SelectContent>
-			</Select>
+			<SearchSelect
+				id="record-payment-student"
+				options={options}
+				value={studentId}
+				onChange={(value) => void choose(value)}
+				placeholder={state.kind === 'loading' ? 'Loading students…' : 'Choose a student'}
+				emptyTitle="No students found"
+				emptyHint="Try a part of the name."
+				disabled={disabled || blocked}
+				autoFocus
+			/>
 			{state.kind === 'error' ? (
 				<Banner status="error">
 					<BannerTitle>Could not load students. Close this dialog and try again.</BannerTitle>

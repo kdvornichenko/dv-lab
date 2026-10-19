@@ -105,6 +105,18 @@ export async function reserveReplacement(executor: DbExecutor, command: Prepared
 	})
 }
 
+export async function rebindMappingStudent(
+	executor: DbExecutor,
+	accountId: string,
+	localEntityId: string,
+	studentId: string
+) {
+	await executor
+		.update(googleEventMappings)
+		.set({ studentId })
+		.where(and(eq(googleEventMappings.accountId, accountId), eq(googleEventMappings.localEntityId, localEntityId)))
+}
+
 export type MappingSnapshot = Awaited<ReturnType<typeof loadMappings>>
 
 export async function confirmOccurrenceMapping(executor: DbExecutor, command: PreparedCalendarCommand) {

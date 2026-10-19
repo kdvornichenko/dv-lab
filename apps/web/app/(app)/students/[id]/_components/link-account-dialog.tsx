@@ -2,6 +2,7 @@
 
 import { useEffect, useRef, useState, type FormEvent } from 'react'
 
+import { SearchSelect } from '@/components/app/search-select'
 import { Banner, BannerTitle } from '@/components/ui/banner'
 import { Button } from '@/components/ui/button'
 import {
@@ -12,7 +13,6 @@ import {
 	DialogHeader,
 	DialogTitle,
 } from '@/components/ui/dialog'
-import { Select, SelectContent, SelectItem, SelectTrigger } from '@/components/ui/select'
 import { apiRequest } from '@/lib/api-client'
 
 import type { AccountCandidatesResponse, StudentAccount, StudentAccountResponse } from '@dv-lab/contracts'
@@ -48,7 +48,7 @@ export function LinkAccountDialog({ studentId, name, onClose, onLinked, onConfli
 	const [submitted, setSubmitted] = useState(false)
 	const [failure, setFailure] = useState<Failure | null>(null)
 	const [pending, setPending] = useState(false)
-	const triggerRef = useRef<HTMLButtonElement>(null)
+	const triggerRef = useRef<HTMLInputElement>(null)
 
 	async function refreshCandidates() {
 		const list = await readCandidates(studentId)
@@ -126,27 +126,23 @@ export function LinkAccountDialog({ studentId, name, onClose, onLinked, onConfli
 							<label htmlFor="link-account-select" className="text-body text-muted-foreground">
 								Account
 							</label>
-							<Select
+							<SearchSelect
+								ref={triggerRef}
+								id="link-account-select"
+								options={(candidates ?? []).map((account) => ({
+									value: account.id,
+									label: account.displayName,
+									detail: account.login,
+								}))}
 								value={accountId}
-								onValueChange={(value) => setAccountId(value)}
+								onChange={setAccountId}
+								placeholder={loading ? 'Loading accounts…' : 'Choose an account'}
+								emptyTitle="No accounts found"
+								emptyHint="Try a name or a login."
 								disabled={pending || loading || empty}
-							>
-								<SelectTrigger
-									ref={triggerRef}
-									id="link-account-select"
-									className="w-full min-w-0"
-									placeholder={loading ? 'Loading accounts…' : 'Choose an account'}
-									autoFocus
-									error={error}
-								/>
-								<SelectContent>
-									{(candidates ?? []).map((account, index) => (
-										<SelectItem key={account.id} index={index} value={account.id}>
-											{account.displayName} · {account.login}
-										</SelectItem>
-									))}
-								</SelectContent>
-							</Select>
+								error={error}
+								autoFocus
+							/>
 							{empty && !loadFailed ? (
 								<p className="text-caption text-muted-foreground">No unlinked student accounts.</p>
 							) : null}

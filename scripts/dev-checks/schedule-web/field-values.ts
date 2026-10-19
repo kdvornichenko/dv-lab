@@ -26,7 +26,7 @@ export async function fieldValues(page: Page, fx: Awaited<ReturnType<typeof form
 	)
 	const date = await valueFacts(page, '#new-lesson-date', '[data-slot="date-field-value"]')
 	check('new lesson: the date value is whole, 20px line, not clipped', valueClear(date), JSON.stringify(date))
-	const student = await valueFacts(page, '#new-lesson-student', 'span[class*="truncate"]')
+	const student = await valueFacts(page, '#new-lesson-student')
 	check(
 		'new lesson: the Select value is whole, 20px line, not clipped',
 		student.text === FORMS_D && valueClear(student),

@@ -3,6 +3,7 @@ import { Hono } from 'hono'
 import { z } from 'zod'
 
 import {
+	type ChangeLessonStudentResponse,
 	type LessonCommentResponse,
 	type LessonCommentsResponse,
 	type ScheduleMarkResponse,
@@ -10,6 +11,7 @@ import {
 	moveCalendarLessonRequest,
 	calendarLessonActionRequest,
 	calendarIssue,
+	changeLessonStudentRequest,
 	eventTitlesQuery,
 	moveCalendarSeriesRequest,
 	endCalendarSeriesRequest,
@@ -33,6 +35,7 @@ import { errorBody } from '../request-context.ts'
 import type { ChangeFailure } from '../schedule/changes.ts'
 import { listLessonComments, retractLessonComment } from '../schedule/comments.ts'
 import { markLesson, markOccurrence } from '../schedule/marks.ts'
+import { type StudentChangeResult, type StudentTarget, changeLessonStudent } from '../schedule/student.ts'
 import { readTeacherSettings } from '../settings/settings.ts'
 
 type ScheduleRouteDeps = { db: Database; calendarCommands?: CalendarCommands; eventTitles?: EventTitles }
@@ -68,6 +71,19 @@ function refused(c: Context<AppEnv, string>, failure: ChangeFailure) {
 				errorBody(failure.kind, 'This time does not exist in the selected time zone. Choose another time.'),
 				400
 			)
+	}
+}
+
+function studentRefusal(c: Context<AppEnv>, result: Exclude<StudentChangeResult, { kind: 'ok' }>) {
+	switch (result.kind) {
+		case 'not_found':
+			return notFound(c)
+		case 'invalid':
+			return invalidRequest(c)
+		case 'changed':
+			return lessonChanged(c)
+		case 'command_pending':
+			return c.json(errorBody('command_pending', 'Calendar command is pending'), 409)
 	}
 }
 
@@ -252,6 +268,28 @@ export function scheduleRoutes({ db, calendarCommands, eventTitles }: ScheduleRo
 		const result = await markLesson(db, c.get('session').account.id, id, input, new Date())
 		if (result.kind !== 'ok') return refused(c, result)
 		return c.json({ mark: result.mark } satisfies ScheduleMarkResponse, 200)
+	})
+
+	async function changeStudent(c: Context<AppEnv>, target: StudentTarget | null) {
+		if (target === null) return notFound(c)
+		const input = await readJson(c, changeLessonStudentRequest)
+		if (!input) return invalidRequest(c)
+		const result = await changeLessonStudent(db, c.get('session').account.id, target, input)
+		if (result.kind !== 'ok') return studentRefusal(c, result)
+		return c.json(
+			{ studentId: result.studentId, studentName: result.studentName } satisfies ChangeLessonStudentResponse,
+			200
+		)
+	}
+
+	routes.post('/series/:id/student', (c) => {
+		const seriesId = idParam(c)
+		return changeStudent(c, seriesId === null ? null : { kind: 'series', seriesId })
+	})
+
+	routes.post('/lessons/:id/student', (c) => {
+		const lessonId = idParam(c)
+		return changeStudent(c, lessonId === null ? null : { kind: 'single', lessonId })
 	})
 
 	routes.get('/lessons/:id/comments', async (c) => {

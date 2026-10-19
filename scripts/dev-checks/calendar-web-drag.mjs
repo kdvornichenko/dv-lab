@@ -624,7 +624,7 @@ async function suite(viewport, monday, ids) {
 
 		await reveal(page, 12)
 		const shortChip = await resizeBlock(page, 'Synthetic event 15', -400, { release: false })
-		check(`${tag} a resize cannot go below start plus 15 minutes`, shortChip === '11:00–11:15', String(shortChip))
+		check(`${tag} a resize cannot go below start plus 5 minutes`, shortChip === '11:00–11:05', String(shortChip))
 		await page.keyboard.press('Escape')
 		await page.mouse.up()
 		await page.waitForTimeout(400)
@@ -710,9 +710,8 @@ async function suite(viewport, monday, ids) {
 			`${tag} the dismissed event offers the manual Assign row`,
 			(await ignoreDialog.getByText('Not a lesson').count()) === 1
 		)
-		await ignoreDialog.getByRole('button', { name: 'Assign…' }).click()
-		await page.getByPlaceholder('Search students').waitFor({ timeout: 10000 })
-		await page.getByPlaceholder('Search students').fill('0002')
+		await page.getByPlaceholder('Assign to a student').waitFor({ timeout: 10000 })
+		await page.getByPlaceholder('Assign to a student').fill('0002')
 		await page.waitForTimeout(400)
 		const options = await page.getByRole('option').allInnerTexts()
 		check(

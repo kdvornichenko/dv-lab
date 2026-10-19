@@ -1,12 +1,9 @@
 'use client'
 
-import { useState } from 'react'
-
 import { RefreshCw, UserRound } from 'lucide-react'
 
+import { SearchSelect } from '@/components/app/search-select'
 import { Button } from '@/components/ui/button'
-import { Input } from '@/components/ui/input'
-import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover'
 import { cn } from '@/lib/utils'
 
 import type { CalendarEventSuggestion } from '@dv-lab/contracts'
@@ -118,77 +115,47 @@ export function ManualAssign({
 	disabled: boolean
 	onPick: (studentId: string) => void
 }) {
-	const [open, setOpen] = useState(false)
-	const [query, setQuery] = useState('')
-	const needle = query.trim().toLowerCase()
-	const rows =
+	const options =
 		students.kind === 'ready'
 			? students.rows
 					.toSorted((left, right) => nameCollator.compare(left.displayName, right.displayName))
-					.filter((row) => needle === '' || row.displayName.toLowerCase().includes(needle))
+					.map((row) => ({ value: row.id, label: row.displayName }))
 			: []
 	const assigning = busy?.kind === 'assign' ? busy.studentId : null
-	const empty =
-		students.kind === 'loading'
-			? 'Loading students…'
-			: students.kind === 'error'
-				? 'Could not load students.'
-				: rows.length === 0
-					? 'No students found.'
-					: null
+	const placeholder =
+		assigning !== null
+			? 'Assigning…'
+			: students.kind === 'loading'
+				? 'Loading students…'
+				: students.kind === 'error'
+					? 'Could not load students.'
+					: 'Assign to a student'
 	return (
-		<div data-slot="event-manual-assign" className="flex items-center gap-3">
-			<UserRound size={16} aria-hidden className="shrink-0 text-muted-foreground" />
-			<span className="min-w-0 flex-1 text-body text-muted-foreground">Not a lesson</span>
-			<Popover
-				open={open}
-				onOpenChange={(next) => {
-					if (assigning === null) setOpen(next)
-					if (!next) setQuery('')
-				}}
-			>
-				<PopoverTrigger render={<Button type="button" variant="secondary" size="compact" disabled={disabled} />}>
-					Assign…
-				</PopoverTrigger>
-				<PopoverContent align="end" className="w-[260px] gap-2 p-2">
-					<Input
-						value={query}
-						onChange={(event) => setQuery(event.target.value)}
-						placeholder="Search students"
-						aria-label="Search students"
-						autoComplete="off"
-						autoFocus
+		<div data-slot="event-manual-assign" className="flex flex-col gap-2">
+			<div className="flex items-center gap-3">
+				<UserRound size={16} aria-hidden className="shrink-0 text-muted-foreground" />
+				<span className="min-w-0 flex-1 text-body text-muted-foreground">Not a lesson</span>
+				<div className="w-[220px] max-w-[60%]">
+					<SearchSelect
+						id="event-assign-student"
+						options={options}
+						value=""
+						onChange={(value) => {
+							if (value !== '') onPick(value)
+						}}
+						placeholder={placeholder}
+						emptyTitle="No students found"
+						emptyHint="Try a part of the name."
+						disabled={disabled || assigning !== null || students.kind !== 'ready'}
 					/>
-					<ul role="listbox" aria-label="Students" className="scroll-fade flex max-h-56 flex-col overflow-y-auto">
-						{rows.map((row) => (
-							<li key={row.id} role="presentation">
-								<button
-									type="button"
-									role="option"
-									aria-selected={assigning === row.id}
-									disabled={assigning !== null}
-									onClick={() => onPick(row.id)}
-									className={cn(
-										'flex h-8 w-full cursor-pointer items-center justify-between gap-2 rounded-md px-2 text-left text-body outline-none',
-										'hover:bg-hover focus-visible:ring-2 focus-visible:ring-focus-ring',
-										assigning !== null && assigning !== row.id && 'opacity-50'
-									)}
-								>
-									<span className="min-w-0 flex-1 truncate">{row.displayName}</span>
-									{assigning === row.id ? <span className="text-caption text-muted-foreground">Assigning…</span> : null}
-								</button>
-							</li>
-						))}
-						{empty !== null ? <li className="px-2 py-1 text-caption text-muted-foreground">{empty}</li> : null}
-					</ul>
-					<p
-						role={failure === 'assign' ? 'alert' : undefined}
-						className={cn('text-caption', failure === 'assign' ? 'text-destructive' : 'text-muted-foreground')}
-					>
-						{failure === 'assign' ? ASSIGN_FAILURE : scopeCaption(seriesMember)}
-					</p>
-				</PopoverContent>
-			</Popover>
+				</div>
+			</div>
+			<p
+				role={failure === 'assign' ? 'alert' : undefined}
+				className={cn('pl-7 text-caption', failure === 'assign' ? 'text-destructive' : 'text-muted-foreground')}
+			>
+				{failure === 'assign' ? ASSIGN_FAILURE : scopeCaption(seriesMember)}
+			</p>
 		</div>
 	)
 }

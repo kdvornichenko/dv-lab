@@ -373,6 +373,15 @@ function LessonContent({
 							mainTimeZone={mainTimeZone}
 							secondZone={secondZone}
 							commentRef={event.binding.ref}
+							student={{
+								id: event.binding.studentId,
+								name: title,
+								onChanged: () => {
+									onRefresh()
+									onClose()
+								},
+							}}
+							studentLocked={busy}
 							started={startedLesson(event, now)}
 							now={now}
 						/>

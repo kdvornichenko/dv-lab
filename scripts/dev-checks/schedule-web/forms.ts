@@ -134,7 +134,7 @@ export async function valueFacts(page: Page, selector: string, valueSelector?: s
 			const rect = node!.getBoundingClientRect()
 			const wrapper = node!.closest<HTMLElement>('span[class*="text-box"]')
 			return {
-				text: node!.textContent?.trim() ?? '',
+				text: (node instanceof HTMLInputElement ? node.value : node!.textContent)?.trim() ?? '',
 				lineHeight: style.lineHeight,
 				overflow: `${style.overflowX}/${style.overflowY}`,
 				height: Math.round(rect.height * 100) / 100,
