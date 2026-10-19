@@ -1,10 +1,9 @@
 name: dv-lab
 
 x-logging: &logging
-  driver: local
+  driver: journald
   options:
-    max-size: '10m'
-    max-file: '3'
+    tag: '{{.Name}}'
 
 services:
   caddy:
