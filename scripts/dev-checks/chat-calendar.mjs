@@ -407,6 +407,8 @@ async function createLesson(pipeline, fx, student, instant) {
 	}
 }
 
+const EARLIEST_LESSON_MS = 145 * 60000
+
 async function createSeries(pipeline, fx, student, instant) {
 	const parts = core.zonedParts(instant, fx.zone)
 	await run(pipeline, fx, {
@@ -1020,6 +1022,11 @@ where c.state not in ('applied', 'failed') and g.calendar_id not like '${SYNTHET
 		calendarToday: core.scheduleToday(new Date(), zone),
 		target: { accountId: connection.account_id, connectionId: connection.id, calendarId: connection.calendar_id },
 	})
+	const startedAgo = Date.now() - core.startOfLessonDay(fx.today, zone).getTime()
+	if (startedAgo < EARLIEST_LESSON_MS)
+		throw new Error(
+			`the lesson day started less than ${EARLIEST_LESSON_MS / 60000} minutes ago: the fixture lessons of today would fall into the previous lesson day, run after ${core.zonedParts(new Date(core.startOfLessonDay(fx.today, zone).getTime() + EARLIEST_LESSON_MS), zone).time}`
+		)
 	const ids = {
 		a: card(1),
 		b: card(2),
