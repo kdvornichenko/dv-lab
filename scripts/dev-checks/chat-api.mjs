@@ -5,6 +5,7 @@ import { createRequire } from 'node:module'
 import { isDeepStrictEqual, parseEnv } from 'node:util'
 
 import {
+	CHAT_SETTINGS_DEFAULT,
 	CHAT_FOLLOW_UP_TEXT,
 	CHAT_PROMPT_MAX_LENGTH,
 	commandLimitsResponse,
@@ -1959,7 +1960,12 @@ async function sectionBudget(ctx) {
 	const reserve = (conversationId, choice, now = new Date(), executor = db) =>
 		executor.transaction((tx) => budget.reserveAttempt(tx, accountId, conversationId, choice, now))
 	try {
-		await saveAssistantSettings(db, accountId, { models: null, model: null, effort: null, monthlyCapUsd: '10.00' })
+		await saveAssistantSettings(db, accountId, {
+			models: null,
+			model: null,
+			effort: null,
+			monthlyCapUsd: CHAT_SETTINGS_DEFAULT.monthlyCapUsd,
+		})
 		const defaults = await readAssistantSettings(db, accountId)
 		check(
 			'the default monthly cap is $10 and reads as 10 dollars in nano',
@@ -2363,7 +2369,7 @@ async function sectionModels(ctx) {
 			models: null,
 			model: null,
 			effort: null,
-			monthlyCapUsd: '10.00',
+			monthlyCapUsd: CHAT_SETTINGS_DEFAULT.monthlyCapUsd,
 		})
 		check('the settings start from the defaults', reset.status === 200 && reset.json.settings.model === null)
 		const capabilities = async () => (await as('GET', '/settings/assistant')).json.capabilities
@@ -2670,7 +2676,8 @@ async function sectionDelete(ctx) {
 		const track = (id) => ctx.conversations.push(id)
 		console.log(`fixture conversations removed ${removeChats('true')}`)
 		console.log(`fixture budget periods removed ${clearBudget()}`)
-		await as('PATCH', '/settings/assistant', { monthlyCapUsd: '10.00' })
+		const capped = await as('PATCH', '/settings/assistant', { monthlyCapUsd: CHAT_SETTINGS_DEFAULT.monthlyCapUsd })
+		if (capped.status !== 200) throw new Error(`the default cap was not saved: ${capped.status}`)
 		const zone = sql(
 			`select coalesce((select default_time_zone from teacher_settings where account_id = ${quote(accountId)}), ${quote(VN)}) as zone`
 		).rows[0].zone
@@ -3081,7 +3088,12 @@ async function sectionTitle(ctx) {
 		const as = (method, path, body) => send(fake, method, path, { cookie, body })
 		console.log(`fixture conversations removed ${removeChats('true')}`)
 		console.log(`fixture budget periods removed ${clearBudget()}`)
-		await as('PATCH', '/settings/assistant', { models: null, model: null, effort: null, monthlyCapUsd: '10.00' })
+		await as('PATCH', '/settings/assistant', {
+			models: null,
+			model: null,
+			effort: null,
+			monthlyCapUsd: CHAT_SETTINGS_DEFAULT.monthlyCapUsd,
+		})
 		const name = 'Alex Example 2209 Title'
 		const card = await createCard(ctx, name)
 		const fresh = async () => {
@@ -3360,7 +3372,12 @@ async function sectionPrompts(ctx) {
 		const cookie = await teacherCookie(local)
 		const as = (method, path, body) => send(local, method, path, { cookie, body })
 		console.log(`fixture prompts removed ${clearPrompts()}`)
-		await as('PATCH', '/settings/assistant', { models: null, model: null, effort: null, monthlyCapUsd: '10.00' })
+		await as('PATCH', '/settings/assistant', {
+			models: null,
+			model: null,
+			effort: null,
+			monthlyCapUsd: CHAT_SETTINGS_DEFAULT.monthlyCapUsd,
+		})
 		const name = 'Alex Example 2205 Prompts'
 		const card = await createCard(ctx, name)
 		const binding = { studentId: card, text: name, start: 8, end: 8 + name.length }
@@ -3815,7 +3832,12 @@ async function sectionCommandTurn(ctx) {
 		const cookie = await teacherCookie(local)
 		const as = (method, path, body) => send(local, method, path, { cookie, body })
 		console.log(`fixture commands removed ${clearCommands()}`)
-		await as('PATCH', '/settings/assistant', { models: null, model: null, effort: null, monthlyCapUsd: '10.00' })
+		await as('PATCH', '/settings/assistant', {
+			models: null,
+			model: null,
+			effort: null,
+			monthlyCapUsd: CHAT_SETTINGS_DEFAULT.monthlyCapUsd,
+		})
 		const name = 'Alex Example 2206 Command'
 		const card = await createCard(ctx, name)
 		const binding = { studentId: card, text: name, start: 11, end: 11 + name.length }
