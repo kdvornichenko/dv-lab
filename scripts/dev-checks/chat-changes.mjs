@@ -1837,6 +1837,12 @@ async function essay() {
 	)
 }
 
+const WATCHDOG_MS = 10 * 60 * 1000
+setTimeout(() => {
+	console.log(`FAIL changes ${section} did not finish in ${WATCHDOG_MS / 60000} minutes`)
+	process.exit(1)
+}, WATCHDOG_MS).unref()
+
 let done = false
 try {
 	cookie = await teacherCookie(api)
