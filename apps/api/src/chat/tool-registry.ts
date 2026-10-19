@@ -57,7 +57,7 @@ const READ_ONLY: ReadonlySet<ToolEffect> = new Set(['read', 'show', 'feedback'])
 const SOURCE_MESSAGE = {
 	type: 'string',
 	description:
-		'The id from the [Message …] line of the teacher message where the teacher wrote the values copied into this call, such as m1a2b3c4d: the current message or an earlier one in this chat.',
+		'The id from the [Message …] line of the teacher message where the teacher wrote the main value of this call (for a payment, the amount), such as m1a2b3c4d. It may be an earlier message in this chat: the current message is always checked too, so when the current message only corrects a waiting proposal ("3 lessons", "the 16th"), keep the id of the message with the amount.',
 }
 
 const sourceMessage = z.string().min(1).max(20)
