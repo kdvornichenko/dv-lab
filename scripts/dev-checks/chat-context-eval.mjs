@@ -3,8 +3,9 @@ import { existsSync, readFileSync, writeFileSync } from 'node:fs'
 import { createRequire } from 'node:module'
 import { parseEnv } from 'node:util'
 
+import { lastMarker } from '../../apps/api/src/chat/refs.ts'
 import * as core from '../../packages/core/src/index.ts'
-import { ENV_TEST, ROOT, STATE_DIR, call, quote, sql, teacherCookie } from './api.mjs'
+import { ENV_TEST, ROOT, STATE_DIR, call, quote, requestText, sql, teacherCookie } from './api.mjs'
 import { removeCards } from './ledger-api/context.ts'
 
 const { createDb } = await import(`${ROOT}/packages/db/src/index.ts`)
@@ -230,19 +231,18 @@ function mentionsOf(text, people) {
 	return found
 }
 
-function plain(content) {
-	if (typeof content === 'string') return content
-	return content.map((part) => (part.type === 'text' ? part.text : '')).join('\n')
-}
-
 function toolUsesFor(text, names) {
-	const marker = new RegExp(`\\[Message[^\\]]*\\]\\n${text.replace(/[.*+?^${}()|[\]\\]/gu, '\\$&')}(\\n|$)`, 'u')
 	const own = captured.filter((entry) => {
 		const last = entry.request.messages.findLast(
 			(message) =>
 				message.role === 'user' && !(Array.isArray(message.content) && message.content[0]?.type === 'tool_result')
 		)
-		if (last === undefined || !marker.test(plain(last.content))) return false
+		if (last === undefined) return false
+		const asked = requestText(last.content)
+		const marker = lastMarker(asked)
+		if (marker === null) return false
+		const body = asked.slice(asked.indexOf('\n', marker.index) + 1)
+		if (body !== text && !body.startsWith(`${text}\n`)) return false
 		const all = JSON.stringify(entry.request.messages)
 		return names.some((name) => all.includes(name))
 	})
@@ -727,6 +727,10 @@ try {
 	server.close()
 	if (ownConversations.length > 0) removeChats(`id in (${ownConversations.map(quote).join(', ')})`)
 	if (ownCards.length > 0) removeCards(`id in (${ownCards.map(quote).join(', ')}) and import_key is null`)
+	if (accountId)
+		sql(
+			`delete from chat_budget_periods where account_id = ${quote(accountId)} and id not in (select period_id from chat_usage_attempts)`
+		)
 	if (original && accountId)
 		await saveAssistantSettings(db, accountId, {
 			monthlyCapUsd: original.cap,

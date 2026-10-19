@@ -1,5 +1,8 @@
 import { registerHooks } from 'node:module'
 
+import { lastMarker } from '../../apps/api/src/chat/refs.ts'
+import { requestText } from './api.mjs'
+
 const FAKE_EVENT_TITLES = `
 const EVENTS = [
 	{ day: '2026-06-03', title: 'Екатерина', time: '18:00', durationMinutes: 60 },
@@ -64,17 +67,11 @@ function toolResultText(body) {
 }
 
 function messageAt(content) {
-	const all = [...content.matchAll(/\[Message( m[0-9a-f]{8})?\]/gu)]
-	return all.at(-1)?.index ?? -1
+	return lastMarker(content)?.index ?? -1
 }
 
 function sourceOf(content) {
-	return [...content.matchAll(/\[Message (m[0-9a-f]{8})\]/gu)].at(-1)?.[1] ?? 'm00000000'
-}
-
-function textOf(content) {
-	if (typeof content === 'string') return content
-	return content.map((part) => (part.type === 'text' ? part.text : '')).join('\n')
+	return lastMarker(content)?.ref ?? 'm00000000'
 }
 
 function proposalPlan(marker, content, continued, body) {
@@ -285,7 +282,7 @@ function plan(body) {
 				message.role === 'user' &&
 				(typeof message.content === 'string' || !message.content.some((part) => part.type === 'tool_result'))
 		)
-		.map((message) => ({ ...message, content: textOf(message.content) }))
+		.map((message) => ({ ...message, content: requestText(message.content) }))
 	const marker = /\[fake:([a-z-]+)\]/.exec(asked.at(-1)?.content ?? '')?.[1] ?? 'answer'
 	const last = body.messages.at(-1)
 	const continued = Array.isArray(last?.content) && last.content.some((part) => part.type === 'tool_result')

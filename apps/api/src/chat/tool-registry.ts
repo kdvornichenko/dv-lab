@@ -42,22 +42,43 @@ export type ChatToolEntry = {
 	effect: ToolEffect
 	step: ToolStep | null
 	review?: boolean
+	cites?: boolean
 	run: (context: ToolContext, input: unknown) => Promise<ToolOutcome>
 }
 
-type ChatToolSpec<Input extends z.ZodType> = Omit<ChatToolEntry, 'input' | 'optional' | 'run'> & {
+type ChatToolSpec<Input extends z.ZodObject> = Omit<ChatToolEntry, 'input' | 'optional' | 'run'> & {
 	input: Input
 	optional?: readonly string[]
-	run: (context: ToolContext, input: z.output<Input>) => Promise<ToolOutcome>
+	run: (context: ToolContext, input: z.output<Input>, source: string | null) => Promise<ToolOutcome>
 }
 
 const READ_ONLY: ReadonlySet<ToolEffect> = new Set(['read', 'show', 'feedback'])
 
-export function chatTool<Input extends z.ZodType>(spec: ChatToolSpec<Input>): ChatToolEntry {
+const SOURCE_MESSAGE = {
+	type: 'string',
+	description:
+		'The id from the [Message …] line of the teacher message where the teacher wrote the values copied into this call, such as m1a2b3c4d: the current message or an earlier one in this chat.',
+}
+
+const sourceMessage = z.string().min(1).max(20)
+
+export function chatTool<Input extends z.ZodObject>(spec: ChatToolSpec<Input>): ChatToolEntry {
+	if (spec.cites !== true)
+		return {
+			...spec,
+			optional: spec.optional ?? [],
+			run: (context, input) => spec.run(context, spec.input.parse(input), null),
+		}
+	const input = spec.input.extend({ source_message: sourceMessage })
 	return {
 		...spec,
+		input,
+		properties: { ...spec.properties, source_message: SOURCE_MESSAGE },
 		optional: spec.optional ?? [],
-		run: (context, input) => spec.run(context, spec.input.parse(input)),
+		run: (context, raw) => {
+			const { source_message: source, ...rest } = input.parse(raw)
+			return spec.run(context, spec.input.parse(rest), typeof source === 'string' ? source : null)
+		},
 	}
 }
 

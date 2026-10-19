@@ -56,6 +56,7 @@ import {
 } from './change-deletions.ts'
 import { applyNoteChange, noteTargets } from './change-notes.ts'
 import { blocksOf, changeView, insertAction, noteChangeView, repliesOf, reviewOfferView } from './messages.ts'
+import { messagePrefix, proposalPrefix } from './refs.ts'
 
 type PaymentRequest = {
 	operation: 'record_payment'
@@ -159,13 +160,6 @@ function saidIn(message: string): Said {
 	}
 }
 
-const MESSAGE_REF = /^m?([0-9a-f]{8})$/u
-const PROPOSAL_REF = /^p?([0-9a-f]{8})$/u
-
-export const messageRef = (id: string) => `m${id.slice(0, 8)}`
-
-export const proposalRef = (id: string) => `p${id.slice(0, 8)}`
-
 async function teacherText(
 	executor: DbExecutor,
 	accountId: string,
@@ -185,8 +179,8 @@ async function teacherText(
 		)
 	if (!current) return null
 	if (sourceMessage === null) return current.body
-	const ref = MESSAGE_REF.exec(sourceMessage.trim().toLowerCase())?.[1]
-	if (ref === undefined) return null
+	const ref = messagePrefix(sourceMessage)
+	if (ref === null) return null
 	const [cited] = await executor
 		.select({ body: chatMessages.body })
 		.from(chatMessages)
@@ -205,25 +199,37 @@ async function teacherText(
 	return cited.body === current.body ? current.body : `${cited.body}\n${current.body}`
 }
 
-type Replaceable = { operation: string; studentId: string | null }
+type StoredTarget = z.infer<typeof storedTarget>
 
-function replaceable(target: unknown): Replaceable | null {
-	if (typeof target !== 'object' || target === null) return null
-	const operation: unknown = Reflect.get(target, 'operation')
-	const studentId: unknown = Reflect.get(target, 'studentId')
-	if (typeof operation !== 'string') return null
-	return { operation, studentId: typeof studentId === 'string' ? studentId : null }
+function corrects(next: StoredTarget, old: StoredTarget): boolean {
+	switch (next.operation) {
+		case 'record_payment':
+			return old.operation === 'record_payment' && old.studentId === next.studentId
+		case 'set_rate':
+			return old.operation === 'set_rate' && old.studentId === next.studentId
+		case 'set_details':
+			return old.operation === 'set_details' && old.studentId === next.studentId
+		case 'archive_card':
+			return old.operation === 'archive_card' && old.studentId === next.studentId
+		case 'delete_payment':
+			return old.operation === 'delete_payment' && old.paymentId === next.paymentId
+		case 'remove_note':
+			return old.operation === 'remove_note' && old.noteId === next.noteId
+		case 'remove_comment':
+			return old.operation === 'remove_comment' && old.commentId === next.commentId
+		default:
+			return false
+	}
 }
 
 async function supersede(
 	tx: DbExecutor,
 	context: ChatContext,
 	source: ActionSource,
-	target: Replaceable,
+	next: StoredTarget,
 	replaces: string | null
 ): Promise<void> {
-	if (target.operation === 'bulk_move') return
-	const named = replaces === null ? undefined : PROPOSAL_REF.exec(replaces.trim().toLowerCase())?.[1]
+	const named = replaces === null ? null : proposalPrefix(replaces)
 	const waiting = await tx
 		.select({ id: chatActions.id, target: chatActions.target })
 		.from(chatActions)
@@ -238,11 +244,10 @@ async function supersede(
 		)
 		.for('update')
 	for (const row of waiting) {
-		const old = replaceable(row.target)
-		if (old === null || old.operation !== target.operation) continue
-		const same = target.studentId !== null && old.studentId === target.studentId
-		if (same || (named !== undefined && row.id.startsWith(named)))
-			await settle(tx, row.id, 'refused', { kind: 'stale', issue: 'replaced' })
+		const old = storedTarget.safeParse(row.target)
+		if (!old.success) continue
+		const replacing = named !== null && row.id.startsWith(named) && old.data.operation === next.operation
+		if (replacing || corrects(next, old.data)) await settle(tx, row.id, 'refused', { kind: 'stale', issue: 'replaced' })
 	}
 }
 
@@ -388,8 +393,8 @@ async function stage(
 	preview: Preview
 ): Promise<ProposeOutcome> {
 	if (preview.kind === 'refused') return refused(preview.code)
-	const target = replaceable(preview.target)
-	if (target !== null) await supersede(tx, context, source, target, null)
+	const target = storedTarget.safeParse(preview.target)
+	if (target.success) await supersede(tx, context, source, target.data, null)
 	const actionId = await insertAction(tx, {
 		accountId: context.accountId,
 		...source,

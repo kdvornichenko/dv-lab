@@ -7,6 +7,7 @@ import { z } from 'zod'
 import {
 	type ChatActionLinkBlock,
 	type ChatBlock,
+	type ChatCalendarProposalBlock,
 	type ChatChangeProposalBlock,
 	type ChatExcerptBlock,
 	type ChatMessage,
@@ -24,7 +25,7 @@ import {
 	type StoredCommand,
 	chatEffort,
 } from '@dv-lab/contracts'
-import { lessonDay, zonedParts } from '@dv-lab/core'
+import { formatHundredths, lessonDay, minorToInput, zonedParts } from '@dv-lab/core'
 import {
 	type Database,
 	type DbExecutor,
@@ -44,7 +45,6 @@ import type { AssistantEvent } from '../push/assistant.ts'
 import { readAssistantSettings, readTeacherSettings } from '../settings/settings.ts'
 import type { Admission, ChatContext, TurnStarter } from './actions.ts'
 import { markDispatched, markUnknown, release, reserveAttempt, settleAttempt, usageOf } from './budget.ts'
-import { messageRef, proposalRef } from './changes.ts'
 import { commandToolEntries, expandStoredCommand, findCommand, readCommands } from './commands.ts'
 import { ESSAY_COMMAND } from './essay.ts'
 import { lessonDatesPeriod } from './facts.ts'
@@ -66,6 +66,7 @@ import {
 	resolveCites,
 	sentenceSplitter,
 } from './publish-gate.ts'
+import { messageMarker, proposalRef } from './refs.ts'
 import { REVIEW_ONE_STUDENT, REVIEW_TASK, REVIEW_COMMAND, type ReviewSession, reviewStudent } from './review.ts'
 import { nameConversation, titleAnswered } from './title.ts'
 import { type ToolContext, chatTools, commandSchema, stepRule, strictBudget, withinBudget } from './tool-registry.ts'
@@ -229,9 +230,8 @@ function blockNote(block: Exclude<ChatBlock, { type: 'suggestions' }>): string {
 		case 'action_result':
 			return `[Saved: ${block.kind}${block.mark ? ` ${block.mark}` : ''} for ${block.studentName}]`
 		case 'calendar_proposal':
-			return `[Proposed calendar change: ${block.operation} for ${block.studentName}]`
 		case 'change_proposal':
-			return `[Proposed ${proposalRef(block.actionId)}: ${block.change.operation} for ${block.change.operation === 'create_card' ? block.change.displayName : block.change.studentName}${changeValues(block.change)}]`
+			return `[Proposed ${proposalLine(block)}]`
 		case 'note_change':
 			return block.mode === 'proposal'
 				? `[Proposed notes change: ${block.change} for ${block.studentName}]`
@@ -277,10 +277,14 @@ function blockNote(block: Exclude<ChatBlock, { type: 'suggestions' }>): string {
 	}
 }
 
-function changeValues(change: ChatChangeProposalBlock['change']): string {
-	if (change.operation !== 'record_payment') return ''
-	const lessons = change.lessonsHundredths === null ? '' : `, lessons ${change.lessonsHundredths / 100}`
-	return `: ${change.amountMinor / 100} ${change.currency}, paid_on ${change.paidOn}${lessons}`
+function proposalLine(block: ChatChangeProposalBlock | ChatCalendarProposalBlock): string {
+	if (block.type === 'calendar_proposal')
+		return `${proposalRef(block.actionId)}: calendar ${block.operation} for ${block.studentName}`
+	const change = block.change
+	const name = change.operation === 'create_card' ? change.displayName : change.studentName
+	if (change.operation !== 'record_payment') return `${proposalRef(block.actionId)}: ${change.operation} for ${name}`
+	const lessons = change.lessonsHundredths === null ? '' : `, lessons ${formatHundredths(change.lessonsHundredths)}`
+	return `${proposalRef(block.actionId)}: record_payment for ${name}: ${minorToInput(change.amountMinor, change.currency)} ${change.currency}, paid_on ${change.paidOn}${lessons}`
 }
 
 type Turn = {
@@ -301,7 +305,7 @@ function teacherTurn(message: ChatMessage, turn: Turn): string {
 		`Now: ${local.date} ${local.time} (${weekdayName(at, turn.zone)})`,
 		`Lesson day: ${day} (${weekdayName(new Date(`${day}T12:00:00Z`), 'UTC')})`,
 		...(lines.length === 0 ? [] : ['Mentioned students:', ...lines]),
-		`[Message ${messageRef(message.id)}]`,
+		messageMarker(message.id),
 		expandCommand(message, turn.texts, turn.commands),
 	].join('\n')
 }
@@ -318,14 +322,13 @@ function pastMessage(message: ChatMessage, turn: Turn): Anthropic.MessageParam |
 	return parts.length === 0 ? null : { role: 'assistant', content: parts.join('\n') }
 }
 
-function waitingLines(past: readonly ChatMessage[], waiting: ReadonlySet<string>): string[] {
+function waitingLines(past: readonly ChatMessage[]): string[] {
 	return past.flatMap((message) =>
-		message.blocks.flatMap((block) => {
-			if (block.type !== 'change_proposal' || !waiting.has(block.actionId)) return []
-			const change = block.change
-			const name = change.operation === 'create_card' ? change.displayName : change.studentName
-			return [`- ${proposalRef(block.actionId)}: ${change.operation} for ${name}${changeValues(change)}`]
-		})
+		message.blocks.flatMap((block) =>
+			(block.type === 'change_proposal' || block.type === 'calendar_proposal') && block.state === 'proposed'
+				? [`- ${proposalLine(block)}`]
+				: []
+		)
 	)
 }
 
@@ -719,20 +722,6 @@ export function createChat({
 		})
 	}
 
-	async function waitingProposals(conversationId: string): Promise<Set<string>> {
-		const rows = await db
-			.select({ id: chatActions.id })
-			.from(chatActions)
-			.where(
-				and(
-					eq(chatActions.conversationId, conversationId),
-					eq(chatActions.kind, 'change'),
-					eq(chatActions.state, 'proposed')
-				)
-			)
-		return new Set(rows.map((row) => row.id))
-	}
-
 	async function reserve(turn: TurnRow, choice: Extract<ReturnType<typeof resolveModelChoice>, { kind: 'resolved' }>) {
 		return db.transaction(async (tx) => {
 			const reserved = await reserveAttempt(tx, turn.accountId, turn.conversationId, choice, new Date(), turn.id)
@@ -808,11 +797,7 @@ export function createChat({
 		])
 		const rendering: Turn = { zone, genders, texts, commands }
 		const past = loaded.past.map((message) => pastMessage(message, rendering)).filter((message) => message !== null)
-		const current = currentMessage(
-			loaded.current,
-			rendering,
-			waitingLines(loaded.past, await waitingProposals(turn.conversationId))
-		)
+		const current = currentMessage(loaded.current, rendering, waitingLines(loaded.past))
 		const steps: Anthropic.MessageParam[] = []
 		const issued: Issued = new Map()
 		const shown = new Set<string>()
