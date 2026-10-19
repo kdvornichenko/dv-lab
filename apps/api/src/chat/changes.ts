@@ -1,4 +1,4 @@
-import { and, eq, isNull, sql } from 'drizzle-orm'
+import { and, desc, eq, isNull, lt, or, sql } from 'drizzle-orm'
 import { z } from 'zod'
 
 import {
@@ -75,6 +75,7 @@ export type ChangeRefusal =
 	| 'invalid_amount'
 	| 'invalid_lessons'
 	| 'date_in_future'
+	| 'already_proposed'
 	| 'invalid_note'
 	| 'student_not_found'
 	| CardRefusal
@@ -155,9 +156,11 @@ function saidIn(message: string): Said {
 	}
 }
 
+const TEACHER_TEXT_EARLIER = 19
+
 async function teacherText(executor: DbExecutor, accountId: string, messageId: string): Promise<string | null> {
-	const [row] = await executor
-		.select({ body: chatMessages.body })
+	const [current] = await executor
+		.select({ conversationId: chatMessages.conversationId, body: chatMessages.body })
 		.from(chatMessages)
 		.where(
 			and(
@@ -167,7 +170,22 @@ async function teacherText(executor: DbExecutor, accountId: string, messageId: s
 				isNull(chatMessages.redactedAt)
 			)
 		)
-	return row?.body ?? null
+	if (!current) return null
+	const earlier = await executor
+		.select({ body: chatMessages.body })
+		.from(chatMessages)
+		.where(
+			and(
+				eq(chatMessages.conversationId, current.conversationId),
+				eq(chatMessages.accountId, accountId),
+				eq(chatMessages.role, 'teacher'),
+				isNull(chatMessages.redactedAt),
+				lt(chatMessages.createdAt, sql`(select created_at from chat_messages where id = ${messageId})`)
+			)
+		)
+		.orderBy(desc(chatMessages.createdAt))
+		.limit(TEACHER_TEXT_EARLIER)
+	return [current.body, ...earlier.map((row) => row.body)].join('\n')
 }
 
 async function cardOf(executor: DbExecutor, studentId: string) {
@@ -186,6 +204,31 @@ async function cardOf(executor: DbExecutor, studentId: string) {
 		.from(students)
 		.where(eq(students.id, studentId))
 	return row ?? null
+}
+
+async function alreadyProposed(tx: DbExecutor, context: ChatContext, source: ActionSource, target: PaymentTarget) {
+	const rows = await tx
+		.select({ target: chatActions.target })
+		.from(chatActions)
+		.where(
+			and(
+				eq(chatActions.accountId, context.accountId),
+				eq(chatActions.conversationId, source.conversationId),
+				eq(chatActions.kind, 'change'),
+				or(eq(chatActions.messageId, source.messageId), eq(chatActions.state, 'proposed'))
+			)
+		)
+	return rows.some((row) => {
+		const stored = paymentTarget.safeParse(row.target)
+		return (
+			stored.success &&
+			stored.data.studentId === target.studentId &&
+			stored.data.amountMinor === target.amountMinor &&
+			stored.data.currency === target.currency &&
+			stored.data.paidOn === target.paidOn &&
+			stored.data.lessonsHundredths === target.lessonsHundredths
+		)
+	})
 }
 
 async function preparePayment(
@@ -239,6 +282,7 @@ async function preparePayment(
 		note: input.data.note,
 		guard: { cardRevision: card.revision, timeZone: zone },
 	}
+	if (await alreadyProposed(tx, context, source, target)) return refused('already_proposed')
 	const actionId = await insertAction(tx, {
 		accountId: context.accountId,
 		...source,
