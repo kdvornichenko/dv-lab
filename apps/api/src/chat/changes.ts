@@ -188,6 +188,25 @@ async function cardOf(executor: DbExecutor, studentId: string) {
 	return row ?? null
 }
 
+async function withdrawEarlierPayments(tx: DbExecutor, context: ChatContext, source: ActionSource, studentId: string) {
+	const earlier = await tx
+		.select({ id: chatActions.id, target: chatActions.target })
+		.from(chatActions)
+		.where(
+			and(
+				eq(chatActions.accountId, context.accountId),
+				eq(chatActions.messageId, source.messageId),
+				eq(chatActions.kind, 'change'),
+				eq(chatActions.state, 'proposed')
+			)
+		)
+		.for('update')
+	for (const row of earlier) {
+		const target = paymentTarget.safeParse(row.target)
+		if (target.success && target.data.studentId === studentId) await settle(tx, row.id, 'refused', { kind: 'declined' })
+	}
+}
+
 async function preparePayment(
 	tx: DbExecutor,
 	context: ChatContext,
@@ -239,6 +258,7 @@ async function preparePayment(
 		note: input.data.note,
 		guard: { cardRevision: card.revision, timeZone: zone },
 	}
+	await withdrawEarlierPayments(tx, context, source, card.id)
 	const actionId = await insertAction(tx, {
 		accountId: context.accountId,
 		...source,

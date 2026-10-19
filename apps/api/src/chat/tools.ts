@@ -246,6 +246,17 @@ function failure(code: string): ToolOutcome {
 	return { content: JSON.stringify({ error: code }), isError: true, block: null }
 }
 
+const ASK_AGAIN_NOTE =
+	'Do not call the tool again. Tell the teacher in one short sentence that the amount and the number of lessons must be in this message, and ask them to write it again.'
+
+function refusal(code: string): ToolOutcome {
+	return {
+		content: JSON.stringify({ error: code, ...(code === 'amount_not_in_message' ? { note: ASK_AGAIN_NOTE } : {}) }),
+		isError: true,
+		block: null,
+	}
+}
+
 function result(value: unknown): ToolOutcome {
 	return { content: JSON.stringify(value), isError: false, block: null }
 }
@@ -568,7 +579,7 @@ function changeReceipt(change: ChatChange): unknown {
 				status: 'proposed',
 				student: change.studentName,
 				paid_on: change.paidOn,
-				note: 'Nothing is recorded until the teacher confirms in the chat. Write one short sentence without the amount, the currency or the number of lessons: the block shows them.',
+				note: 'Nothing is recorded until the teacher confirms in the chat. The block is already shown: do not call propose_payment again for the same payment. If the date in the block is not the one the teacher named, say so in one short sentence. Write one short sentence without the amount, the currency or the number of lessons: the block shows them.',
 			}
 		case 'create_card':
 			return { status: 'proposed', student: change.displayName, note: CHANGE_NOTE }
@@ -703,7 +714,7 @@ async function openPage(context: ToolContext, input: z.infer<(typeof inputs)['op
 
 async function propose(context: ToolContext, request: ChangeRequest): Promise<ToolOutcome> {
 	const outcome = await proposeChange(context.db, context.chat, context.source, request, context.persist)
-	if (outcome.kind === 'refused') return failure(outcome.code)
+	if (outcome.kind === 'refused') return refusal(outcome.code)
 	return { content: JSON.stringify(receipt(outcome.block)), isError: false, block: outcome.block }
 }
 
@@ -1052,17 +1063,17 @@ export const CHAT_TOOL_ENTRIES: readonly ChatToolEntry[] = [
 	chatTool({
 		name: 'propose_payment',
 		description:
-			'Propose recording a payment. amount_text and lessons_text are copied exactly as the teacher wrote them, the number without the currency; omit lessons_text when the teacher gave no number of lessons; currency only when the teacher named it, otherwise omit it; paid_on YYYY-MM-DD lesson-day date, omit it for today; note only when the teacher gave one, otherwise omit it. Nothing is recorded until the teacher confirms in the chat.',
+			'Propose recording a payment. amount_text and lessons_text are copied exactly as the teacher wrote them, the number without the currency; omit lessons_text when the teacher gave no number of lessons; currency: the one the teacher named, otherwise null; paid_on YYYY-MM-DD: set it whenever the teacher named a payment date ("May 10", "on October 16", "10.05"), with the year of the Now line, or the previous year when that date would be in the future, or the year the teacher wrote; null only when the teacher named no date, which means today; note only when the teacher gave one, otherwise omit it. Nothing is recorded until the teacher confirms in the chat.',
 		input: inputs.propose_payment,
 		properties: {
 			student_id: string,
 			amount_text: string,
-			currency: { type: 'string', enum: [...CURRENCIES] },
-			paid_on: string,
+			currency: { anyOf: [{ type: 'string', enum: [...CURRENCIES] }, { type: 'null' }] },
+			paid_on: nullableString,
 			lessons_text: string,
 			note: string,
 		},
-		optional: ['currency', 'paid_on', 'lessons_text', 'note'],
+		optional: ['lessons_text', 'note'],
 		strict: true,
 		effect: 'propose',
 		step: studentStep,
