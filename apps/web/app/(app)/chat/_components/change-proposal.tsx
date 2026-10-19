@@ -1,9 +1,10 @@
 'use client'
 
-import { useEffect, useRef, useState, type ReactNode } from 'react'
+import { useEffect, useRef, useState, type CSSProperties, type ReactNode } from 'react'
 
 import {
 	Archive,
+	ArrowDown,
 	ArrowRight,
 	Check,
 	Info,
@@ -35,6 +36,8 @@ import { LESSON_MINUTES_DEFAULT, type ChatChange, type ChatChangeProposalBlock }
 import { balancePhrase, formatHundredths, formatMoney } from '@dv-lab/core'
 
 import type { ChangeHandlers } from './messages'
+
+const ReplacedIcon = ({ strokeWidth }: { strokeWidth?: number }) => <ArrowDown size={16} strokeWidth={strokeWidth} />
 
 type Change<Operation extends ChatChange['operation']> = Extract<ChatChange, { operation: Operation }>
 
@@ -637,6 +640,22 @@ export function ChangeProposal({
 		setRefreshing(false)
 		if (known) setUnknown(false)
 	}
+
+	if (block.state === 'stale' && block.issue === 'replaced')
+		return (
+			<Banner
+				status="default"
+				contrast="low"
+				icon={ReplacedIcon}
+				data-slot="chat-change"
+				data-operation={block.change.operation}
+				data-state="replaced"
+				style={{ '--banner-tone': 'var(--muted-foreground)' } as CSSProperties}
+			>
+				<BannerTitle>Replaced by the proposal below.</BannerTitle>
+				<BannerDescription className="text-muted-foreground">Nothing was changed.</BannerDescription>
+			</Banner>
+		)
 
 	if (block.state === 'stale' || block.state === 'failed') {
 		const stale = block.state === 'stale'

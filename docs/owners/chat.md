@@ -61,7 +61,7 @@
 
 ## web
 
-Блоки предложений — `change-proposal.tsx`, `calendar-proposal.tsx` и `bulk-move-proposal.tsx` в `apps/web/app/(app)/chat/_components`.
+Блоки предложений — `change-proposal.tsx`, `calendar-proposal.tsx` и `bulk-move-proposal.tsx` в `apps/web/app/(app)/chat/_components`. Заменённое предложение (`stale` с issue `replaced`) — нейтральный блок «Replaced by the proposal below.» / «Nothing was changed.» без кнопок (ChangeCard, дизайн v132).
 
 ## Приёмка
 
