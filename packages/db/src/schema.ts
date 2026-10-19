@@ -404,6 +404,7 @@ export const teacherSettings = pgTable(
 			.references(() => accounts.id, { onDelete: 'restrict' }),
 		paysSoonLessons: integer('pays_soon_lessons').notNull(),
 		defaultTimeZone: text('default_time_zone').default('Asia/Ho_Chi_Minh').notNull(),
+		studentTimeZone: text('student_time_zone').default('Europe/Moscow').notNull(),
 		chatMonthlyCapUsd: numeric('chat_monthly_cap_usd', { precision: 10, scale: 2 }).default('10.00').notNull(),
 		chatMaxInputTokens: integer('chat_max_input_tokens').default(100000).notNull(),
 		chatMaxOutputTokens: integer('chat_max_output_tokens').default(16000).notNull(),

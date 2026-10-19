@@ -235,7 +235,7 @@ export function LessonMoveForm({
 							setTime(value)
 							setTouched((state) => ({ ...state, time: true }))
 						}}
-						minuteStep={15}
+						minuteStep={5}
 						hourCycle={24}
 						disabled={disabled}
 						invalid={Boolean(shown('time'))}

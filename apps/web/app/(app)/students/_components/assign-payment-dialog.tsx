@@ -11,6 +11,7 @@ import {
 	lessonsHelper,
 	rateOf,
 } from '@/components/app/ledger-text'
+import { SearchSelect } from '@/components/app/search-select'
 import { TextField } from '@/components/app/text-field'
 import { Banner, BannerTitle } from '@/components/ui/banner'
 import { Button } from '@/components/ui/button'
@@ -22,7 +23,6 @@ import {
 	DialogHeader,
 	DialogTitle,
 } from '@/components/ui/dialog'
-import { Select, SelectContent, SelectItem, SelectTrigger } from '@/components/ui/select'
 import { apiRequest } from '@/lib/api-client'
 
 import type { PaymentResponse, PaymentRow, StudentDetail, StudentResponse, StudentRow } from '@dv-lab/contracts'
@@ -50,10 +50,11 @@ export function AssignPaymentDialog({ payment, students, onClose, onAssigned, on
 	const [failed, setFailed] = useState<string | null>(null)
 	const [pending, setPending] = useState(false)
 	const chosen = useRef('')
-	const studentRef = useRef<HTMLButtonElement>(null)
+	const studentRef = useRef<HTMLInputElement>(null)
 	const currencyRef = useRef<HTMLButtonElement>(null)
 	const lessonsRef = useRef<HTMLInputElement>(null)
 
+	const options = students.map((student) => ({ value: student.id, label: student.displayName }))
 	const selected = students.find((student) => student.id === studentId) ?? null
 	const askCurrency = payment.currency === null
 	const currency = payment.currency ?? currencyChoice ?? selected?.currency ?? ''
@@ -73,6 +74,7 @@ export function AssignPaymentDialog({ payment, students, onClose, onAssigned, on
 		setStudentId(value)
 		setDetail(null)
 		chosen.current = value
+		if (value === '') return
 		const result = await apiRequest<StudentResponse>('GET', `/students/${value}`)
 		if (result.ok && chosen.current === value) setDetail(result.data.student)
 	}
@@ -140,24 +142,20 @@ export function AssignPaymentDialog({ payment, students, onClose, onAssigned, on
 							<label htmlFor="assign-payment-student" className="text-body text-muted-foreground">
 								Student
 							</label>
-							<Select value={studentId} onValueChange={(value) => void chooseStudent(value)} disabled={pending}>
-								<SelectTrigger
-									ref={studentRef}
-									id="assign-payment-student"
-									className="w-full min-w-0"
-									placeholder="Choose a student"
-									autoFocus
-									error={show(studentError, 'student')}
-									onBlur={() => setTouched((current) => ({ ...current, student: true }))}
-								/>
-								<SelectContent>
-									{students.map((student, index) => (
-										<SelectItem key={student.id} index={index} value={student.id}>
-											{student.displayName}
-										</SelectItem>
-									))}
-								</SelectContent>
-							</Select>
+							<SearchSelect
+								ref={studentRef}
+								id="assign-payment-student"
+								options={options}
+								value={studentId}
+								onChange={(value) => void chooseStudent(value)}
+								placeholder="Choose a student"
+								emptyTitle="No students found"
+								emptyHint="Try a part of the name."
+								disabled={pending}
+								error={show(studentError, 'student')}
+								onBlur={() => setTouched((current) => ({ ...current, student: true }))}
+								autoFocus
+							/>
 						</div>
 						<div className="grid items-start gap-4 sm:grid-cols-2">
 							{askCurrency ? (

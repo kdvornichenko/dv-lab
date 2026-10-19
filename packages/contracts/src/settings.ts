@@ -21,6 +21,7 @@ export const updateSettingsRequest = z
 	.object({
 		paysSoonLessons: z.number().int().min(PAYS_SOON_LESSONS_MIN).max(PAYS_SOON_LESSONS_MAX).optional(),
 		defaultTimeZone: timeZone.optional(),
+		studentTimeZone: timeZone.optional(),
 		expectedDefaultTimeZone: timeZone.optional(),
 		notifyLessonSoon: z.boolean().optional(),
 		notifyLessonMinutes: z.number().int().min(NOTIFY_LESSON_MINUTES_MIN).max(NOTIFY_LESSON_MINUTES_MAX).optional(),
@@ -32,6 +33,7 @@ export const updateSettingsRequest = z
 		(input) =>
 			input.paysSoonLessons !== undefined ||
 			input.defaultTimeZone !== undefined ||
+			input.studentTimeZone !== undefined ||
 			input.notifyLessonSoon !== undefined ||
 			input.notifyLessonMinutes !== undefined ||
 			input.notifyPaysSoon !== undefined ||
@@ -48,6 +50,7 @@ export type UpdateSettingsRequest = z.infer<typeof updateSettingsRequest>
 export type TeacherSettings = {
 	paysSoonLessons: number
 	defaultTimeZone: string
+	studentTimeZone: string
 	notifyLessonSoon: boolean
 	notifyLessonMinutes: number
 	notifyPaysSoon: boolean

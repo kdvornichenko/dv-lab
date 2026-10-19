@@ -89,7 +89,7 @@ export function NewLessonDialog({
 	const [studentId, setStudentId] = useState(initial?.studentId ?? '')
 	const [titleSeen, setTitleSeen] = useState(false)
 	const command = useScheduleMutation({ mainTimeZone: context.mainTimeZone, date: fields.date })
-	const studentRef = useRef<HTMLButtonElement>(null)
+	const studentRef = useRef<HTMLInputElement>(null)
 	const lengthRef = useRef<HTMLInputElement>(null)
 	const titleRef = useRef<HTMLInputElement>(null)
 

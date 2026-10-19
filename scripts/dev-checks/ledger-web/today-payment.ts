@@ -86,7 +86,7 @@ async function selectionRace(page: Page, fx: Awaited<ReturnType<typeof fixtures>
 	await page.waitForTimeout(1700)
 	check(
 		'payment: late student response keeps the latest selection',
-		(await dialog.locator('#record-payment-student').textContent())!.includes(fx.bName)
+		(await dialog.locator('#record-payment-student').inputValue()).includes(fx.bName)
 	)
 	check(
 		'payment: latest student currency stays selected',

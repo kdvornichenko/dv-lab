@@ -42,7 +42,7 @@ export async function lessonCreationNewLesson(
 		facts.text.includes('New lesson') && facts.text.includes('Add a lesson to the schedule. Times are in Vietnam time.')
 	)
 	check('new lesson: focus starts on Student', facts.focusId === 'new-lesson-student', facts.focusId)
-	check('new lesson: Student is empty', facts.student === 'Choose a student', facts.student)
+	check('new lesson: Student is empty', facts.student === '', facts.student)
 	check(
 		'new lesson: defaults are the next whole hour in Vietnam time',
 		facts.dateLabel ===
@@ -243,7 +243,7 @@ export async function lessonCreationOverlap(
 		'new lesson: a click on empty space opens the dialog on that day and time',
 		facts.dateLabel?.includes(`${monthName(fx.wednesday)} ${dayNum(fx.wednesday)}, `) &&
 			facts.time === '15:00' &&
-			facts.student === 'Choose a student',
+			facts.student === '',
 		`${facts.dateLabel} ${facts.time}`
 	)
 	await pickOption(page, 'new-lesson-student', NAME_A)

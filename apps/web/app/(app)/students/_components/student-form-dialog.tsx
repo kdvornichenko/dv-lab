@@ -24,7 +24,7 @@ import {
 import { ScrollArea } from '@/components/ui/scroll-area'
 import { Select, SelectContent, SelectItem, SelectTrigger } from '@/components/ui/select'
 import { Switch } from '@/components/ui/switch'
-import { apiRequest } from '@/lib/api-client'
+import { apiRequest, peekApi } from '@/lib/api-client'
 import { LENGTH_ERROR, LENGTH_HELPER } from '@/lib/lesson-length'
 
 import {
@@ -37,10 +37,11 @@ import {
 	normalizeDisplayName,
 	type Currency,
 	type Gender,
+	type SettingsResponse,
 	type StudentDetail,
 	type StudentResponse,
 } from '@dv-lab/contracts'
-import { currencyDigits, currencySymbol, minorToInput, parseMoney } from '@dv-lab/core'
+import { STUDENT_TIME_ZONE_DEFAULT, currencyDigits, currencySymbol, minorToInput, parseMoney } from '@dv-lab/core'
 
 import { useToast } from '../../_components/toasts'
 
@@ -87,7 +88,7 @@ interface StudentFormDialogProps {
 	onSaved: (student: StudentDetail) => void
 }
 
-function initialValues(student: StudentDetail | undefined): Values {
+function initialValues(student: StudentDetail | undefined, newZone: string = STUDENT_TIME_ZONE_DEFAULT): Values {
 	if (!student) {
 		return {
 			name: '',
@@ -95,7 +96,7 @@ function initialValues(student: StudentDetail | undefined): Values {
 			rate: '',
 			currency: NO_CURRENCY,
 			lessonMinutes: LESSON_MINUTES_DEFAULT,
-			timeZone: SAME_TIME_ZONE,
+			timeZone: newZone,
 			parent: '',
 			level: '',
 			goals: '',
@@ -186,7 +187,11 @@ export function StudentFormDialog({ mode, student, onClose, onSaved }: StudentFo
 	const router = useRouter()
 	const toast = useToast()
 	const [baseline, setBaseline] = useState(student)
-	const [values, setValues] = useState<Values>(() => initialValues(student))
+	const [newZone] = useState(() => {
+		const cached = peekApi<SettingsResponse>('/settings')
+		return cached !== null && cached.ok ? cached.data.settings.studentTimeZone : STUDENT_TIME_ZONE_DEFAULT
+	})
+	const [values, setValues] = useState<Values>(() => initialValues(student, newZone))
 	const [noShowDeducts, setNoShowDeducts] = useState(student?.noShowDeducts ?? true)
 	const [notice, setNotice] = useState<'changed' | 'lost' | null>(null)
 	const [reloading, setReloading] = useState(false)
@@ -215,6 +220,19 @@ export function StudentFormDialog({ mode, student, onClose, onSaved }: StudentFo
 	useEffect(() => {
 		if (focusName > 0) nameRef.current?.focus()
 	}, [focusName])
+
+	useEffect(() => {
+		if (mode !== 'create') return
+		let current = true
+		void apiRequest<SettingsResponse>('GET', '/settings').then((result) => {
+			if (!current || !result.ok) return
+			const zone = result.data.settings.studentTimeZone
+			setValues((now) => (now.timeZone === newZone ? { ...now, timeZone: zone } : now))
+		})
+		return () => {
+			current = false
+		}
+	}, [mode, newZone])
 
 	async function reload() {
 		if (!baseline || reloading) return

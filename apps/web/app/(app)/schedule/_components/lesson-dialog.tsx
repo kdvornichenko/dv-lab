@@ -255,6 +255,15 @@ export function LessonDialog({
 							mainTimeZone={context.mainTimeZone}
 							secondZone={shownSecondZone}
 							commentRef={block.ref}
+							student={{
+								id: block.studentId,
+								name: block.studentName,
+								onChanged: () => {
+									onRefresh()
+									onClose()
+								},
+							}}
+							studentLocked={busy}
 							started={!canChange(new Date(block.startsAt), now)}
 							now={now}
 						/>

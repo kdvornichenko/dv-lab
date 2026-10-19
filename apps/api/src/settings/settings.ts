@@ -12,7 +12,7 @@ import {
 	chatModels,
 	timeZoneIdentity,
 } from '@dv-lab/contracts'
-import { PAYS_SOON_LESSONS_DEFAULT, SCHEDULE_TIME_ZONE } from '@dv-lab/core'
+import { PAYS_SOON_LESSONS_DEFAULT, SCHEDULE_TIME_ZONE, STUDENT_TIME_ZONE_DEFAULT } from '@dv-lab/core'
 import { type Database, type DbExecutor, accounts, teacherSettings } from '@dv-lab/db'
 
 export type TeacherTimeContext = { now: Date; defaultTimeZone: string }
@@ -28,6 +28,7 @@ type SaveSettingsResult = { ok: true; settings: TeacherSettings } | TimeContextF
 const settingsColumns = {
 	paysSoonLessons: teacherSettings.paysSoonLessons,
 	defaultTimeZone: teacherSettings.defaultTimeZone,
+	studentTimeZone: teacherSettings.studentTimeZone,
 	notifyLessonSoon: teacherSettings.notifyLessonSoon,
 	notifyLessonMinutes: teacherSettings.notifyLessonMinutes,
 	notifyPaysSoon: teacherSettings.notifyPaysSoon,
@@ -43,6 +44,7 @@ export async function readTeacherSettings(executor: DbExecutor, accountId: strin
 		row ?? {
 			paysSoonLessons: PAYS_SOON_LESSONS_DEFAULT,
 			defaultTimeZone: SCHEDULE_TIME_ZONE,
+			studentTimeZone: STUDENT_TIME_ZONE_DEFAULT,
 			...NOTIFY_SETTINGS_DEFAULT,
 		}
 	)
@@ -85,6 +87,7 @@ export function saveTeacherSettings(
 				accountId,
 				paysSoonLessons: input.paysSoonLessons ?? PAYS_SOON_LESSONS_DEFAULT,
 				defaultTimeZone: input.defaultTimeZone ?? SCHEDULE_TIME_ZONE,
+				studentTimeZone: input.studentTimeZone ?? STUDENT_TIME_ZONE_DEFAULT,
 				...notify,
 			})
 			.onConflictDoUpdate({
@@ -92,6 +95,7 @@ export function saveTeacherSettings(
 				set: {
 					...(input.paysSoonLessons === undefined ? {} : { paysSoonLessons: input.paysSoonLessons }),
 					...(input.defaultTimeZone === undefined ? {} : { defaultTimeZone: input.defaultTimeZone }),
+					...(input.studentTimeZone === undefined ? {} : { studentTimeZone: input.studentTimeZone }),
 					...notify,
 					updatedAt: sql`now()`,
 				},

@@ -57,6 +57,11 @@ export const markLessonRequest = z.object({
 	expectedRevision: z.number().int().min(1).nullable().optional(),
 })
 
+export const changeLessonStudentRequest = z.strictObject({
+	studentId: z.uuid(),
+	expectedStudentId: z.uuid(),
+})
+
 export const COMMENT_MAX_LENGTH = 2000
 
 export const appendLessonCommentRequest = z.strictObject({
@@ -168,6 +173,8 @@ export type ScheduleMark = {
 }
 
 export type ScheduleMarkResponse = { mark: ScheduleMark }
+
+export type ChangeLessonStudentResponse = { studentId: string; studentName: string }
 
 export type ScheduleCreateResponse = ScheduleLessonResponse | ScheduleSeriesResponse
 
