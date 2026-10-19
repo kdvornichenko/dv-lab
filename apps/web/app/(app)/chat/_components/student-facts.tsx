@@ -122,31 +122,39 @@ export function NextLessonFact({ facts, secondZone }: { facts: ChatStudentFacts;
 	)
 }
 
-export function BalanceEndsFact({ facts }: { facts: ChatStudentFacts }) {
-	const { balanceEnds, defaultTimeZone, asOf } = facts
+export function BalanceEndsFact({ facts, secondZone }: { facts: ChatStudentFacts; secondZone: string | null }) {
+	const { balanceEnds, defaultTimeZone, asOf, nextLesson } = facts
 	if (balanceEnds === undefined) return null
 	if (balanceEnds.state === 'now') {
 		return (
 			<Fact label="Balance ends">
-				<p className="text-body font-medium text-muted-foreground">No lessons left</p>
+				<p className="text-body font-medium text-muted-foreground">Due now</p>
+				<p className="min-h-4 text-micro text-muted-foreground">No lessons left to cover.</p>
 			</Fact>
 		)
 	}
 	if (balanceEnds.state === 'beyond') {
 		return (
 			<Fact label="Balance ends">
-				<p className="text-body font-medium text-muted-foreground">Not within a year</p>
+				<p className="text-body font-medium text-muted-foreground">Not scheduled yet</p>
+				<p className="min-h-4 text-micro text-muted-foreground">The schedule ahead is shorter than the balance.</p>
 			</Fact>
 		)
 	}
 	const at = new Date(balanceEnds.startsAt)
 	const year = yearInZone(new Date(asOf), defaultTimeZone)
+	const when = `${formatWhen(at, defaultTimeZone, year)} ${zoneLabel(defaultTimeZone, at)}`
+	const current = nextLesson.status.state === 'fresh'
 	return (
 		<Fact label="Balance ends">
-			<p className="text-body font-medium">
-				{formatWhen(at, defaultTimeZone, year)} {zoneLabel(defaultTimeZone, at)}
+			<TimePair
+				main={when}
+				second={secondWhen(at, defaultTimeZone, secondZone)}
+				mainClassName="text-body font-medium"
+			/>
+			<p className="min-h-4 text-micro text-muted-foreground">
+				{current ? 'After this lesson.' : 'After this lesson. The calendar view is not current.'}
 			</p>
-			<p className="min-h-4 text-micro text-muted-foreground">After this lesson.</p>
 		</Fact>
 	)
 }
@@ -181,7 +189,7 @@ export function StudentFacts({ facts, followUp }: { facts: ChatStudentFacts; fol
 					>
 						<BalanceFact facts={facts} />
 						<NextLessonFact facts={facts} secondZone={secondZone} />
-						<BalanceEndsFact facts={facts} />
+						<BalanceEndsFact facts={facts} secondZone={secondZone} />
 					</div>
 					<p
 						data-slot="chat-facts-checked"

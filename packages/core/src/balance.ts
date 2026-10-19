@@ -41,6 +41,27 @@ export function studentBalance(
 	return minutes
 }
 
+export type BalanceForecastLesson = { startsAt: Date; durationMinutes: number }
+
+export type BalanceRunsOut = { kind: 'on'; startsAt: Date } | { kind: 'now' } | { kind: 'beyond' }
+
+export function balanceRunsOut(
+	balanceMinutes: number,
+	openingOn: string,
+	lessons: readonly BalanceForecastLesson[],
+	timeZone: string
+): BalanceRunsOut {
+	if (balanceMinutes <= 0) return { kind: 'now' }
+	let left = balanceMinutes
+	const ordered = [...lessons].sort((a, b) => a.startsAt.getTime() - b.startsAt.getTime())
+	for (const lesson of ordered) {
+		if (!countsAfterOpening(scheduleDate(lesson.startsAt, timeZone), openingOn)) continue
+		left -= lesson.durationMinutes
+		if (left <= 0) return { kind: 'on', startsAt: lesson.startsAt }
+	}
+	return { kind: 'beyond' }
+}
+
 export type LedgerPayment = BalancePayment & { id: string; createdAt: Date }
 
 export type LedgerLesson = BalanceLesson & { key: string }

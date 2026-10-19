@@ -29,6 +29,15 @@ export async function sectionChatEnds(ctx: Context) {
 		cancelled.ends?.state === 'on' && cancelled.ends.date === core.addDays(ctx.today, 6),
 		JSON.stringify(cancelled)
 	)
+	const opened = await createCard(ctx, 'Alex Example 2133')
+	await setOpening(ctx, opened, 200, ctx.today)
+	for (const offset of [0, 1, 2]) onceLesson(opened, core.addDays(ctx.today, offset), '10:00')
+	const sameDay = await balanceEnds(ctx, opened)
+	check(
+		'a lesson on the opening day does not count: 120 minutes end on the second lesson after it',
+		sameDay.ends?.state === 'on' && sameDay.ends.date === core.addDays(ctx.today, 2),
+		JSON.stringify(sameDay)
+	)
 	const empty = await createCard(ctx, 'Alex Example 2131')
 	await setOpening(ctx, empty, 0, opening)
 	const none = await balanceEnds(ctx, empty)
