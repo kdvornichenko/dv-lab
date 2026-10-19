@@ -740,7 +740,7 @@ async function askBulk(pipeline, fx, student, text, input, extra = {}) {
 			shown: new Set(),
 		},
 		'propose_bulk_move',
-		{ student_id: student.id, time_zone: null, from: null, ...input }
+		{ student_id: student.id, source_message: `m${teacher.id.slice(0, 8)}`, time_zone: null, from: null, ...input }
 	)
 	if (outcome.block !== null && !chatBlock.safeParse(outcome.block).success)
 		fail('shape', 'the proposal block does not match the contract')

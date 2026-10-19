@@ -63,8 +63,23 @@ function toolResultText(body) {
 	return typeof part.content === 'string' ? part.content : JSON.stringify(part.content)
 }
 
+function messageAt(content) {
+	const all = [...content.matchAll(/\[Message( m[0-9a-f]{8})?\]/gu)]
+	return all.at(-1)?.index ?? -1
+}
+
+function sourceOf(content) {
+	return [...content.matchAll(/\[Message (m[0-9a-f]{8})\]/gu)].at(-1)?.[1] ?? 'm00000000'
+}
+
+function textOf(content) {
+	if (typeof content === 'string') return content
+	return content.map((part) => (part.type === 'text' ? part.text : '')).join('\n')
+}
+
 function proposalPlan(marker, content, continued, body) {
-	const message = content.slice(Math.max(0, content.indexOf('[Message]')))
+	const message = content.slice(Math.max(0, messageAt(content)))
+	const source_message = sourceOf(content)
 	const studentId = /student_id: ([0-9a-f-]{36})/.exec(content)?.[1] ?? null
 	const call = (name, input) => ({
 		blocks: [{ kind: 'tool', id: `toolu_fake_${++state.ids}`, name, input }],
@@ -76,6 +91,7 @@ function proposalPlan(marker, content, continued, body) {
 		if (continued) return say('I prepared the change. Confirm it below.')
 		const name = /name:\s*([^;\n]+)/.exec(message)?.[1]?.trim() ?? ''
 		return call('propose_student', {
+			source_message,
 			display_name: name,
 			rate_text: null,
 			currency: null,
@@ -86,16 +102,23 @@ function proposalPlan(marker, content, continued, body) {
 	if (marker === 'rate') {
 		if (continued) return say('I prepared the change. Confirm it below.')
 		const rate = /rate:\s*(\S+)/.exec(message)?.[1] ?? null
-		return call('propose_rate', { student_id: studentId, rate_text: rate, currency: null, clear: false })
+		return call('propose_rate', {
+			student_id: studentId,
+			source_message,
+			rate_text: rate,
+			currency: null,
+			clear: false,
+		})
 	}
 	if (marker === 'details-level' || marker === 'details-many') {
 		if (continued) return say('I prepared the change. Confirm it below.')
 		return call(
 			'propose_details',
 			marker === 'details-level'
-				? { student_id: studentId, level_text: 'B2' }
+				? { student_id: studentId, source_message, level_text: 'B2' }
 				: {
 						student_id: studentId,
+						source_message,
 						lesson_minutes_text: '90',
 						no_show_deducts: false,
 						goals_text: 'Exam preparation',
@@ -164,6 +187,7 @@ function proposalPlan(marker, content, continued, body) {
 		const zone = /zone:\s*([^;\n]+)/i.exec(message)?.[1]?.trim() ?? null
 		return call('propose_bulk_move', {
 			student_id: studentId,
+			source_message,
 			from_weekday: from?.[1]?.toLowerCase() ?? null,
 			from_time: from?.[2] ?? null,
 			to_weekday: to?.[1]?.toLowerCase() ?? null,
@@ -255,7 +279,13 @@ function reviewPlan(marker, content, continued, body) {
 }
 
 function plan(body) {
-	const asked = body.messages.filter((message) => message.role === 'user' && typeof message.content === 'string')
+	const asked = body.messages
+		.filter(
+			(message) =>
+				message.role === 'user' &&
+				(typeof message.content === 'string' || !message.content.some((part) => part.type === 'tool_result'))
+		)
+		.map((message) => ({ ...message, content: textOf(message.content) }))
 	const marker = /\[fake:([a-z-]+)\]/.exec(asked.at(-1)?.content ?? '')?.[1] ?? 'answer'
 	const last = body.messages.at(-1)
 	const continued = Array.isArray(last?.content) && last.content.some((part) => part.type === 'tool_result')
@@ -268,9 +298,11 @@ function plan(body) {
 			return { blocks: [{ kind: 'text', sentences: ['I prepared the payment. Confirm it below.'] }], stop: 'end_turn' }
 		const content = asked.at(-1)?.content ?? ''
 		const studentId = /student_id: ([0-9a-f-]{36})/.exec(content)?.[1] ?? null
-		const amount = /amount:\s*(\S+)/.exec(content.slice(content.indexOf('[Message]')))?.[1] ?? null
+		const amount = /amount:\s*(\S+)/.exec(content.slice(messageAt(content)))?.[1] ?? null
 		const input = {
 			student_id: studentId,
+			source_message: sourceOf(content),
+			replaces: null,
 			amount_text: amount,
 			currency: null,
 			paid_on: null,

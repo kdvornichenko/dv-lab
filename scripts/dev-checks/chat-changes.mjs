@@ -86,9 +86,23 @@ function say(text) {
 	}
 }
 
+const CITED = ['propose_payment', 'propose_student', 'propose_rate', 'propose_details', 'propose_bulk_move']
+
+function cited(name, input, request) {
+	if (!CITED.includes(name) || 'source_message' in input) return input
+	const text = JSON.stringify(request.messages.filter((item) => item.role === 'user'))
+	const source = [...text.matchAll(/\[Message (m[0-9a-f]{8})\]/gu)].at(-1)?.[1] ?? 'm00000000'
+	return { ...input, source_message: source }
+}
+
 function use(name, input) {
 	return async function* toolUse(request) {
-		const block = { type: 'tool_use', id: `toolu_${randomUUID().slice(0, 8)}`, name, input }
+		const block = {
+			type: 'tool_use',
+			id: `toolu_${randomUUID().slice(0, 8)}`,
+			name,
+			input: cited(name, input, request),
+		}
 		yield { type: 'final', message: message(request.model, [block], 'tool_use') }
 	}
 }
