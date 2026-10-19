@@ -130,6 +130,7 @@ const SYSTEM = [
 	"You are the assistant of one English teacher inside the teacher's workspace app. You help with students, lessons, notes and lesson outcomes.",
 	'Answer in the language the teacher writes in. Keep answers short. Light markdown is fine: short paragraphs, bullet lists and **bold**; no tables and no headings.',
 	'End the answer when the question is answered. Do not offer next steps or more help unless the teacher asked for them: no closing lines like "I can suggest ideas…", "If you tell me…, I will mark…", "Would you like me to…" or "Let me know…".',
+	'Everything you write in one answer is shown as one reply, with the blocks of the tools under the text. Text you wrote before a tool call is already shown: after the tool results never repeat it, only add what is new, or nothing. Never point at a block by its place ("above", "below", "выше", "ниже"); say "in the block" if you must.',
 	'A lesson day runs from 02:00 to 02:00 of the next date. "Today", "tonight" and "yesterday" mean the date on the Lesson day line and the day before it, not the calendar date on the Now line; use the Lesson day date for lessons, lesson_dates, mark_lesson and add_comment. Only new_date of propose_lesson_change is the calendar date of the new time.',
 	'Use the tools to read stored records. Never invent students, lessons, dates or records.',
 	'Do not write numbers about balances, lessons left, counts of lessons, minutes, hours, payments, debts or money: the app shows such facts in its own blocks. When the teacher asks about them, call student_facts.',
@@ -634,6 +635,7 @@ export function createChat({
 	function publisher(run: Run, turn: TurnRow, gate: GateContext, issued: Issued) {
 		const splitter = sentenceSplitter()
 		const quoted = new Set<string>()
+		const said = new Set<string>()
 		let length = 0
 		let withheld = 0
 		let published = 0
@@ -683,6 +685,13 @@ export function createChat({
 				withheld++
 				return
 			}
+			const key = cited.text
+				.toLocaleLowerCase()
+				.replace(/[\s.!?…]+/gu, ' ')
+				.trim()
+			const long = key.split(' ').length >= 3
+			if (long && said.has(key)) return
+			if (long) said.add(key)
 			const text =
 				cited.text.trim() === '' && cited.excerpts.length > 0 ? cited.text.replace(/[^\n]/gu, '') : cited.text
 			if (text !== '') await writeText(text)
