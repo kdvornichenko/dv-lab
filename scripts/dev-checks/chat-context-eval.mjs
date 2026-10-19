@@ -358,6 +358,8 @@ function scenarios(ctx) {
 	let friday = today
 	while (weekdayOf(friday) !== 5) friday = core.addDays(friday, -1)
 	const fridays = weekdayOf(today) === 5 ? [today, core.addDays(today, -7)] : [friday]
+	const thisMay = `${today.slice(0, 4)}-05-10`
+	const may = thisMay <= today ? thisMay : `${Number(today.slice(0, 4)) - 1}-05-10`
 	return [
 		{
 			id: 'S01',
@@ -558,6 +560,38 @@ function scenarios(ctx) {
 				{ text: 'запиши ей оплату на столько, сколько не хватает до 10 уроков' },
 			],
 			live: [],
+		},
+		{
+			id: 'S26',
+			kind: 'ссылка назад',
+			students: ['a'],
+			turns: [{ text: `Запиши оплату @{a} ${ruDate(day(3))}` }, { text: '1000*8=8000 рублей, 8 занятий' }],
+			live: [pay('a', 8000, { paidOn: day(3), lessons: 800, currency: 'RUB' })],
+		},
+		{
+			id: 'S27',
+			kind: 'дата',
+			students: ['a'],
+			turns: [
+				{
+					text: '@{a} record payment from her mother Person Example on May 10 for 40 lessons, the whole payment was 64000 rubles',
+				},
+			],
+			live: [pay('a', 64000, { paidOn: may, lessons: 4000, currency: 'RUB' })],
+		},
+		{
+			id: 'S28',
+			kind: 'поправка',
+			students: ['a'],
+			turns: [{ text: '@{a} заплатила 8000 за 2 урока' }, { text: "payment date on May 10, I've just told you" }],
+			live: [pay('a', 8000, { paidOn: may, lessons: 200 })],
+		},
+		{
+			id: 'S29',
+			kind: 'повтор',
+			students: ['a'],
+			turns: [{ text: '@{a} заплатила 8000 за октябрь' }, { text: 'и ещё 5000 за ноябрь' }],
+			live: [pay('a', 8000), pay('a', 5000)],
 		},
 	]
 }

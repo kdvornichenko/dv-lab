@@ -53,7 +53,7 @@ import { type ChatContext, type LocalRequest, executeIntent } from './actions.ts
 import { LESSON_MINUTES_CHAT_MAX } from './change-cards.ts'
 import { paymentRecords } from './change-deletions.ts'
 import { removeNoteBlock, writeNoteBlock } from './change-notes.ts'
-import { type ChangeRequest, type Cited, proposeChange } from './changes.ts'
+import { type ChangeRequest, proposeChange } from './changes.ts'
 import { ESSAY_NOTE, ESSAY_TOOL_NAME, essayFeedbackInput } from './essay.ts'
 import {
 	chatDayLesson,
@@ -65,6 +65,7 @@ import {
 } from './facts.ts'
 import { type NoteOutcome, addVocabulary, createNoteBlock, removeVocabulary } from './note-writes.ts'
 import { citeKey } from './publish-gate.ts'
+import { type Cited, NO_CITE } from './refs.ts'
 import { REVIEW_TOOL_ENTRIES } from './review.ts'
 import {
 	type ChatToolEntry,
@@ -155,7 +156,6 @@ const inputs = {
 	}),
 	propose_payment: z.strictObject({
 		student_id: id,
-		replaces: nullable(z.string().min(1).max(20)),
 		amount_text: z.string().min(1).max(40),
 		currency: nullable(z.enum(CURRENCIES)),
 		paid_on: nullable(date),
@@ -722,11 +722,7 @@ async function openPage(context: ToolContext, input: z.infer<(typeof inputs)['op
 	return { content: JSON.stringify({ status: 'shown', kind, note: PAGE_NOTE }), isError: false, block }
 }
 
-async function propose(
-	context: ToolContext,
-	request: ChangeRequest,
-	cited: Cited = { sourceMessage: null, replaces: null }
-): Promise<ToolOutcome> {
+async function propose(context: ToolContext, request: ChangeRequest, cited: Cited = NO_CITE): Promise<ToolOutcome> {
 	const outcome = await proposeChange(context.db, context.chat, context.source, request, context.persist, cited)
 	if (outcome.kind === 'refused') return refusal(outcome.code, request.operation)
 	return { content: JSON.stringify(receipt(outcome.block)), isError: false, block: outcome.block }
@@ -1077,11 +1073,10 @@ export const CHAT_TOOL_ENTRIES: readonly ChatToolEntry[] = [
 	chatTool({
 		name: 'propose_payment',
 		description:
-			'Propose recording a payment. source_message is the message where the teacher wrote the amount; when the teacher says "the same", "столько же" about an amount written earlier, it is the message with that amount. replaces: the p… id of a waiting payment proposal only when the teacher moves that payment to another student ("not her, @B"); null for a payment of another student added in the chat ("@B the same", "столько же"), which is a new payment, and null for the same student (a new proposal for the same student replaces the waiting one by itself). amount_text and lessons_text are copied exactly as the teacher wrote them, the number without the currency; lessons_text null when the teacher gave no number of lessons; currency: the one the teacher named, otherwise null; paid_on YYYY-MM-DD: set it whenever the teacher named a payment date ("May 10", "on October 16", "10.05"), with the year of the Now line, or the previous year when that date would be in the future, or the year the teacher wrote; null only when the teacher named no date, which means today; note only when the teacher gave one, otherwise omit it. Nothing is recorded until the teacher confirms in the chat.',
+			'Propose recording a payment. source_message is the message where the teacher wrote the amount; when the teacher says "the same", "столько же" about an amount written earlier, it is the message with that amount. amount_text and lessons_text are copied exactly as the teacher wrote them, the number without the currency; lessons_text null when the teacher gave no number of lessons; currency: the one the teacher named, otherwise null; paid_on YYYY-MM-DD: set it whenever the teacher named a payment date ("May 10", "on October 16", "10.05"), with the year of the Now line, or the previous year when that date would be in the future, or the year the teacher wrote; null only when the teacher named no date, which means today; note only when the teacher gave one, otherwise omit it. Nothing is recorded until the teacher confirms in the chat.',
 		input: inputs.propose_payment,
 		properties: {
 			student_id: string,
-			replaces: nullableString,
 			amount_text: string,
 			currency: { anyOf: [{ type: 'string', enum: [...CURRENCIES] }, { type: 'null' }] },
 			paid_on: nullableString,
@@ -1093,7 +1088,7 @@ export const CHAT_TOOL_ENTRIES: readonly ChatToolEntry[] = [
 		strict: true,
 		effect: 'propose',
 		step: studentStep,
-		run: (context, input, source) =>
+		run: (context, input, cited) =>
 			propose(
 				context,
 				{
@@ -1105,7 +1100,7 @@ export const CHAT_TOOL_ENTRIES: readonly ChatToolEntry[] = [
 					lessonsText: input.lessons_text,
 					note: input.note,
 				},
-				{ sourceMessage: source, replaces: input.replaces }
+				cited
 			),
 	}),
 	chatTool({
@@ -1125,7 +1120,7 @@ export const CHAT_TOOL_ENTRIES: readonly ChatToolEntry[] = [
 		strict: false,
 		effect: 'propose',
 		step: plainStep,
-		run: (context, input, source) =>
+		run: (context, input, cited) =>
 			propose(
 				context,
 				{
@@ -1136,7 +1131,7 @@ export const CHAT_TOOL_ENTRIES: readonly ChatToolEntry[] = [
 					lessonMinutes: input.lesson_minutes,
 					gender: input.gender,
 				},
-				{ sourceMessage: source, replaces: null }
+				cited
 			),
 	}),
 	chatTool({
@@ -1155,7 +1150,7 @@ export const CHAT_TOOL_ENTRIES: readonly ChatToolEntry[] = [
 		strict: false,
 		effect: 'propose',
 		step: studentStep,
-		run: (context, input, source) =>
+		run: (context, input, cited) =>
 			propose(
 				context,
 				{
@@ -1165,7 +1160,7 @@ export const CHAT_TOOL_ENTRIES: readonly ChatToolEntry[] = [
 					currency: input.currency,
 					clear: input.clear,
 				},
-				{ sourceMessage: source, replaces: null }
+				cited
 			),
 	}),
 	chatTool({
@@ -1200,7 +1195,7 @@ export const CHAT_TOOL_ENTRIES: readonly ChatToolEntry[] = [
 		strict: false,
 		effect: 'propose',
 		step: studentStep,
-		run: (context, input, source) =>
+		run: (context, input, cited) =>
 			propose(
 				context,
 				{
@@ -1216,7 +1211,7 @@ export const CHAT_TOOL_ENTRIES: readonly ChatToolEntry[] = [
 					goalsText: input.goals_text,
 					timeZone: input.time_zone,
 				},
-				{ sourceMessage: source, replaces: null }
+				cited
 			),
 	}),
 	chatTool({
@@ -1289,7 +1284,7 @@ export const CHAT_TOOL_ENTRIES: readonly ChatToolEntry[] = [
 		strict: false,
 		effect: 'propose',
 		step: studentStep,
-		run: (context, input, source) =>
+		run: (context, input, cited) =>
 			propose(
 				context,
 				{
@@ -1302,7 +1297,7 @@ export const CHAT_TOOL_ENTRIES: readonly ChatToolEntry[] = [
 					zoneText: input.time_zone,
 					from: input.from,
 				},
-				{ sourceMessage: source, replaces: null }
+				cited
 			),
 	}),
 	chatTool({

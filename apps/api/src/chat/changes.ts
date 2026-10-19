@@ -56,7 +56,7 @@ import {
 } from './change-deletions.ts'
 import { applyNoteChange, noteTargets } from './change-notes.ts'
 import { blocksOf, changeView, insertAction, noteChangeView, repliesOf, reviewOfferView } from './messages.ts'
-import { messagePrefix, proposalPrefix } from './refs.ts'
+import { type Cited, NO_CITE, messagePrefix, proposalPrefix } from './refs.ts'
 
 type PaymentRequest = {
 	operation: 'record_payment'
@@ -69,8 +69,6 @@ type PaymentRequest = {
 }
 
 export type ChangeRequest = PaymentRequest | CardChangeRequest | DeletionRequest | BulkMoveRequest
-
-export type Cited = { sourceMessage: string | null; replaces: string | null }
 
 export type ChangeRefusal =
 	| 'amount_not_in_message'
@@ -199,37 +197,15 @@ async function teacherText(
 	return cited.body === current.body ? current.body : `${cited.body}\n${current.body}`
 }
 
-type StoredTarget = z.infer<typeof storedTarget>
-
-function corrects(next: StoredTarget, old: StoredTarget): boolean {
-	switch (next.operation) {
-		case 'record_payment':
-			return old.operation === 'record_payment' && old.studentId === next.studentId
-		case 'set_rate':
-			return old.operation === 'set_rate' && old.studentId === next.studentId
-		case 'set_details':
-			return old.operation === 'set_details' && old.studentId === next.studentId
-		case 'archive_card':
-			return old.operation === 'archive_card' && old.studentId === next.studentId
-		case 'delete_payment':
-			return old.operation === 'delete_payment' && old.paymentId === next.paymentId
-		case 'remove_note':
-			return old.operation === 'remove_note' && old.noteId === next.noteId
-		case 'remove_comment':
-			return old.operation === 'remove_comment' && old.commentId === next.commentId
-		default:
-			return false
-	}
-}
-
 async function supersede(
 	tx: DbExecutor,
 	context: ChatContext,
 	source: ActionSource,
-	next: StoredTarget,
+	operation: string,
 	replaces: string | null
 ): Promise<void> {
 	const named = replaces === null ? null : proposalPrefix(replaces)
+	if (named === null) return
 	const waiting = await tx
 		.select({ id: chatActions.id, target: chatActions.target })
 		.from(chatActions)
@@ -239,15 +215,15 @@ async function supersede(
 				eq(chatActions.conversationId, source.conversationId),
 				eq(chatActions.kind, 'change'),
 				eq(chatActions.state, 'proposed'),
-				ne(chatActions.messageId, source.messageId)
+				ne(chatActions.messageId, source.messageId),
+				like(sql`${chatActions.id}::text`, `${named}%`)
 			)
 		)
 		.for('update')
 	for (const row of waiting) {
 		const old = storedTarget.safeParse(row.target)
-		if (!old.success) continue
-		const replacing = named !== null && row.id.startsWith(named) && old.data.operation === next.operation
-		if (replacing || corrects(next, old.data)) await settle(tx, row.id, 'refused', { kind: 'stale', issue: 'replaced' })
+		if (old.success && old.data.operation === operation)
+			await settle(tx, row.id, 'refused', { kind: 'stale', issue: 'replaced' })
 	}
 }
 
@@ -348,7 +324,7 @@ async function preparePayment(
 		guard: { cardRevision: card.revision, timeZone: zone },
 	}
 	if (await alreadyProposed(tx, context, source, target)) return refused('already_proposed')
-	await supersede(tx, context, source, target, cited.replaces)
+	await supersede(tx, context, source, target.operation, cited.replaces)
 	const actionId = await insertAction(tx, {
 		accountId: context.accountId,
 		...source,
@@ -390,11 +366,12 @@ async function stage(
 	tx: DbExecutor,
 	context: ChatContext,
 	source: ActionSource,
-	preview: Preview
+	preview: Preview,
+	replaces: string | null = null
 ): Promise<ProposeOutcome> {
 	if (preview.kind === 'refused') return refused(preview.code)
 	const target = storedTarget.safeParse(preview.target)
-	if (target.success) await supersede(tx, context, source, target.data, null)
+	if (target.success) await supersede(tx, context, source, target.data.operation, replaces)
 	const actionId = await insertAction(tx, {
 		accountId: context.accountId,
 		...source,
@@ -425,12 +402,12 @@ async function prepare(
 		case 'bulk_move': {
 			const message = await teacherText(tx, context.accountId, source.messageId, cited.sourceMessage)
 			if (message === null) return refused('source_not_found')
-			return stage(tx, context, source, await proposeBulkMove(tx, context, message, request))
+			return stage(tx, context, source, await proposeBulkMove(tx, context, message, request), cited.replaces)
 		}
 		default: {
 			const message = await teacherText(tx, context.accountId, source.messageId, cited.sourceMessage)
 			if (message === null) return refused('source_not_found')
-			return stage(tx, context, source, await previewCardChange(tx, saidIn(message), request))
+			return stage(tx, context, source, await previewCardChange(tx, saidIn(message), request), cited.replaces)
 		}
 	}
 }
@@ -441,7 +418,7 @@ export function proposeChange(
 	source: ActionSource,
 	request: ChangeRequest,
 	persist: (tx: DbExecutor, block: ChatChangeProposalBlock) => Promise<void>,
-	cited: Cited = { sourceMessage: null, replaces: null }
+	cited: Cited = NO_CITE
 ): Promise<ProposeOutcome> {
 	return db.transaction(async (tx) => {
 		const outcome = await prepare(tx, context, source, request, cited)

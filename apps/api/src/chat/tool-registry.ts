@@ -8,6 +8,7 @@ import type { Database, DbExecutor } from '@dv-lab/db'
 import type { EventTitles } from '../calendar/event-titles.ts'
 import type { ActionSource, ChatContext } from './actions.ts'
 import type { Issued } from './publish-gate.ts'
+import { type Cited, NO_CITE } from './refs.ts'
 import type { ReviewSession } from './review.ts'
 
 export type ToolContext = {
@@ -49,35 +50,56 @@ export type ChatToolEntry = {
 type ChatToolSpec<Input extends z.ZodObject> = Omit<ChatToolEntry, 'input' | 'optional' | 'run'> & {
 	input: Input
 	optional?: readonly string[]
-	run: (context: ToolContext, input: z.output<Input>, source: string | null) => Promise<ToolOutcome>
+	run: (context: ToolContext, input: z.output<Input>, cited: Cited) => Promise<ToolOutcome>
 }
 
 const READ_ONLY: ReadonlySet<ToolEffect> = new Set(['read', 'show', 'feedback'])
 
-const SOURCE_MESSAGE = {
-	type: 'string',
-	description:
-		'The id from the [Message …] line of the teacher message where the teacher wrote the main value of this call (for a payment, the amount), such as m1a2b3c4d. It may be an earlier message in this chat: the current message is always checked too, so when the current message only corrects a waiting proposal ("3 lessons", "the 16th"), keep the id of the message with the amount.',
+const CITE_PROPERTIES = {
+	source_message: {
+		type: 'string',
+		description:
+			'The id from the [Message …] line of the teacher message where the teacher wrote the main value of this call (for a payment, the amount), such as m1a2b3c4d. It may be an earlier message in this chat: the current message is always checked too, so when the current message only corrects a waiting proposal ("3 lessons", "the 16th"), keep the id of the message with the amount.',
+	},
+	replaces: {
+		type: ['string', 'null'],
+		description:
+			'The p… id of a proposal listed under [Waiting] that this call corrects (another date, amount, number of lessons, value or student): the app marks it replaced. null for a new, separate proposal, such as a second payment of the same student or a payment of another student ("@B the same", "столько же").',
+	},
 }
 
-const sourceMessage = z.string().min(1).max(20)
+const citeInput = {
+	source_message: z.string().min(1).max(20),
+	replaces: z
+		.string()
+		.min(1)
+		.max(20)
+		.nullish()
+		.transform((value) => value ?? null),
+}
+
+const citeSchema = z.object(citeInput)
 
 export function chatTool<Input extends z.ZodObject>(spec: ChatToolSpec<Input>): ChatToolEntry {
 	if (spec.cites !== true)
 		return {
 			...spec,
 			optional: spec.optional ?? [],
-			run: (context, input) => spec.run(context, spec.input.parse(input), null),
+			run: (context, input) => spec.run(context, spec.input.parse(input), NO_CITE),
 		}
-	const input = spec.input.extend({ source_message: sourceMessage })
+	const input = spec.input.extend(citeInput)
 	return {
 		...spec,
 		input,
-		properties: { ...spec.properties, source_message: SOURCE_MESSAGE },
+		properties: { ...spec.properties, ...CITE_PROPERTIES },
 		optional: spec.optional ?? [],
 		run: (context, raw) => {
-			const { source_message: source, ...rest } = input.parse(raw)
-			return spec.run(context, spec.input.parse(rest), typeof source === 'string' ? source : null)
+			const { source_message: _source, replaces: _replaces, ...rest } = input.parse(raw)
+			const cite = citeSchema.parse(raw)
+			return spec.run(context, spec.input.parse(rest), {
+				sourceMessage: cite.source_message,
+				replaces: cite.replaces,
+			})
 		},
 	}
 }

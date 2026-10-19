@@ -1,3 +1,7 @@
+export type Cited = { sourceMessage: string | null; replaces: string | null }
+
+export const NO_CITE: Cited = { sourceMessage: null, replaces: null }
+
 const REF_LENGTH = 8
 const MESSAGE_REF = /^m?([0-9a-f]{8})$/u
 const PROPOSAL_REF = /^p?([0-9a-f]{8})$/u
