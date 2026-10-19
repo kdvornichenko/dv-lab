@@ -14,7 +14,7 @@ import {
 	commandsResponse,
 } from '../../packages/contracts/src/index.ts'
 import * as core from '../../packages/core/src/index.ts'
-import { ENV_TEST, ROOT, STUDENT_LOGIN } from './api.mjs'
+import { ENV_TEST, ROOT, STUDENT_LOGIN, requestText } from './api.mjs'
 import { removeCards } from './ledger-api/context.ts'
 import { call, quote, sql, startApi, studentCookie, teacherCookie } from './schedule-api/io.ts'
 
@@ -3378,7 +3378,7 @@ async function sectionPrompts(ctx) {
 			const done = await settle(sent.json.turn.id)
 			return { done, requests: fake.calls.slice(before) }
 		}
-		const lastUser = (request) => String(request.messages.at(-1).content)
+		const lastUser = (request) => requestText(request.messages.at(-1).content)
 		const recap = (id) => turn(id, `/recap @${name}`, [binding])
 
 		const listed = await as('GET', '/settings/assistant/prompts')
@@ -3433,7 +3433,7 @@ async function sectionPrompts(ctx) {
 		check(
 			'an earlier /recap in the history goes to the model with the same saved text',
 			next.requests[0].messages.some(
-				(message) => message.role === 'user' && String(message.content).startsWith(CUSTOM_RECAP)
+				(message) => message.role === 'user' && requestText(message.content).includes(`]\n${CUSTOM_RECAP}`)
 			)
 		)
 
@@ -3578,7 +3578,9 @@ async function sectionCommands(ctx) {
 				commandsResponse.safeParse(empty.json).success &&
 				empty.json.commands.length === 0 &&
 				empty.json.allowedTools.some((tool) => tool.name === 'today' && tool.effect === 'show') &&
-				!empty.json.allowedTools.some((tool) => ['propose_payment', 'mark_lesson', 'essay_feedback'].includes(tool.name)) &&
+				!empty.json.allowedTools.some((tool) =>
+					['propose_payment', 'mark_lesson', 'essay_feedback'].includes(tool.name)
+				) &&
 				isDeepStrictEqual(empty.json.limits, { strict: 20, optional: 24, union: 16 }),
 			String(empty.status)
 		)
@@ -3605,7 +3607,10 @@ async function sectionCommands(ctx) {
 			)
 		}
 		const taken = await as('POST', '/settings/assistant/commands', { name: '/homework', ...body })
-		check('a second active command with the same name is refused', taken.status === 409 && taken.json?.error?.code === 'name_taken')
+		check(
+			'a second active command with the same name is refused',
+			taken.status === 409 && taken.json?.error?.code === 'name_taken'
+		)
 		const badName = await as('POST', '/settings/assistant/commands', { name: 'homework2', ...body })
 		check('a name without the slash is an invalid request', badName.status === 400)
 		const writing = await as('POST', '/settings/assistant/commands', {
@@ -3630,17 +3635,34 @@ async function sectionCommands(ctx) {
 			JSON.stringify(updated.json)
 		)
 		const stale = await as('PUT', `/settings/assistant/commands/${command.id}`, update)
-		check('PUT with the old revision answers 409 precondition_failed', stale.status === 409 && stale.json?.error?.code === 'precondition_failed')
-		const renamed = await as('PUT', `/settings/assistant/commands/${command.id}`, { ...update, expectedRevision: 2, name: '/other' })
+		check(
+			'PUT with the old revision answers 409 precondition_failed',
+			stale.status === 409 && stale.json?.error?.code === 'precondition_failed'
+		)
+		const renamed = await as('PUT', `/settings/assistant/commands/${command.id}`, {
+			...update,
+			expectedRevision: 2,
+			name: '/other',
+		})
 		check(
 			'a name in the update is an invalid request and the stored name stays',
 			renamed.status === 400 &&
 				sql(`select name from chat_commands where id = ${quote(command.id)}`).rows[0].name === '/homework'
 		)
-		const missing = await as('PUT', `/settings/assistant/commands/${'0'.repeat(8)}-0000-4000-8000-${'0'.repeat(12)}`, update)
-		check('an unknown id answers 404 and a bad id 400', missing.status === 404 && (await as('PUT', '/settings/assistant/commands/x', update)).status === 400)
+		const missing = await as(
+			'PUT',
+			`/settings/assistant/commands/${'0'.repeat(8)}-0000-4000-8000-${'0'.repeat(12)}`,
+			update
+		)
+		check(
+			'an unknown id answers 404 and a bad id 400',
+			missing.status === 404 && (await as('PUT', '/settings/assistant/commands/x', update)).status === 400
+		)
 
-		const limits = await as('POST', '/settings/assistant/commands/limits', { tools: ['student_notes'], blocks: body.blocks })
+		const limits = await as('POST', '/settings/assistant/commands/limits', {
+			tools: ['student_notes'],
+			blocks: body.blocks,
+		})
 		check(
 			'the limits route counts a draft and writes nothing',
 			limits.status === 200 &&
@@ -3664,7 +3686,10 @@ async function sectionCommands(ctx) {
 		const again = await as('POST', '/settings/assistant/commands', { name: '/homework', ...body })
 		check('the name is free again after the archive', again.status === 201)
 		const restored = await as('POST', `/settings/assistant/commands/${command.id}/restore`, { expectedRevision: 3 })
-		check('restoring while the name is active again is refused', restored.status === 409 && restored.json?.error?.code === 'name_taken')
+		check(
+			'restoring while the name is active again is refused',
+			restored.status === 409 && restored.json?.error?.code === 'name_taken'
+		)
 
 		check(
 			'commands are never deleted and the app role cannot delete them',
@@ -3676,10 +3701,16 @@ async function sectionCommands(ctx) {
 					`select has_table_privilege('dvlab_app', 'chat_commands', 'DELETE') as d, has_table_privilege('dvlab_app', 'chat_commands', 'TRUNCATE') as t`
 				).rows[0].t === false
 		)
-		console.log('NOTE the 20, 24 and 16 limits cannot be exceeded through the route: every allowed tool is not strict; the synthetic set is checked in chat-tools-schema.mjs')
+		console.log(
+			'NOTE the 20, 24 and 16 limits cannot be exceeded through the route: every allowed tool is not strict; the synthetic set is checked in chat-tools-schema.mjs'
+		)
 		const student = await studentCookie(api)
 		const forbidden = await call(api, 'GET', '/settings/assistant/commands', { cookie: student })
-		check('a student cannot read the commands', forbidden.status === 403 || forbidden.status === 401, String(forbidden.status))
+		check(
+			'a student cannot read the commands',
+			forbidden.status === 403 || forbidden.status === 401,
+			String(forbidden.status)
+		)
 		return 'CHAT_COMMANDS_OK'
 	} finally {
 		console.log(`fixture commands removed ${clear()}`)
@@ -3772,7 +3803,8 @@ async function sectionCommandTurn(ctx) {
 	const original = sql(
 		`select chat_models as models, chat_model as model, chat_effort as effort, chat_monthly_cap_usd::text as cap from teacher_settings where account_id = ${quote(accountId)}`
 	).rows[0]
-	const clearCommands = () => sql(`delete from chat_commands where account_id = ${quote(accountId)}`, 'migrator').rowCount
+	const clearCommands = () =>
+		sql(`delete from chat_commands where account_id = ${quote(accountId)}`, 'migrator').rowCount
 	try {
 		const cookie = await teacherCookie(local)
 		const as = (method, path, body) => send(local, method, path, { cookie, body })
@@ -3803,10 +3835,10 @@ async function sectionCommandTurn(ctx) {
 			return { sent, done, requests: fake.calls.slice(before) }
 		}
 		const lastUser = (request) => {
-			const content = request.messages.at(-1).content
-			return typeof content === 'string' ? content : JSON.stringify(content)
+			return requestText(request.messages.at(-1).content)
 		}
-		const replyRow = (done) => sql(`select body, blocks from chat_messages where id = ${quote(done.assistantMessageId)}`).rows[0]
+		const replyRow = (done) =>
+			sql(`select body, blocks from chat_messages where id = ${quote(done.assistantMessageId)}`).rows[0]
 		const commandBlocks = (row) => row.blocks.filter((block) => block.type === 'command')
 		const create = async (input) => {
 			const made = await createCommand(db, accountId, input)
@@ -3944,7 +3976,10 @@ async function sectionCommandTurn(ctx) {
 			JSON.stringify(gatedRow)
 		)
 
-		fake.script.push(use('propose_payment', { student_id: card, amount_text: '100' }), jsonReply({ block_1: ['1. Read'], block_2: 'Hi' }))
+		fake.script.push(
+			use('propose_payment', { student_id: card, amount_text: '100' }),
+			jsonReply({ block_1: ['1. Read'], block_2: 'Hi' })
+		)
 		const guarded = await turn(await fresh(), `/homework @${name}`, [binding])
 		const guardResult = guarded.requests[1]?.messages.at(-1)?.content?.[0]
 		check(
@@ -3990,17 +4025,16 @@ async function sectionCommandTurn(ctx) {
 			: -1
 		check(
 			'an archived command is refused as command_unavailable without a request to the model or a budget attempt',
-			archived.ok &&
-				gone.done?.issue === 'command_unavailable' &&
-				fake.calls.length === callsBefore &&
-				attempts === 0,
+			archived.ok && gone.done?.issue === 'command_unavailable' && fake.calls.length === callsBefore && attempts === 0,
 			gone.done?.issue
 		)
 		check(
 			'the log has no command text and no fixture name',
 			!lines.join('').includes(PROMPT) && !lines.join('').includes(name)
 		)
-		console.log('NOTE the command_too_large guard needs more than 20 strict tools and no allowed tool is strict: it is covered by the synthetic set in chat-tools-schema.mjs')
+		console.log(
+			'NOTE the command_too_large guard needs more than 20 strict tools and no allowed tool is strict: it is covered by the synthetic set in chat-tools-schema.mjs'
+		)
 		return 'CHAT_COMMAND_TURN_OK'
 	} finally {
 		await chat.close()

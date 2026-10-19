@@ -5,7 +5,7 @@ import { createRequire } from 'node:module'
 import { isDeepStrictEqual, parseEnv } from 'node:util'
 
 import * as core from '../../packages/core/src/index.ts'
-import { ENV_TEST, ROOT, call, quote, sql, studentCookie, teacherCookie } from './api.mjs'
+import { ENV_TEST, ROOT, call, quote, requestText, sql, studentCookie, teacherCookie, withSource } from './api.mjs'
 import { removeCards } from './ledger-api/context.ts'
 
 process.env.CHAT_FAKE_DELAY_MS ??= '5'
@@ -111,7 +111,12 @@ function say(text, { delay = 0, usage = {} } = {}) {
 
 function use(name, input) {
 	return async function* toolUse(request) {
-		const block = { type: 'tool_use', id: `toolu_${randomUUID().slice(0, 8)}`, name, input }
+		const block = {
+			type: 'tool_use',
+			id: `toolu_${randomUUID().slice(0, 8)}`,
+			name,
+			input: withSource(REGISTRY, name, input, request),
+		}
 		yield { type: 'final', message: message(request.model, [block], 'tool_use') }
 	}
 }
@@ -314,7 +319,9 @@ async function providerSmoke() {
 	)
 	check(
 		'a request without diagnostics carries no diagnostics field and keeps tool_choice auto',
-		fakeState.lastBody !== undefined && !('diagnostics' in fakeState.lastBody) && fakeState.lastBody.tool_choice.type === 'auto'
+		fakeState.lastBody !== undefined &&
+			!('diagnostics' in fakeState.lastBody) &&
+			fakeState.lastBody.tool_choice.type === 'auto'
 	)
 	for await (const event of real.stream(
 		{ ...request('Plan the next lesson'), diagnostics: { previousMessageId: null } },
@@ -698,7 +705,7 @@ async function todayFromLessonDay(conversationId, zone) {
 	const day = core.lessonDay(new Date(), zone)
 	fake.script.push(say(`Сегодня ${spoken(day)}. Хорошего дня.`))
 	const turn = await settled((await ask(conversationId, 'Какое сегодня число?')).json.turn.id)
-	const request = String(fake.calls.at(-1).messages.at(-1).content)
+	const request = requestText(fake.calls.at(-1).messages.at(-1).content)
 	const reply = replyOf(turn.id)
 	check(
 		'the turn context has a Lesson day line from lessonDay and the answer with that date is published',
@@ -935,7 +942,7 @@ async function genderOfCard(studentId) {
 	const block = replyOf(turn.id).blocks.find((item) => item.type === 'facts')
 	check(
 		'the gender reaches the model: the mentioned students line, find_students and student_facts, and the prompt has the rule',
-		String(request?.messages.at(-1).content).includes(`- ${name} (student_id: ${id}, gender: male)`) &&
+		requestText(request?.messages.at(-1).content).includes(`- ${name} (student_id: ${id}, gender: male)`) &&
 			String(request?.system).includes('Choose the grammatical gender') &&
 			String(request?.system).includes('never guess it from the name') &&
 			found.students?.[0]?.gender === 'male' &&
@@ -951,7 +958,9 @@ async function genderOfCard(studentId) {
 	await settled((await askAbout(thread, `и @${NAME}?`, studentId)).json.turn.id)
 	check(
 		'a mentioned student without a gender goes to the model as gender null',
-		String(fake.calls.at(-1).messages.at(-1).content).includes(`- ${NAME} (student_id: ${studentId}, gender: null)`)
+		requestText(fake.calls.at(-1).messages.at(-1).content).includes(
+			`- ${NAME} (student_id: ${studentId}, gender: null)`
+		)
 	)
 }
 
@@ -1224,30 +1233,41 @@ async function main() {
 
 	const history = await conversation()
 	const old = 'Old message number NN about grammar practice. '.repeat(60)
-	for (let index = 1; index <= 6; index++) {
+	for (let index = 1; index <= 15; index++) {
 		for (const role of ['teacher', 'assistant']) {
 			sql(
 				`insert into chat_messages (account_id, conversation_id, role, body) values (${quote(accountId)}, ${quote(history)}, '${role}', ${quote(old.replaceAll('NN', `${role}${index}`))})`
 			)
 		}
 	}
-	await saveAssistantSettings(db, accountId, { maxInputTokens: baseBound + 7000 })
+	await saveAssistantSettings(db, accountId, { maxInputTokens: baseBound + 40000 })
 	fake.script.push(say('Here is what I remember.'))
 	const trimmed = await settled((await ask(history, 'What did we discuss?')).json.turn.id)
 	const trimmedRequest = fake.calls.at(-1)
 	const sentText = JSON.stringify(trimmedRequest.messages)
 	check(
-		'a long history drops the oldest messages and the answer still comes',
+		'a long history drops the oldest 20 messages at once and the answer still comes',
 		trimmed.state === 'completed' &&
-			!sentText.includes('number teacher1 ') &&
-			sentText.includes('number assistant6 ') &&
+			!sentText.includes('number teacher10 ') &&
+			!sentText.includes('number assistant10 ') &&
+			sentText.includes('number teacher11 ') &&
+			sentText.includes('number assistant15 ') &&
 			inputUpperBound({
 				system: trimmedRequest.system,
 				tools: trimmedRequest.tools,
 				messages: trimmedRequest.messages,
 			}) <=
-				baseBound + 7000 &&
+				baseBound + 40000 &&
 			trimmedRequest.messages[0].role === 'user'
+	)
+	fake.script.push(say('Still here.'))
+	await settled((await ask(history, 'And then?')).json.turn.id)
+	const nextRequest = fake.calls.at(-1)
+	const kept = trimmedRequest.messages.length - 1
+	check(
+		'the next turn keeps the same cut and renders the earlier teacher message as it was sent',
+		JSON.stringify(nextRequest.messages.slice(0, kept)) === JSON.stringify(trimmedRequest.messages.slice(0, kept)) &&
+			nextRequest.messages[kept]?.content?.[0]?.text === trimmedRequest.messages[kept]?.content?.[0]?.text
 	)
 	await saveAssistantSettings(db, accountId, { maxInputTokens: 100000 })
 
@@ -1453,11 +1473,11 @@ async function main() {
 	fake.script.push(say('Which student?'))
 	await settled((await ask(first, '/recap')).json.turn.id)
 	const recapRequest = fake.calls.at(-1)
-	const recapText = String(recapRequest.messages.at(-1).content)
+	const recapText = requestText(recapRequest.messages.at(-1).content)
 	check(
 		'/recap goes to the model as a recap task with the tools',
 		recapText.includes('Prepare a short recap for the mentioned student') &&
-			!recapText.includes('[Message]\n/recap') &&
+			!recapText.includes(']\n/recap') &&
 			recapRequest.tools.some((item) => item.name === 'student_notes')
 	)
 

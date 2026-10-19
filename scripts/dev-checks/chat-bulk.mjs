@@ -4,6 +4,7 @@ import dns from 'node:dns'
 import { readFileSync } from 'node:fs'
 import { parseEnv } from 'node:util'
 
+import { messageRef } from '../../apps/api/src/chat/refs.ts'
 import { call, teacherCookie } from './api.mjs'
 import {
 	ROOT,
@@ -740,7 +741,7 @@ async function askBulk(pipeline, fx, student, text, input, extra = {}) {
 			shown: new Set(),
 		},
 		'propose_bulk_move',
-		{ student_id: student.id, time_zone: null, from: null, ...input }
+		{ student_id: student.id, source_message: messageRef(teacher.id), time_zone: null, from: null, ...input }
 	)
 	if (outcome.block !== null && !chatBlock.safeParse(outcome.block).success)
 		fail('shape', 'the proposal block does not match the contract')

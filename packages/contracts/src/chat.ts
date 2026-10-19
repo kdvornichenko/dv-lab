@@ -445,6 +445,7 @@ export const CHAT_CHANGE_ISSUES = [
 	'command_pending',
 	'outside_sync_window',
 	'provider_unavailable',
+	'replaced',
 ] as const
 
 export const CHAT_BULK_TARGET_STATES = ['planned', 'pending', 'applied', 'failed', 'not_started'] as const
