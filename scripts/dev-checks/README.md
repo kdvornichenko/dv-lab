@@ -14,7 +14,7 @@
 
 - Свой api на отдельном порту, в него через `page.route` идут только нужные пути: `chat-web.mjs` `models`, `delete`, `preview` (4255, если 4000 занят), `changes-web.mjs` `payment` (4256), `proposals` (4252), `bulk` (4253), `title` (4254). `ledger-api.mjs` поднимает api на 4202 на `dvlab_test` без браузера.
 - Свободный 4000 по-прежнему нужен `chat-web.mjs stream`: поток SSE не проходит через `page.route`, `route.fetch` читает ответ целиком. `schedule-started-web.mjs` поднимает свои api на 4000 и `next dev` на 3000 и требует остановленного стека. `chat-web.mjs calendar` своего api не поднимает и идёт в стек владельца.
-- `ledger-api.mjs <раздел>`: одиночные уроки-фикстуры вставляются SQL (`onceLesson`), потому что `POST /schedule/lessons` теперь команда календаря и без Google отвечает 409 `connection_required`. Раздел `balance` печатает `SCHEDULE_LEDGER_BALANCE_OK`, `flag` — `SCHEDULE_LEDGER_FLAG_OK`. Разделы `marks`, `past`, `moves`, `cut`, `race` и `today` падают на чтении недели (в ответе нет `blocks`) и на командах календаря без Google.
+- `ledger-api.mjs <раздел>`: одиночные уроки-фикстуры вставляются SQL (`onceLesson`), потому что `POST /schedule/lessons` теперь команда календаря и без Google отвечает 409 `connection_required`. Раздел `balance` печатает `SCHEDULE_LEDGER_BALANCE_OK`, `flag` — `SCHEDULE_LEDGER_FLAG_OK`, `chatends` (урок, на котором остаток чата доходит до нуля: пять уроков по 60 и 90 минут, отмена одного, нулевой остаток, остаток сверх расписания) — `CHAT_BALANCE_ENDS_OK`. Разделы `marks`, `past`, `moves`, `cut`, `race` и `today` падают на чтении недели (в ответе нет `blocks`) и на командах календаря без Google.
 
 ## Local Google OAuth client
 

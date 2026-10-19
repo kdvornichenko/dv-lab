@@ -2,6 +2,7 @@ import { eq } from 'drizzle-orm'
 
 import {
 	CHAT_LESSON_DATES_DAYS_MAX,
+	type ChatBalanceEnds,
 	type ChatDay,
 	type ChatDayLesson,
 	type ChatFactsBlock,
@@ -26,6 +27,33 @@ export type ChatRecordsBlock = ChatFactsBlock | ChatLessonsBlock | ChatPaysSoonB
 
 export type LessonDatesPeriod = { from: string; to: string }
 
+const BALANCE_ENDS_DAYS = 366
+
+async function readBalanceEnds(
+	executor: DbExecutor,
+	context: CardReadContext,
+	studentId: string,
+	balanceMinutes: number
+): Promise<ChatBalanceEnds> {
+	if (balanceMinutes <= 0) return { state: 'now' }
+	const zone = context.defaultTimeZone
+	const from = startOfLessonDay(lessonDay(context.now, zone), zone)
+	const to = startOfLessonDay(addDays(lessonDay(context.now, zone), BALANCE_ENDS_DAYS), zone)
+	const window = await readWindowBlocks(executor, context, { from, to, studentIds: [studentId] })
+	const lessons = window.blocks
+		.filter((block) => {
+			const kind = dateKind(block, context.now)
+			return kind === 'ahead' || kind === 'unmarked'
+		})
+		.sort((left, right) => Date.parse(left.startsAt) - Date.parse(right.startsAt))
+	let left = balanceMinutes
+	for (const block of lessons) {
+		left -= block.durationMinutes
+		if (left <= 0) return { state: 'on', date: lessonDay(new Date(block.startsAt), zone), startsAt: block.startsAt }
+	}
+	return { state: 'beyond' }
+}
+
 export async function readChatFacts(
 	executor: DbExecutor,
 	context: CardReadContext,
@@ -34,6 +62,8 @@ export async function readChatFacts(
 ): Promise<ChatStudentFacts | null> {
 	const card = await getCard(executor, studentId, context)
 	if (card === null) return null
+	const balanceEnds =
+		card.balanceMinutes === null ? null : await readBalanceEnds(executor, context, studentId, card.balanceMinutes)
 	return {
 		student: {
 			id: card.id,
@@ -42,6 +72,7 @@ export async function readChatFacts(
 			defaultLessonMinutes: card.defaultLessonMinutes,
 		},
 		balanceMinutes: card.balanceMinutes,
+		...(balanceEnds === null ? {} : { balanceEnds }),
 		nextLesson: card.nextLesson,
 		paysSoon: paysSoonList([card], paysSoonLessons).length > 0,
 		paysSoonLessons,

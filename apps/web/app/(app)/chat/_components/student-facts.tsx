@@ -122,6 +122,35 @@ export function NextLessonFact({ facts, secondZone }: { facts: ChatStudentFacts;
 	)
 }
 
+export function BalanceEndsFact({ facts }: { facts: ChatStudentFacts }) {
+	const { balanceEnds, defaultTimeZone, asOf } = facts
+	if (balanceEnds === undefined) return null
+	if (balanceEnds.state === 'now') {
+		return (
+			<Fact label="Balance ends">
+				<p className="text-body font-medium text-muted-foreground">No lessons left</p>
+			</Fact>
+		)
+	}
+	if (balanceEnds.state === 'beyond') {
+		return (
+			<Fact label="Balance ends">
+				<p className="text-body font-medium text-muted-foreground">Not within a year</p>
+			</Fact>
+		)
+	}
+	const at = new Date(balanceEnds.startsAt)
+	const year = yearInZone(new Date(asOf), defaultTimeZone)
+	return (
+		<Fact label="Balance ends">
+			<p className="text-body font-medium">
+				{formatWhen(at, defaultTimeZone, year)} {zoneLabel(defaultTimeZone, at)}
+			</p>
+			<p className="min-h-4 text-micro text-muted-foreground">After this lesson.</p>
+		</Fact>
+	)
+}
+
 export function StudentFacts({ facts, followUp }: { facts: ChatStudentFacts; followUp?: FactsFollowUp }) {
 	const { student, defaultTimeZone, asOf } = facts
 	const [secondZone] = useSecondZone(defaultTimeZone)
@@ -152,6 +181,7 @@ export function StudentFacts({ facts, followUp }: { facts: ChatStudentFacts; fol
 					>
 						<BalanceFact facts={facts} />
 						<NextLessonFact facts={facts} secondZone={secondZone} />
+						<BalanceEndsFact facts={facts} />
 					</div>
 					<p
 						data-slot="chat-facts-checked"
