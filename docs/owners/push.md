@@ -8,7 +8,7 @@
   - `subscriptions.ts` — подписки устройств, `activeSubscriptions`;
   - `presence.ts` — присутствие на экране, свежесть 90 с;
   - `scheduler.ts` — уведомления «скоро урок» по `readWindowBlocks` и «скоро платить» по взводу `push_payment_alerts`; запускается через `lifecycle.manage` в `server.ts`, при `NODE_ENV=test` не создаётся;
-  - `deliver.ts` — отправка через `web-push`, отзыв подписки на 404 и 410.
+  - `deliver.ts` — отправка через `web-push`, отзыв подписки на 404 и 410. По умолчанию TTL 600 с и срочность normal; напоминание об уроке уходит с `urgency: 'high'` и TTL до начала урока (не меньше 60 с), иначе Android в Doze (FCM) держит его до пробуждения.
   - `assistant.ts` — push ассистента («Reply is ready», «Waiting for your decision»): окончание хода чата вызывает `createAssistantNotifier`, переключатель `teacher_settings.notify_assistant`, устройство со свежим сигналом присутствия пропускается, ссылка `/?chat=<id>` (`chatLink`), тела ответа в push нет.
 - Маршруты `/push/config`, `/push/subscriptions`, `/push/presence` — `routes/push.ts`.
 - `PUSH_VAPID_PUBLIC_KEY`, `PUSH_VAPID_PRIVATE_KEY`, `PUSH_VAPID_SUBJECT` читает только `loadConfig`: все три или ни одной, без них push выключен.
