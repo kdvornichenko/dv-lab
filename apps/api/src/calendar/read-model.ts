@@ -54,7 +54,7 @@ export type ViewEvent = BoundEvent & {
 
 const NO_COLORS: EventColors = { palette: null, calendarColor: null }
 
-function connectionIssue(connection: GoogleConnectionSnapshot): CalendarIssue | null {
+export function connectionIssue(connection: Pick<GoogleConnectionSnapshot, 'state'>): CalendarIssue | null {
 	if (connection.state === 'connected') return null
 	if (connection.state === 'not_connected') return 'connection_required'
 	if (connection.state === 'permission_required') return 'permission_required'
