@@ -60,7 +60,7 @@ function sectionConfig() {
 		'config keeps models, tariffs, limits and the cap out of the environment',
 		Object.keys(set.config?.chat ?? {})
 			.sort()
-			.join(',') === 'apiKey,enabled'
+			.join(',') === 'apiKey,cacheDiagnostics,enabled'
 	)
 }
 
@@ -132,8 +132,7 @@ async function sectionSave(db, accountId) {
 	check(
 		'a reordered list is saved and read back in that order',
 		first.ok &&
-			first.settings.models.map((entry) => entry.id).join(',') ===
-				'claude-sonnet-5-5,claude-haiku-5-5,claude-opus-5-5'
+			first.settings.models.map((entry) => entry.id).join(',') === 'claude-sonnet-5-5,claude-haiku-5-5,claude-opus-5-5'
 	)
 	const stored = await readAssistantSettings(db, accountId)
 	check('reading again gives the saved order', stored.models[0].id === 'claude-sonnet-5-5')
@@ -438,7 +437,8 @@ async function sectionHttp(api, cookie, accountId) {
 		teacherSettings.status === 200 &&
 			Object.keys(teacherSettings.json?.settings ?? {})
 				.sort()
-				.join(',') === 'defaultTimeZone,paysSoonLessons'
+				.join(',') ===
+				'defaultTimeZone,notifyAssistant,notifyLessonMinutes,notifyLessonSoon,notifyPaysSoon,paysSoonLessons,studentTimeZone'
 	)
 
 	const student = await studentCookie(api)

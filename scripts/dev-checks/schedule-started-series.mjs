@@ -549,8 +549,8 @@ async function caseTodayIntoPast(pipeline, fx) {
 	const local = core.zonedParts(new Date(), fx.zone)
 	const [hour, minute] = local.time.split(':').map(Number)
 	const minutes = hour * 60 + minute
-	if (minutes < 70 || minutes > 22 * 60) {
-		console.log('case 5 skipped: the local time is within an hour of midnight')
+	if (core.lessonDayMinutes(new Date(), fx.zone) < 60 || minutes > 22 * 60) {
+		console.log('case 5 skipped: an hour ago is before the start of the lesson day or later is past midnight')
 		return
 	}
 	const clock = (value) => `${String(Math.floor(value / 60)).padStart(2, '0')}:${String(value % 60).padStart(2, '0')}`

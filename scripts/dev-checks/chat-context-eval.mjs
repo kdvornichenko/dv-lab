@@ -805,11 +805,15 @@ async function pooled(tasks, size) {
 
 let accountId = null
 let original = null
+let period
 let exitCode = 1
 try {
 	cookie = await teacherCookie(api)
 	accountId = sql(`select id from accounts where role = 'teacher' and status = 'active'`).rows[0]?.id ?? null
 	if (!accountId) throw new Error('no active teacher fixture')
+	period = sql(
+		`select id, spent_nano::text as spent, held_nano::text as held from chat_budget_periods where account_id = ${quote(accountId)} order by starts_on desc limit 1`
+	).rows[0]
 	original = sql(
 		`select chat_monthly_cap_usd::text as cap, chat_models as models, chat_model as model, chat_effort as effort, chat_max_input_tokens as input, chat_max_output_tokens as output from teacher_settings where account_id = ${quote(accountId)}`
 	).rows[0]
@@ -888,6 +892,10 @@ try {
 	await chat.close()
 	server.close()
 	if (ownConversations.length > 0) removeChats(`id in (${ownConversations.map(quote).join(', ')})`)
+	if (period)
+		sql(
+			`update chat_budget_periods set spent_nano = ${period.spent}, held_nano = ${period.held} where id = ${quote(period.id)}`
+		)
 	if (ownCards.length > 0) removeCards(`id in (${ownCards.map(quote).join(', ')}) and import_key is null`)
 	if (accountId)
 		sql(

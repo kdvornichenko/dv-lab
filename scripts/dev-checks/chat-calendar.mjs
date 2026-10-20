@@ -407,6 +407,20 @@ async function createLesson(pipeline, fx, student, instant) {
 	}
 }
 
+const MINUTES_AGO = {
+	started: 30,
+	cancel: 40,
+	done: 50,
+	noShow: 120,
+	race: 130,
+	earlier: 140,
+	pending: 20,
+	series: 30,
+	ending: 35,
+	kept: 25,
+}
+const EARLIEST_LESSON_MS = (Math.max(...Object.values(MINUTES_AGO)) + 5) * 60000
+
 async function createSeries(pipeline, fx, student, instant) {
 	const parts = core.zonedParts(instant, fx.zone)
 	await run(pipeline, fx, {
@@ -1020,6 +1034,11 @@ where c.state not in ('applied', 'failed') and g.calendar_id not like '${SYNTHET
 		calendarToday: core.scheduleToday(new Date(), zone),
 		target: { accountId: connection.account_id, connectionId: connection.id, calendarId: connection.calendar_id },
 	})
+	const startedAgo = Date.now() - core.startOfLessonDay(fx.today, zone).getTime()
+	if (startedAgo < EARLIEST_LESSON_MS)
+		throw new Error(
+			`the lesson day started less than ${EARLIEST_LESSON_MS / 60000} minutes ago: the fixture lessons of today would fall into the previous lesson day, run after ${core.zonedParts(new Date(core.startOfLessonDay(fx.today, zone).getTime() + EARLIEST_LESSON_MS), zone).time}`
+		)
 	const ids = {
 		a: card(1),
 		b: card(2),
@@ -1033,16 +1052,16 @@ where c.state not in ('applied', 'failed') and g.calendar_id not like '${SYNTHET
 		k: card(10),
 	}
 	const now = Date.now()
-	ids.started = await createLesson(pipeline, fx, ids.a, minuteFloor(now - 30 * 60000))
-	ids.cancel = await createLesson(pipeline, fx, ids.b, minuteFloor(now - 40 * 60000))
-	ids.done = await createLesson(pipeline, fx, ids.c, minuteFloor(now - 50 * 60000))
-	ids.noShow = await createLesson(pipeline, fx, ids.d, minuteFloor(now - 120 * 60000))
-	ids.race = await createLesson(pipeline, fx, ids.e, minuteFloor(now - 130 * 60000))
-	ids.earlier = await createLesson(pipeline, fx, ids.f, minuteFloor(now - 140 * 60000))
-	ids.pending = await createLesson(pipeline, fx, ids.g, minuteFloor(now - 20 * 60000))
-	ids.series = await createSeries(pipeline, fx, ids.s, minuteFloor(now - 30 * 60000))
-	ids.ending = await createSeries(pipeline, fx, ids.t, minuteFloor(now - 35 * 60000))
-	ids.kept = await createLesson(pipeline, fx, ids.k, minuteFloor(now - 25 * 60000))
+	ids.started = await createLesson(pipeline, fx, ids.a, minuteFloor(now - MINUTES_AGO.started * 60000))
+	ids.cancel = await createLesson(pipeline, fx, ids.b, minuteFloor(now - MINUTES_AGO.cancel * 60000))
+	ids.done = await createLesson(pipeline, fx, ids.c, minuteFloor(now - MINUTES_AGO.done * 60000))
+	ids.noShow = await createLesson(pipeline, fx, ids.d, minuteFloor(now - MINUTES_AGO.noShow * 60000))
+	ids.race = await createLesson(pipeline, fx, ids.e, minuteFloor(now - MINUTES_AGO.race * 60000))
+	ids.earlier = await createLesson(pipeline, fx, ids.f, minuteFloor(now - MINUTES_AGO.earlier * 60000))
+	ids.pending = await createLesson(pipeline, fx, ids.g, minuteFloor(now - MINUTES_AGO.pending * 60000))
+	ids.series = await createSeries(pipeline, fx, ids.s, minuteFloor(now - MINUTES_AGO.series * 60000))
+	ids.ending = await createSeries(pipeline, fx, ids.t, minuteFloor(now - MINUTES_AGO.ending * 60000))
+	ids.kept = await createLesson(pipeline, fx, ids.k, minuteFloor(now - MINUTES_AGO.kept * 60000))
 	await project(pipeline, fx)
 	const doneMark = await markLesson(pipeline.app.db, fx.accountId, ids.done.id, { kind: 'done' }, new Date())
 	const held = [

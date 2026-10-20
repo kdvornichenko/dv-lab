@@ -52,7 +52,7 @@
 
 ## Today и настройки учителя
 
-- `apps/api/src/today/today.ts: readToday` собирает schedule, cards и settings для `GET /today`: уроки дня, Earlier, not marked и Pays soon. Чтение одного дня уроков для Today и чата — `readLessonDay` там же.
+- `apps/api/src/today/today.ts: readToday` собирает schedule, cards и settings для `GET /today`: уроки дня, Earlier, not marked и Pays soon. Чтение одного дня уроков для Today и чата — `readLessonDay` там же. Будущие уроки дня приходят из проекции календаря (`today/calendar-lessons.ts`) с пустыми действиями: действия будущего урока определяет событие Google; кому они нужны, считает их сам — `lessonActions` из core в api, `eventActions` в web.
 - `apps/api/src/settings/settings.ts` владеет `teacher_settings` (`readPaysSoonLessons`, `savePaysSoonLessons`, `readAssistantSettings`, `saveAssistantSettings`); `GET /settings` и `PATCH /settings` берут id аккаунта только из сессии учителя.
 - `teacher_settings`: ключ `account_id`, `pays_soon_lessons` — целое 0..20 без DEFAULT в базе. Без строки действует `PAYS_SOON_LESSONS_DEFAULT` из core. `student_time_zone` (DEFAULT `Europe/Moscow`, без строки — `STUDENT_TIME_ZONE_DEFAULT` из core) — пояс, с которым открывается форма новой карточки; основной пояс учителя (`default_time_zone`) он не заменяет.
 

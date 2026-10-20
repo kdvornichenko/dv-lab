@@ -15,6 +15,7 @@ import {
 	addDays,
 	awaitsMark,
 	canChange,
+	lessonActions,
 	lessonDay,
 	localTimeCandidates,
 	namedDateRange,
@@ -215,7 +216,7 @@ export async function resolveLessonTarget(
 	if (found.length === 0) return clarify('date_time', [], zone)
 	if (found.length > 1) return clarify('which_lesson', found, zone)
 	const block = found[0]!
-	const actions = block.actions
+	const actions = lessonActions(block.outcome, block.mark, new Date(block.startsAt), now)
 	const started = !canChange(new Date(block.startsAt), now)
 	if (intent.kind === 'done' || intent.kind === 'no_show') {
 		if (!actions.mark) return refused(started ? 'not_found' : 'lesson_not_started')
