@@ -214,10 +214,10 @@ function Clarify({
 			<div role="status" data-slot="chat-clarify" className="flex flex-col gap-2 px-4 py-3">
 				<p className="text-body font-semibold text-foreground">{block.prompt ?? 'Which lesson do you mean?'}</p>
 				<ul className="-mx-2 flex flex-col">
-					{block.options.slice(0, 5).map((option) => {
+					{block.options.slice(0, 5).map((option, index) => {
 						if (!('startsAt' in option))
 							return (
-								<li key={option.label}>
+								<li key={index}>
 									<button
 										type="button"
 										className="flex h-10 w-full items-center gap-3 rounded-lg px-2 text-left outline-none hover:bg-hover focus-visible:ring-2 focus-visible:ring-focus-ring"

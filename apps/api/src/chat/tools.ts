@@ -77,7 +77,7 @@ import {
 	readChatLessonDates,
 	readChatPaysSoon,
 } from './facts.ts'
-import { findLessonOption } from './lesson-target.ts'
+import { findLessonOptions } from './lesson-target.ts'
 import { studentNames } from './mentions.ts'
 import { type NoteOutcome, addVocabulary, createNoteBlock, removeVocabulary } from './note-writes.ts'
 import { citeKey } from './publish-gate.ts'
@@ -682,8 +682,8 @@ function receipt(block: ChatBlock): unknown {
 			return {
 				status: 'needs_clarification',
 				question: block.question,
-				options: block.options.map((option) =>
-					'startsAt' in option ? { date: option.date, time: option.time } : { label: option.label }
+				options: block.options.flatMap((option) =>
+					'startsAt' in option ? [{ date: option.date, time: option.time }] : []
 				),
 				note: SHOWN_NOTE,
 			}
@@ -769,42 +769,47 @@ async function essayFeedback(
 
 const CHOICE_NOTE =
 	'The teacher sees the question and the options as buttons under your text; a button puts its reply into the message box. Write no text at all: the block is the whole answer, never repeat the question or the options.'
-const TIME_IN_TEXT = /\d{1,2}[:.]\d{2}|\d{4}-\d{2}-\d{2}/u
 const ID_IN_TEXT = /[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}/iu
 
 async function askChoice(context: ToolContext, input: z.infer<(typeof inputs)['ask_choice']>): Promise<ToolOutcome> {
-	if (context.shown.has('choice'))
-		return result({ status: 'not_shown', note: 'Only one question with options per answer.' })
-	let student: { id: string; name: string } | null = null
-	if (input.student_id !== null) {
-		const studentId = input.student_id
-		const name = (await studentNames(context.db, [studentId])).get(studentId)
-		if (name === undefined) return failure('student_not_found')
-		student = { id: studentId, name }
-	}
-	const options: ChatClarifyBlock['options'] = []
-	for (const item of input.options) {
-		if (ID_IN_TEXT.test(item.label) || ID_IN_TEXT.test(item.reply)) return failure('no_ids_in_options')
-		if (item.date === null && item.time === null) {
-			if (TIME_IN_TEXT.test(item.label)) return failure('lesson_option_needs_date_and_time')
-			options.push({ label: item.label, reply: item.reply })
-			continue
-		}
-		if (student === null || item.date === null || item.time === null) return failure('lesson_option_needs_student')
-		const { id: studentId } = student
-		const { date: day, time: at } = item
-		const found = await readSnapshot(context.db, (executor) =>
-			findLessonOption(executor, context.chat, studentId, day, at)
-		)
-		if (found === null) return failure('lesson_not_found')
-		options.push({ ...found, reply: item.reply })
-	}
+	if (context.shown.has('choice') || context.shown.has(ANSWERED))
+		return result({ status: 'not_shown', note: SHOWN_NOTE })
+	const texts = [input.question, ...input.options.flatMap((item) => [item.label, item.reply])]
+	if (texts.some((text) => ID_IN_TEXT.test(text))) return failure('no_ids_in_options')
+	if (context.verified !== undefined && !texts.every(context.verified)) return failure('unverified_option_text')
+	const lessonItems = input.options.filter((item) => item.date !== null || item.time !== null)
+	if (lessonItems.some((item) => item.date === null || item.time === null))
+		return failure('lesson_option_needs_date_and_time')
+	if (lessonItems.some((item) => item.time !== null && !item.reply.includes(item.time)))
+		return failure('lesson_reply_needs_its_time')
+	if (lessonItems.length > 0 && input.student_id === null) return failure('lesson_option_needs_student')
+	const studentId = input.student_id
+	const read =
+		studentId === null
+			? { name: null, found: [] }
+			: await readSnapshot(context.db, async (executor) => ({
+					name: (await studentNames(executor, [studentId])).get(studentId) ?? null,
+					found: await findLessonOptions(
+						executor,
+						context.chat,
+						studentId,
+						lessonItems.map((item) => ({ date: item.date ?? '', time: item.time ?? '' }))
+					),
+				}))
+	if (studentId !== null && read.name === null) return failure('student_not_found')
+	if (read.found.some((found) => found === null)) return failure('lesson_not_found')
+	let next = 0
+	const options: ChatClarifyBlock['options'] = input.options.map((item) => {
+		if (item.date === null) return { label: item.label, reply: item.reply }
+		const found = read.found[next++]!
+		return { ...found!, reply: item.reply }
+	})
 	context.shown.add('choice')
 	const block: ChatClarifyBlock = {
 		type: 'clarify',
 		question: 'choice',
 		prompt: input.question,
-		...(student === null ? {} : { studentId: student.id, studentName: student.name }),
+		...(studentId === null || read.name === null ? {} : { studentId, studentName: read.name }),
 		options,
 	}
 	return show(context, block, result({ status: 'shown', note: CHOICE_NOTE }))
@@ -1406,7 +1411,7 @@ export const CHAT_TOOL_ENTRIES: readonly ChatToolEntry[] = [
 	chatTool({
 		name: 'ask_choice',
 		description:
-			'Ask the teacher one question with 2 to 5 options shown as buttons, instead of listing the options in text. Use it whenever the teacher has to pick: which lesson, which student, one lesson or the whole series, which of several values. question is one short line in the language of the teacher. Each option has label (the button text) and reply (the message the teacher sends by the button, written as the teacher would say it and complete on its own, for example "Перенеси урок в 15:00 на завтра"). A lesson option also has date (YYYY-MM-DD, the lesson day) and time (HH:MM, the main time zone) of a lesson read with lessons or lesson_dates, and student_id is set; other options have date and time null and no time in the label. student_id is null when the choice is not about one student.',
+			'Ask the teacher one question with 2 to 5 options shown as buttons, instead of listing the options in text. Use it whenever the teacher has to pick: which lesson, which student, one lesson or the whole series, which of several values. question is one short line in the language of the teacher. Each option has label (the button text) and reply (the message the teacher sends by the button, written as the teacher would say it and complete on its own, for example "Перенеси урок в 15:00 на завтра"). A lesson option also has date (YYYY-MM-DD, the lesson day) and time (HH:MM, the main time zone) of a lesson read with lessons or lesson_dates, its reply names that time, and student_id is set; other options have date and time null. Use only dates, times and names from the tool results or the teacher message. student_id is null when the choice is not about one student.',
 		input: inputs.ask_choice,
 		properties: {
 			question: string,

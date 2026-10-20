@@ -247,7 +247,7 @@ function blockNote(block: Exclude<ChatBlock, { type: 'suggestions' }>): string {
 				: `[Notes: ${block.change} for ${block.studentName}]`
 		case 'clarify':
 			return block.question === 'choice'
-				? `[Asked: ${block.prompt ?? ''} Options: ${block.options.map((option) => ('label' in option ? option.label : `${option.date} ${option.time}`)).join('; ')}]`
+				? `[Asked${block.studentName === undefined ? '' : ` about ${block.studentName}`}: ${block.prompt ?? ''} Options: ${block.options.map((option) => ('label' in option ? option.label : `${option.date} ${option.time}`)).join('; ')}]`
 				: `[Asked which lesson of ${block.studentName ?? 'the student'}]`
 		case 'refused':
 			return `[Refused: ${block.code}]`
@@ -1001,7 +1001,15 @@ export function createChat({
 				const results: Anthropic.ToolResultBlockParam[] = []
 				for (const use of uses) {
 					if (run.stopping || run.closing) return interruptedOr(run)
-					const outcome = await tool(run, turn, use, issued, shown, zone)
+					const outcome = await tool(
+						run,
+						turn,
+						use,
+						issued,
+						shown,
+						zone,
+						(text) => checkSentence(text, gate) === 'publish'
+					)
 					if (run.essay) gate.scores = true
 					collectIds(outcome.content, gate.knownIds)
 					learnPeople(run.people, outcome.content)
@@ -1033,7 +1041,8 @@ export function createChat({
 		use: Anthropic.ToolUseBlock,
 		issued: Issued,
 		shownFacts: Set<string>,
-		zone: string
+		zone: string,
+		verified: (text: string) => boolean
 	) {
 		if (run.essayTurn && !ESSAY_TOOLS.some((item) => item.name === use.name)) {
 			logger.info({ turnId: turn.id, tool: use.name, isError: true }, 'chat tool finished')
@@ -1060,6 +1069,7 @@ export function createChat({
 					published.push({ seq: await appendBlock(executor, turn, block), block })
 				},
 				issued,
+				verified,
 				shown: shownFacts,
 				essay: run.essay,
 				eventTitles,

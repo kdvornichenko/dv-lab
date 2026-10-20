@@ -193,19 +193,22 @@ async function seriesTarget(
 	}
 }
 
-export async function findLessonOption(
+export async function findLessonOptions(
 	executor: DbExecutor,
 	context: CardReadContext,
 	studentId: string,
-	date: string,
-	time: string
-): Promise<LessonTargetOption | null> {
+	wanted: readonly { date: string; time: string }[]
+): Promise<(LessonTargetOption | null)[]> {
 	const zone = context.defaultTimeZone
-	const day = await readNamedDate(executor, context, date)
-	const found = day.lessons.find(
-		(block) => block.studentId === studentId && block.outcome !== 'moved' && sameTime(block, time, zone)
-	)
-	return found === undefined ? null : option(found, zone)
+	const days = new Map<string, readonly ScheduleBlock[]>()
+	for (const { date } of wanted)
+		if (!days.has(date)) days.set(date, (await readNamedDate(executor, context, date)).lessons)
+	return wanted.map(({ date, time }) => {
+		const found = days
+			.get(date)
+			?.find((block) => block.studentId === studentId && countable(block) && sameTime(block, time, zone))
+		return found === undefined ? null : option(found, zone)
+	})
 }
 
 export async function resolveLessonTarget(

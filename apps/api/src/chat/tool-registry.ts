@@ -19,6 +19,7 @@ export type ToolContext = {
 	issued: Issued
 	shown: Set<string>
 	essay: boolean
+	verified?: (text: string) => boolean
 	eventTitles?: EventTitles
 	review?: ReviewSession
 }

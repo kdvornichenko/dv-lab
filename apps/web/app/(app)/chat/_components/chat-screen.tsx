@@ -389,7 +389,7 @@ export function ChatScreen({
 		const name = block.studentName
 		const studentId = block.studentId
 		composer.setDraft(
-			block.question === 'choice' || name === undefined || studentId === undefined
+			name === undefined || studentId === undefined
 				? { text: reply, bindings: [], stale: false }
 				: {
 						text: `@${name} ${reply}`,
