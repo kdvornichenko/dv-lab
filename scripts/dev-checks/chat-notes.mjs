@@ -98,6 +98,7 @@ async function harness() {
 		calls: [],
 		script: [],
 		availability: async () => true,
+		countTokens: async (request) => Buffer.byteLength(JSON.stringify(request)),
 		async complete() {
 			throw new ProviderFault('model_unavailable', { answered: true })
 		},

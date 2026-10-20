@@ -46,6 +46,7 @@ const fake = {
 	calls: [],
 	script: [],
 	availability: async () => true,
+	countTokens: async (request) => Buffer.byteLength(JSON.stringify(request)),
 	titles: 0,
 	async complete() {
 		this.titles++
@@ -453,12 +454,10 @@ async function datedAnswers(conversationId, studentId, wall, zone, startsAt) {
 		JSON.stringify(todayView)
 	)
 	check(
-		'an answer about a lesson with its date, time and the student name is published whole, without withheld',
+		'an answer about one day is its lessons block alone: the text after the block is not published and nothing is withheld',
 		today.state === 'completed' &&
-			todayReply.body.includes(spoken(day)) &&
-			todayReply.body.includes(wall.time) &&
-			todayReply.body.includes(NAME) &&
-			todayReply.body.includes('Отметку видно в блоке ниже.') &&
+			todayReply.body === '' &&
+			todayBlocks.length === 1 &&
 			!todayReply.blocks.some((block) => block.type === 'withheld'),
 		JSON.stringify(todayReply)
 	)
@@ -504,10 +503,10 @@ async function datedAnswers(conversationId, studentId, wall, zone, startsAt) {
 	const paid = await settled((await ask(conversationId, 'Он заплатил?')).json.turn.id)
 	const paidReply = replyOf(paid.id)
 	check(
-		'a sentence with a sum is withheld',
+		'a sentence with a sum is published',
 		paidReply.body.includes('Оплата прошла.') &&
-			!paidReply.body.includes('1500') &&
-			paidReply.blocks.some((block) => block.type === 'withheld'),
+			paidReply.body.includes('1500') &&
+			!paidReply.blocks.some((block) => block.type === 'withheld'),
 		JSON.stringify(paidReply)
 	)
 
@@ -769,7 +768,7 @@ async function lessonDates(conversationId) {
 		isDeepStrictEqual(view.dates, [first, movedTo, core.addDays(today, 7), to]) &&
 			view.shown === false &&
 			!('leftOut' in view) &&
-			reply.body === 'Here are the held lessons.',
+			reply.body === '',
 		JSON.stringify(view)
 	)
 	const steps = sql(
@@ -1024,9 +1023,9 @@ async function pageLinks(studentId) {
 		(await settled((await askAbout(thread, `@${NAME} запиши оплату 8 уроков`, studentId)).json.turn.id)).id
 	)
 	check(
-		'a sentence that repeats the number from the request is withheld, the short sentence and the block stay, the block before withheld',
-		echoed.body.trim() === 'Я не могу записать оплату из чата.' &&
-			echoed.blocks.map((block) => block.type).join(',') === 'action_link,withheld' &&
+		'a sentence that repeats the number from the request is published with the short sentence and the block',
+		echoed.body.trim() === 'Я не могу записать оплату из чата. Вы просили 8 уроков.' &&
+			echoed.blocks.map((block) => block.type).join(',') === 'action_link' &&
 			echoed.blocks[0].dialog === null,
 		JSON.stringify(echoed)
 	)
@@ -1125,12 +1124,11 @@ async function main() {
 	const answerReply = replyOf(answered.id)
 	const answerRequest = fake.calls.at(-1)
 	check(
-		'the turn completes, sentences without counts are published and the count is withheld',
+		'the turn completes and every sentence, the count included, is published',
 		answered.state === 'completed' &&
 			answerReply.body.includes('Привет.') &&
 			answerReply.body.includes('Unit 5') &&
-			!answerReply.body.includes('3') &&
-			answerReply.blocks.some((block) => block.type === 'withheld'),
+			!answerReply.blocks.some((block) => block.type === 'withheld'),
 		JSON.stringify(answerReply)
 	)
 	check(
@@ -1449,17 +1447,15 @@ async function main() {
 	const factsRead = await as('GET', `/chat/records?studentId=${studentId}`)
 	const toolFacts = JSON.parse(seen.at(-1)?.[0]?.content ?? '{}')
 	check(
-		'a question about lessons gets one facts block equal to the records read and no number in the text',
+		'a question about lessons gets one facts block equal to the records read and no text after it',
 		factsTurn.state === 'completed' &&
 			factsBlocks.length === 1 &&
 			factsBlocks[0].facts.student.id === studentId &&
 			factsBlocks[0].facts.balanceMinutes === factsRead.json.balanceMinutes &&
 			isDeepStrictEqual(factsBlocks[0].facts.nextLesson, factsRead.json.nextLesson) &&
 			toolFacts.facts?.balanceMinutes === factsRead.json.balanceMinutes &&
-			!/\p{Nd}/u.test(factsReply.body) &&
-			factsReply.body.includes('Here is the balance.') &&
-			factsReply.body.includes('Nothing else to add.') &&
-			factsReply.blocks.some((block) => block.type === 'withheld'),
+			factsReply.body === '' &&
+			!factsReply.blocks.some((block) => block.type === 'withheld'),
 		JSON.stringify(factsReply)
 	)
 
@@ -1506,9 +1502,9 @@ async function main() {
 
 	const live = await conversation()
 	fake.script.push(
-		use('mark_lesson', markInput),
+		use('find_students', { query: NAME }),
 		say(
-			'First we review the homework together. Then we read a short story aloud. After that we discuss new words. We finish with a short role play. That closes the session nicely.',
+			'First we review the homework together. Then we read a short story aloud. After that we discuss new words. We finish with a short role play. That closes the session nicely. Next time we start with a warm-up game. Then we look at the past tense. After that we write a short diary entry. We end with feedback on the diary.',
 			{ delay: 250 }
 		)
 	)
@@ -1548,20 +1544,42 @@ async function main() {
 	const stoppedReply = replyOf(runningId)
 	await sleep(600)
 	check(
-		'Stop reply stops the turn, keeps the tool effect and leaves the attempt in flight unknown',
+		'Stop reply stops the turn after a tool call and leaves the attempt in flight unknown',
 		stop.status === 200 &&
 			stop.json.turn.state === 'stopped' &&
-			markOf(lessonId)?.kind === 'done' &&
 			stoppedAttempts.length === 2 &&
 			stoppedAttempts[0].state === 'settled' &&
 			stoppedAttempts[1].state === 'unknown' &&
-			stoppedReply.blocks.some((block) => block.type === 'action_result') &&
 			stoppedReply.blocks.at(-1)?.type === 'stopped' &&
 			fake.calls.length === calls + 2,
 		JSON.stringify(stoppedAttempts)
 	)
 	const again = await as('POST', `/chat/turns/${runningId}/stop`, {})
 	check('a second Stop answers with the same stopped turn', again.status === 200 && again.json.turn.state === 'stopped')
+
+	const effect = await conversation()
+	fake.script.push(
+		use('mark_lesson', markInput),
+		say('The lesson is marked. We go on with the plan. Then we read. Then we write. Then we finish.', { delay: 250 })
+	)
+	const effectTurn = (await ask(effect, 'Mark today and plan the lesson')).json.turn.id
+	const effectDeadline = Date.now() + 10000
+	while (Date.now() < effectDeadline && !replyOf(effectTurn).blocks.some((block) => block.type === 'action_result'))
+		await sleep(50)
+	const effectStop = await as('POST', `/chat/turns/${effectTurn}/stop`, {})
+	await sleep(600)
+	const effectAttempts = attempts(effectTurn)
+	const effectReply = replyOf(effectTurn)
+	check(
+		'Stop after a tool with an effect keeps the effect and its receipt block',
+		effectStop.status === 200 &&
+			effectStop.json.turn.state === 'stopped' &&
+			markOf(lessonId)?.kind === 'done' &&
+			effectReply.blocks.some((block) => block.type === 'action_result') &&
+			effectReply.blocks.at(-1)?.type === 'stopped' &&
+			effectAttempts[0]?.state === 'settled',
+		JSON.stringify(effectAttempts)
+	)
 
 	const student = await studentCookie(api)
 	const asStudent = await call(api, 'GET', `/chat/turns/${runningId}/stream`, { cookie: student })

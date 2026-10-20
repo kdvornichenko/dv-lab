@@ -13,6 +13,7 @@ import {
 	LESSON_MINUTES_DEFAULT,
 	LESSON_MINUTES_MIN,
 	STUDENT_TEXT_MAX_LENGTH,
+	currencyFor,
 	isDisplayNameLength,
 	isTimeZone,
 	normalizeDisplayName,
@@ -68,7 +69,6 @@ export type CardRefusal =
 	| 'text_not_in_message'
 	| 'invalid_text'
 	| 'unknown_time_zone'
-	| 'currency_required'
 	| 'invalid_amount'
 	| 'invalid_card'
 	| 'no_change'
@@ -140,9 +140,8 @@ export function moneyText(text: string): string {
 	return /^\d{1,3}(?:,\d{3})+(?:\.\d+)?$/u.test(compact) ? compact.replaceAll(',', '') : compact
 }
 
-function readRate(said: Said, rateText: string, currency: Currency | null): CardPair | CardRefusal {
+function readRate(said: Said, rateText: string, currency: Currency): CardPair | CardRefusal {
 	if (!said.has(rateText)) return 'amount_not_in_message'
-	if (currency === null) return 'currency_required'
 	const rateMinor = parseMoney(moneyText(rateText), currency)
 	if (rateMinor === null || rateMinor > AMOUNT_MINOR_MAX) return 'invalid_amount'
 	return { rateMinor, currency }
@@ -180,7 +179,7 @@ async function previewCreate(
 	if (!isDisplayNameLength(displayName)) return refused('invalid_name')
 	let pair = NO_RATE
 	if (request.rateText !== null) {
-		const read = readRate(said, request.rateText, request.currency)
+		const read = readRate(said, request.rateText, currencyFor(request.currency, null))
 		if (typeof read === 'string') return refused(read)
 		pair = read
 	}
@@ -241,8 +240,7 @@ async function previewRate(
 		if (request.rateText !== null) return refused('invalid_amount')
 	} else {
 		if (request.rateText === null) return refused('amount_not_in_message')
-		const currency = request.currency ?? CURRENCIES.find((item) => item === card.currency) ?? null
-		const read = readRate(said, request.rateText, currency)
+		const read = readRate(said, request.rateText, currencyFor(request.currency, card.currency))
 		if (typeof read === 'string') return refused(read)
 		after = read
 	}
@@ -311,8 +309,7 @@ async function previewDetails(
 	const fields: ChatDetailChange[] = []
 	if (request.rateText !== null || request.currency !== null) {
 		if (request.rateText === null) return refused('amount_not_in_message')
-		const currency = request.currency ?? CURRENCIES.find((item) => item === card.currency) ?? null
-		const after = readRate(said, request.rateText, currency)
+		const after = readRate(said, request.rateText, currencyFor(request.currency, card.currency))
 		if (typeof after === 'string') return refused(after)
 		const before = pairOf(card.rateMinor, card.currency)
 		if (after.rateMinor !== before.rateMinor || after.currency !== before.currency) {

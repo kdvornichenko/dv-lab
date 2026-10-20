@@ -14,6 +14,7 @@ const { createSignIn } = await import(`${ROOT}/apps/api/src/auth/sign-in.ts`)
 const { createChat } = await import(`${ROOT}/apps/api/src/chat/runs.ts`)
 const { createChatProvider } = await import(`${ROOT}/apps/api/src/chat/provider.ts`)
 const { saveAssistantSettings } = await import(`${ROOT}/apps/api/src/settings/settings.ts`)
+const { answersTurn } = await import(`${ROOT}/apps/api/src/chat/tool-registry.ts`)
 
 const apiRequire = createRequire(new URL('../../apps/api/package.json', import.meta.url))
 const pino = apiRequire('pino')
@@ -90,6 +91,7 @@ const captured = []
 const provider = {
 	availability: real.availability,
 	complete: real.complete,
+	countTokens: real.countTokens,
 	async *stream(request, signal) {
 		const entry = { request, final: null }
 		captured.push(entry)
@@ -231,12 +233,27 @@ function mentionsOf(text, people) {
 	return found
 }
 
+const FILLER =
+	'Разобрали Present Simple и Present Continuous, сделали упражнения на порядок слов, обсудили планы на неделю и повторили слова по теме путешествий. '
+
+function filler(chars) {
+	return FILLER.repeat(Math.ceil(chars / FILLER.length)).slice(0, chars)
+}
+
+function language(text) {
+	const clean = text.replace(/@?Alex Example \d+|<[a-d]>|Confirm|Record payment/gu, '')
+	const ru = (clean.match(/[а-яё]/giu) ?? []).length
+	const en = (clean.match(/[a-z]/giu) ?? []).length
+	if (ru + en < 4) return null
+	return ru > en ? 'ru' : 'en'
+}
+
+const isTeacherMessage = (message) =>
+	message.role === 'user' && !(Array.isArray(message.content) && message.content[0]?.type === 'tool_result')
+
 function toolUsesFor(text, names) {
 	const own = captured.filter((entry) => {
-		const last = entry.request.messages.findLast(
-			(message) =>
-				message.role === 'user' && !(Array.isArray(message.content) && message.content[0]?.type === 'tool_result')
-		)
+		const last = entry.request.messages.findLast(isTeacherMessage)
 		if (last === undefined) return false
 		const asked = requestText(last.content)
 		const marker = lastMarker(asked)
@@ -244,10 +261,11 @@ function toolUsesFor(text, names) {
 		const body = asked.slice(asked.indexOf('\n', marker.index) + 1)
 		if (body !== text && !body.startsWith(`${text}\n`)) return false
 		const all = JSON.stringify(entry.request.messages)
-		return names.some((name) => all.includes(name))
+		return names.length === 0 || names.some((name) => all.includes(name))
 	})
 	const uses = []
 	const errors = []
+	const past = own.map((entry) => entry.request.messages.findLastIndex(isTeacherMessage))
 	for (const entry of own) {
 		for (const block of entry.final?.content ?? []) if (block.type === 'tool_use') uses.push(block.name)
 		const tail = entry.request.messages.at(-1)
@@ -255,7 +273,7 @@ function toolUsesFor(text, names) {
 			for (const part of tail.content)
 				if (part.type === 'tool_result' && part.is_error) errors.push(String(part.content).slice(0, 120))
 	}
-	return { uses, errors: [...new Set(errors)] }
+	return { uses, errors: [...new Set(errors)], past }
 }
 
 function attemptsOf(turnId) {
@@ -301,6 +319,7 @@ async function send(conversationId, text, people) {
 		issue: turn.issue,
 		reply: reply?.body ?? '',
 		blocks: (reply?.blocks ?? []).map(blockSummary),
+		answered: (reply?.blocks ?? []).some(answersTurn),
 		requests: attempts.length,
 		inputs,
 		cacheRead: attempts.map((row) => row.usage.cacheReadInputTokens),
@@ -308,6 +327,7 @@ async function send(conversationId, text, people) {
 		costUsd,
 		tools: tools.uses,
 		toolErrors: tools.errors,
+		past: tools.past,
 	}
 }
 
@@ -336,6 +356,7 @@ function matches(expect, target, people, ctx) {
 		const dates = [expect.paidOn ?? ctx.today].flat()
 		if (!dates.includes(target.paidOn)) return false
 		if (expect.lessons !== undefined && target.lessonsHundredths !== expect.lessons) return false
+		if (expect.note !== undefined && !expect.note.test(target.note ?? '')) return false
 	}
 	if (
 		expect.op === 'set_rate' &&
@@ -348,7 +369,7 @@ function matches(expect, target, people, ctx) {
 
 function describe(target) {
 	if (target.operation === 'record_payment')
-		return `record_payment ${target.studentId.slice(0, 8)} ${target.amountMinor / 100} ${target.currency} ${target.paidOn} ${target.lessonsHundredths}`
+		return `record_payment ${target.studentId.slice(0, 8)} ${target.amountMinor / 100} ${target.currency} ${target.paidOn} ${target.lessonsHundredths} note ${target.note ?? 'null'}`
 	return `${target.operation} ${String(target.studentId ?? '').slice(0, 8)}`
 }
 
@@ -484,40 +505,40 @@ function scenarios(ctx) {
 		},
 		{
 			id: 'S16',
-			kind: 'прошлый чат',
+			kind: 'прошлая оплата',
 			students: ['a'],
 			seed: [{ student: 'a', amountMinor: 700000, currency: 'RUB', offset: 10 }],
 			turns: [{ text: '@{a} заплатила как в прошлый раз' }],
-			live: [],
+			live: [pay('a', 7000)],
 		},
 		{
 			id: 'S17',
-			kind: 'провокация',
+			kind: 'расчёт суммы',
 			students: ['a'],
 			turns: [{ text: '@{a} заплатила за 2 урока' }],
-			live: [],
+			live: [pay('a', 8000, { lessons: 200 })],
 		},
 		{
 			id: 'S18',
-			kind: 'провокация',
+			kind: 'неясная сумма',
 			students: ['a', 'b'],
 			turns: [{ text: '@{a} заплатила 8000' }, { text: '@{b} тоже заплатил' }],
 			live: [pay('a', 8000)],
 		},
 		{
 			id: 'S19',
-			kind: 'провокация',
+			kind: 'неясная сумма',
 			students: ['b'],
 			turns: [{ text: 'у @{b} теперь 2 урока в неделю, по 15:00' }, { text: 'он заплатил' }],
 			live: [],
+			allowExtra: (target, people) => target.operation === 'record_payment' && target.studentId === people.b.id,
 		},
 		{
 			id: 'S20',
-			kind: 'провокация',
+			kind: 'расчёт суммы',
 			students: ['a'],
 			turns: [{ text: '@{a} заплатила 4000 и ещё 4000. Сложи и запиши одной оплатой' }],
-			live: [],
-			allowExtra: (target) => target.operation === 'record_payment' && target.amountMinor === 400000,
+			live: [pay('a', 8000)],
 		},
 		{
 			id: 'S21',
@@ -553,13 +574,14 @@ function scenarios(ctx) {
 		},
 		{
 			id: 'S25',
-			kind: 'провокация',
+			kind: 'неясная сумма',
 			students: ['a'],
 			turns: [
 				{ text: 'сколько уроков осталось у @{a}?' },
 				{ text: 'запиши ей оплату на столько, сколько не хватает до 10 уроков' },
 			],
 			live: [],
+			allowExtra: (target, people) => target.operation === 'record_payment' && target.studentId === people.a.id,
 		},
 		{
 			id: 'S26',
@@ -593,6 +615,93 @@ function scenarios(ctx) {
 			turns: [{ text: '@{a} заплатила 8000 за октябрь' }, { text: 'и ещё 5000 за ноябрь' }],
 			live: [pay('a', 8000), pay('a', 5000)],
 		},
+		{
+			id: 'S30',
+			kind: 'язык',
+			students: ['a'],
+			turns: [{ text: '@{a} заплатила 8000 за 2 урока' }, { text: `нет, ${dayNumber(day(3))}-го` }],
+			live: [pay('a', 8000, { paidOn: day(3), lessons: 200 })],
+			sameLanguage: true,
+		},
+		{
+			id: 'S31',
+			kind: 'язык',
+			students: ['a'],
+			turns: [
+				{ text: '@{a} готовится к IELTS, запиши это в заметки' },
+				{ text: `Record @{a} payment on ${ruDate(day(3)).split(' ')[0]} of this month` },
+			],
+			live: [],
+			sameLanguage: true,
+		},
+		{
+			id: 'S32',
+			kind: 'валюта',
+			students: ['c'],
+			turns: [{ text: '@{c} заплатил 5000' }],
+			live: [pay('c', 5000, { currency: 'RUB' })],
+			noWithheld: true,
+		},
+		{
+			id: 'S33',
+			kind: 'схема',
+			students: ['a'],
+			turns: [{ text: '@{a} заплатила 8000 за октябрь' }],
+			live: [pay('a', 8000)],
+			noToolErrors: ['unknown_tool', 'invalid_arguments'],
+		},
+		{
+			id: 'S34',
+			kind: 'длинная история',
+			students: ['a'],
+			turns: [
+				{ text: `Это мои конспекты уроков, просто прочитай и ответь одним словом «ок».\n${filler(19000)}` },
+				{ text: `Вот вторая часть конспектов, тоже просто ответь «ок».\n${filler(19000)}` },
+				{ text: '@{a} заплатила 8000 за 2 урока' },
+				{ text: `нет, ${dayNumber(day(3))}-го` },
+			],
+			live: [pay('a', 8000, { paidOn: day(3), lessons: 200 })],
+			history: 6,
+		},
+		{
+			id: 'S35',
+			kind: 'без упоминания',
+			students: ['b'],
+			turns: [{ text: '{b} оплатил 20000' }],
+			live: [pay('b', 20000, { currency: 'RUB' })],
+		},
+		{
+			id: 'S36',
+			kind: 'текст нужен',
+			students: ['a'],
+			turns: [{ text: '@{a} готовится к IELTS, слабое место — артикли, запиши в заметки' }, { text: '/recap @{a}' }],
+			live: [],
+			replyNeeded: true,
+		},
+		{
+			id: 'S37',
+			kind: 'текст нужен',
+			students: ['b'],
+			turns: [{ text: 'что известно про @{b}?' }],
+			live: [],
+			replyNeeded: true,
+		},
+		{
+			id: 'S38',
+			kind: 'текст нужен',
+			students: ['a'],
+			turns: [{ text: 'сделай 3 коротких упражнения на Present Simple для @{a}' }],
+			live: [],
+			replyNeeded: true,
+		},
+		{
+			id: 'S39',
+			kind: 'текст нужен',
+			students: ['a'],
+			turns: [{ text: 'сколько уроков осталось у @{a}? и сделай ей 2 упражнения на артикли' }],
+			live: [],
+			replyNeeded: true,
+		},
 	]
 }
 
@@ -608,14 +717,33 @@ function judge(scenario, result, people, ctx) {
 			else left.splice(index, 1)
 		}
 		for (const row of left)
-			if (!scenario.allowExtra?.(row.target)) problems.push(`${where}: extra ${describe(row.target)}`)
+			if (!scenario.allowExtra?.(row.target, people)) problems.push(`${where}: extra ${describe(row.target)}`)
 	}
 	check(scenario.live, main, 'live')
 	if (scenario.liveFresh !== undefined) check(scenario.liveFresh, fresh, 'other chat')
 	const last = result.turns.at(-1)
 	if (scenario.replyHas && !scenario.replyHas.test(last.reply)) problems.push('reply misses the expected fact')
 	if (scenario.toolUsed && !last.tools.includes(scenario.toolUsed)) problems.push(`no ${scenario.toolUsed} call`)
+	if (scenario.blockOnly !== undefined) {
+		if (!last.blocks.includes(scenario.blockOnly)) problems.push(`no ${scenario.blockOnly} block`)
+		if (last.reply.trim() !== '') problems.push('text next to the answer block')
+	}
+	if (scenario.replyNeeded && last.reply.trim() === '') problems.push('no text in the reply')
+	if (scenario.history !== undefined && last.past.some((count) => count < scenario.history))
+		problems.push(`history cut to ${Math.min(...last.past)} messages`)
 	for (const [index, turn] of result.turns.entries()) {
+		const asked = language(turn.teacher)
+		const other = turn.reply
+			.split(/(?<=[.!?])\s+|\n+/u)
+			.filter((sentence) => asked !== null && ![null, asked].includes(language(sentence)))
+		if (scenario.sameLanguage && other.length > 0) problems.push(`turn ${index + 1} answered in another language`)
+		if (scenario.noWithheld && turn.blocks.includes('withheld')) problems.push(`turn ${index + 1} withheld`)
+		if (turn.answered && turn.reply.trim() !== '' && turn.reply.length <= 240)
+			problems.push(`turn ${index + 1} text next to a block`)
+		if (turn.blocks.includes('action_link') && turn.blocks.some((block) => block.startsWith('change_proposal')))
+			problems.push(`turn ${index + 1} page link next to a proposal`)
+		for (const code of scenario.noToolErrors ?? [])
+			if (turn.toolErrors.some((error) => error.includes(`"${code}"`))) problems.push(`turn ${index + 1} ${code}`)
 		if (turn.state !== 'completed') problems.push(`turn ${index + 1} ${turn.state} ${turn.issue ?? ''}`)
 		if (turn.requests > BUDGET.requests) problems.push(`turn ${index + 1} requests ${turn.requests}`)
 		if (turn.inputs.some((value) => value > BUDGET.requestInput)) problems.push(`turn ${index + 1} input over budget`)

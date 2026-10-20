@@ -54,6 +54,7 @@ const fake = {
 	calls: [],
 	script: [],
 	availability: async () => true,
+	countTokens: async (request) => Buffer.byteLength(JSON.stringify(request)),
 	titles: 0,
 	async complete() {
 		this.titles++
@@ -308,8 +309,8 @@ async function payment() {
 		JSON.stringify(proposed.tool)
 	)
 	check(
-		'a sentence without numbers is published without withheld',
-		proposed.reply.body.trim() === QUIET && !proposed.reply.blocks.some((item) => item.type === 'withheld'),
+		'the text after the proposal block is not published and nothing is withheld',
+		proposed.reply.body === '' && !proposed.reply.blocks.some((item) => item.type === 'withheld'),
 		JSON.stringify(proposed.reply)
 	)
 	const read = await shown(first, block.actionId)
@@ -481,16 +482,12 @@ async function payment() {
 
 	const nameD = `${PREFIX}4`
 	const cardD = await card(nameD, { rate: false })
-	const noCurrency = await ask(first, cardD, nameD, `@${nameD} заплатил 8000`, {})
+	const changed = await ask(first, cardD, nameD, `@${nameD} заплатил 8000`, {})
 	check(
-		'no currency in the text or on the card refuses with currency_required and no action',
-		refusedWith(noCurrency, 'currency_required') && actionsOf(noCurrency.teacherId).length === 0,
-		JSON.stringify(noCurrency.tool)
-	)
-	const changed = await ask(first, cardD, nameD, `@${nameD} заплатил 8000 рублей`, { currency: 'RUB' })
-	check(
-		'without a rate the preview says no lesson credit',
-		changed.block?.change.lessonsHundredths === null && changed.block.change.creditedMinutes === 0,
+		'no currency in the text or on the card proposes the payment in rubles without lesson credit',
+		changed.block?.change.currency === 'RUB' &&
+			changed.block.change.lessonsHundredths === null &&
+			changed.block.change.creditedMinutes === 0,
 		JSON.stringify(changed.block)
 	)
 	const edited = await as('PATCH', `/students/${cardD}`, {
@@ -550,11 +547,11 @@ async function payment() {
 		JSON.stringify(staleLegacy.json)
 	)
 
-	const foreign = await ask(first, cardE, nameE, `@${nameE} заплатил 8000`, { amount_text: '9000' })
+	const worked = await ask(first, cardE, nameE, `@${nameE} заплатил за 2 урока`, { amount_text: '9000' })
 	check(
-		'an amount that is not in the teacher message refuses with amount_not_in_message',
-		refusedWith(foreign, 'amount_not_in_message') && actionsOf(foreign.teacherId).length === 0,
-		JSON.stringify(foreign.tool)
+		'an amount the model worked out, not written in the teacher message, is proposed',
+		worked.block?.change.amountMinor === 900000 && actionsOf(worked.teacherId).length === 1,
+		JSON.stringify(worked.tool)
 	)
 	const precise = await ask(first, cardE, nameE, `@${nameE} заплатил 8000.555`, { amount_text: '8000.555' })
 	check(
@@ -574,12 +571,12 @@ async function payment() {
 		refusedWith(future, 'date_in_future') && actionsOf(future.teacherId).length === 0,
 		JSON.stringify(future.tool)
 	)
-	const boasted = await ask(first, cardE, nameE, `@${nameE} заплатил 8000`, {}, 'Записал оплату 8000 ₽.')
+	const boasted = await ask(first, cardE, nameE, `@${nameE} заплатил 8000`, {}, 'Оплата 8000 ₽ ждёт подтверждения.')
 	check(
-		'a reply that claims the amount is withheld',
+		'a reply with the amount after the proposal block is not published and nothing is withheld',
 		boasted.block !== null &&
-			!boasted.reply.body.includes('8000') &&
-			boasted.reply.blocks.some((item) => item.type === 'withheld'),
+			boasted.reply.body === '' &&
+			!boasted.reply.blocks.some((item) => item.type === 'withheld'),
 		JSON.stringify(boasted.reply)
 	)
 	const month = new Intl.DateTimeFormat('en-US', { month: 'long', timeZone: 'UTC' }).format(
@@ -711,8 +708,8 @@ async function cards() {
 		JSON.stringify(created.tool)
 	)
 	check(
-		'a sentence without numbers is published after the card proposal',
-		created.reply.body.trim() === QUIET_CARD && !created.reply.blocks.some((item) => item.type === 'withheld'),
+		'the text after the card proposal block is not published and nothing is withheld',
+		created.reply.body === '' && !created.reply.blocks.some((item) => item.type === 'withheld'),
 		JSON.stringify(created.reply)
 	)
 	const createConfirmed = await confirm(createBlock.actionId)
@@ -830,8 +827,8 @@ async function cards() {
 		gender: null,
 	})
 	check(
-		'a rate without a currency and a lesson length not in the message refuse without a card',
-		refusedWith(noCurrency, 'currency_required') &&
+		'a rate without a currency is proposed in rubles, a lesson length not in the message refuses, no card yet',
+		noCurrency.block?.change.currency === 'RUB' &&
 			refusedWith(minutes, 'lesson_minutes_not_in_message') &&
 			namedCards(`${PREFIX}6`).length === 0,
 		JSON.stringify({ noCurrency: noCurrency.tool, minutes: minutes.tool })

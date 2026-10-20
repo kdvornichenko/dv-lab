@@ -20,6 +20,12 @@ export const CURRENCIES = ['RUB', 'KZT', 'USD', 'EUR'] as const
 
 export type Currency = (typeof CURRENCIES)[number]
 
+export const DEFAULT_CURRENCY: Currency = 'RUB'
+
+export function currencyFor(named: Currency | null, current: string | null): Currency {
+	return named ?? CURRENCIES.find((item) => item === current) ?? DEFAULT_CURRENCY
+}
+
 export const STUDENT_STATUSES = ['active', 'archived'] as const
 
 export type StudentStatus = (typeof STUDENT_STATUSES)[number]

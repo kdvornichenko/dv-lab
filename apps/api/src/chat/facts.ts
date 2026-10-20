@@ -13,8 +13,17 @@ import {
 	type ChatRecordsKey,
 	type ChatStudentFacts,
 	type ScheduleBlock,
+	type StudentDetail,
 } from '@dv-lab/contracts'
-import { MARK_LOOKBACK_DAYS, addDays, balanceRunsOut, lessonDay, paysSoonList, startOfLessonDay } from '@dv-lab/core'
+import {
+	MARK_LOOKBACK_DAYS,
+	addDays,
+	balanceRunsOut,
+	lessonDay,
+	minorToInput,
+	paysSoonList,
+	startOfLessonDay,
+} from '@dv-lab/core'
 import { type DbExecutor, students } from '@dv-lab/db'
 
 import type { CardReadContext } from '../cards/card-facts.ts'
@@ -54,22 +63,17 @@ async function readBalanceEnds(
 	return { state: 'on', date: lessonDay(startsAt, zone), startsAt: startsAt.toISOString(), ref }
 }
 
-export async function readChatFacts(
+async function factsOf(
 	executor: DbExecutor,
 	context: CardReadContext,
-	studentId: string,
+	card: StudentDetail,
 	paysSoonLessons: number
-): Promise<ChatStudentFacts | null> {
-	const card = await getCard(executor, studentId, context)
-	if (card === null) return null
-	const [opening] = await executor
-		.select({ openingOn: students.openingBalanceOn })
-		.from(students)
-		.where(eq(students.id, studentId))
+): Promise<ChatStudentFacts> {
+	const openingOn = card.openingBalance?.on ?? null
 	const balanceEnds =
-		card.balanceMinutes === null || !opening?.openingOn
+		card.balanceMinutes === null || openingOn === null
 			? null
-			: await readBalanceEnds(executor, context, studentId, card.balanceMinutes, opening.openingOn)
+			: await readBalanceEnds(executor, context, card.id, card.balanceMinutes, openingOn)
 	return {
 		student: {
 			id: card.id,
@@ -85,6 +89,40 @@ export async function readChatFacts(
 		asOf: context.now.toISOString(),
 		defaultTimeZone: context.defaultTimeZone,
 		...(card.lastPayment ? { followUp: 'since_payment' as const } : {}),
+	}
+}
+
+export async function readChatFacts(
+	executor: DbExecutor,
+	context: CardReadContext,
+	studentId: string,
+	paysSoonLessons: number
+): Promise<ChatStudentFacts | null> {
+	const card = await getCard(executor, studentId, context)
+	return card === null ? null : factsOf(executor, context, card, paysSoonLessons)
+}
+
+export async function readModelFacts(
+	executor: DbExecutor,
+	context: CardReadContext,
+	studentId: string,
+	paysSoonLessons: number
+) {
+	const card = await getCard(executor, studentId, context)
+	if (card === null) return null
+	return {
+		facts: await factsOf(executor, context, card, paysSoonLessons),
+		gender: card.gender,
+		card: {
+			rate: card.rateMinor === null ? null : minorToInput(card.rateMinor, card.currency),
+			currency: card.currency,
+			lesson_minutes: card.defaultLessonMinutes,
+			no_show_deducts: card.noShowDeducts,
+			parent: card.parent,
+			level: card.level,
+			goals: card.goals,
+			time_zone: card.timeZone,
+		},
 	}
 }
 

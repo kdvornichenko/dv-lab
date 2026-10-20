@@ -10,6 +10,7 @@ import {
 	type ChatReviewOfferBlock,
 	type Currency,
 	CURRENCIES,
+	currencyFor,
 	calendarDate,
 	recordPaymentRequest,
 } from '@dv-lab/contracts'
@@ -72,7 +73,6 @@ export type ChangeRequest = PaymentRequest | CardChangeRequest | DeletionRequest
 
 export type ChangeRefusal =
 	| 'amount_not_in_message'
-	| 'currency_required'
 	| 'invalid_amount'
 	| 'invalid_lessons'
 	| 'date_in_future'
@@ -277,14 +277,9 @@ async function preparePayment(
 	request: PaymentRequest,
 	cited: Cited
 ): Promise<ProposeOutcome> {
-	const message = await teacherText(tx, context.accountId, source.messageId, cited.sourceMessage)
-	if (message === null) return refused('source_not_found')
-	if (!writtenIn(message, request.amountText)) return refused('amount_not_in_message')
-	if (request.lessonsText !== null && !writtenIn(message, request.lessonsText)) return refused('amount_not_in_message')
 	const card = await cardOf(tx, request.studentId)
 	if (card === null) return refused('student_not_found')
-	const currency = request.currency ?? CURRENCIES.find((item) => item === card.currency) ?? null
-	if (currency === null) return refused('currency_required')
+	const currency = currencyFor(request.currency, card.currency)
 	const amountMinor = parseMoney(moneyText(request.amountText), currency)
 	if (amountMinor === null) return refused('invalid_amount')
 	const rate =
