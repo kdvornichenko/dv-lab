@@ -617,6 +617,8 @@ Superseded by Phase 25.1 (owner decisions D5-D10, 2026-10-12). Its research and 
 - `@anthropic-ai/sdk` goes from 0.133.0 to 0.135.0 in this phase.
 - The phase also carries the ChatPanel (design v123, code-sync 157) and the closed-chat signals (design v125, code-sync 158).
 - `25.3-AI-SPEC.md` (from `gsd-ai-integration-phase`) records these limits before planning.
+- Owner decisions 2026-10-20 from the chat AI audit (findings F1–F6 in the audit report): the number gate is removed for answers and for command blocks (F3, D-04 superseded); a tool block is the whole answer and model text after it is not published (F6); history is cut only when `count_tokens` says the request is over `maxInputTokens` (F2); the answer language follows the `Reply in` line of each teacher message (F1). The final acceptance adds `chat-context-eval.mjs` S01–S35 on Haiku and Sonnet, 3 of 3.
+- The 1h cache TTL decision (D-06) still waits for real usage from production: the owner orders the export of `chat_usage_attempts` from Server guy.
 
 ### Phase 26: IELTS Section
 
@@ -633,10 +635,13 @@ Superseded by Phase 25.1 (owner decisions D5-D10, 2026-10-12). Its research and 
 
 **Plans**: 40 plans,112 tasks,35 waves; independently checked full scope; execution pending final24/25/22/23 source joins and migration/operator gates. See [26-PLAN-INDEX.md](phases/26-ielts-section/26-PLAN-INDEX.md).
 **UI hint**: yes
-**Notes**: ielts code is ported as is. A rollout is not started while an ielts room has active students. Owner decision 2026-10-16: the chat `/essay` command also takes a student essay from the IELTS data by its id, not only pasted text; the 40 plans do not have it yet, so a plan is added before execution.
+**Notes**: ielts code is ported as is. A rollout is not started while an ielts room has active students. Owner decision 2026-10-16: the chat `/essay` command also takes a student essay from the IELTS data by its id, not only pasted text; the 40 plans do not have it yet, so a plan is added before execution. That plan adds a `chat-context-eval.mjs` scenario: an essay of 15–20 thousand characters, then a payment and its correction in the same conversation, with the history kept (finding F2 of the 2026-10-20 chat AI audit).
 
 ## Backlog
 
+- **Chat effort (audit 2026-10-20, F7, deferred)**: Sonnet 5.5 runs at its default `high`; the Claude docs suggest `medium` or `low` for chat. Measure cost, latency and `chat-context-eval.mjs` at `medium` and `low`; the owner decides.
+- **Production comparison after the chat AI audit PR (2026-10-20)**: one week after deployment, compare the share of turns with `request_limit`, with duplicate proposals and with `withheld` against the 2026-10-19 export (30 turns: 16.7 %, 13.3 %, 23 %). Needs a production export the owner orders from Server guy.
+- **Batch API and the advisor tool are not used in chat (rejected 2026-10-20)**: a batch takes up to 24 hours and does not fit live turns or the multi-step eval; the advisor pauses the stream while it thinks and returns encrypted advice, a poor fit for short chat answers.
 - **Chat attachments (photos and PDF)**: owner decision 2026-10-16, a separate phase after Phase 26. The teacher sends a photo of homework or a PDF to the chat; files are stored on the server disk the same way as IELTS media. The Files API is not used (no zero data retention), and an image in a message resets the message cache.
 - **Base time zone as a setting**: promoted to Phase 21.1; requirements and accepted behavior are recorded there.
 - **Move form info line (design v40, optional)**: under the preview row of `LessonMoveForm` a caption for a marked lesson: "The mark stays: Done, deducts 1 lesson at the new time." (No-show with the flag off: "The mark stays: No-show, deducts nothing."; on or before the opening balance date: "The mark stays but is not counted: the new date is on or before the opening balance date (5 Oct)."). Not part of Phase 21 plans; add as a small plan after 21-08 or with the Google phases.
