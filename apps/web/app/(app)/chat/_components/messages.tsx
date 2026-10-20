@@ -2,7 +2,7 @@
 
 import { Fragment, useEffect, useLayoutEffect, useRef, useState, type ReactNode } from 'react'
 
-import { LoaderCircle } from 'lucide-react'
+import { Check, LoaderCircle } from 'lucide-react'
 import { m, useReducedMotion } from 'motion/react'
 import Link from 'next/link'
 
@@ -188,11 +188,29 @@ function Refused({ block }: { block: ChatRefusedBlock }) {
 	)
 }
 
+export function choiceText(block: ChatClarifyBlock, reply: string): string {
+	return block.studentName === undefined || block.studentId === undefined ? reply : `@${block.studentName} ${reply}`
+}
+
+type ChoiceState = { kind: 'waiting' } | { kind: 'closed'; chosen: number | null }
+
+function choiceState(block: ChatClarifyBlock, next: ChatMessage | null, later: boolean): ChoiceState {
+	if (next !== null) {
+		const chosen = block.options.findIndex((option) => choiceText(block, option.reply) === next.body)
+		return { kind: 'closed', chosen: chosen === -1 ? null : chosen }
+	}
+	return later ? { kind: 'closed', chosen: null } : { kind: 'waiting' }
+}
+
 function Clarify({
 	block,
+	state,
+	busy,
 	onChoose,
 }: {
 	block: ChatClarifyBlock
+	state: ChoiceState
+	busy: boolean
 	onChoose: (block: ChatClarifyBlock, reply: string) => void
 }) {
 	const first = block.options.find((option) => 'startsAt' in option)
@@ -209,40 +227,56 @@ function Clarify({
 			</Panel>
 		)
 	}
+	const question = block.prompt ?? 'Which lesson do you mean?'
+	const off = busy || state.kind === 'closed'
 	return (
 		<Panel>
-			<div role="status" data-slot="chat-clarify" className="flex flex-col gap-2 px-4 py-3">
-				<p className="text-body font-semibold text-foreground">{block.prompt ?? 'Which lesson do you mean?'}</p>
-				<ul className="-mx-2 flex flex-col">
+			<div
+				role="group"
+				aria-label={question}
+				data-slot="chat-clarify"
+				data-state={state.kind}
+				className="flex flex-col gap-2 px-4 py-3"
+			>
+				<p className="text-body font-semibold break-words text-foreground">{question}</p>
+				<ul className="-mx-2 flex flex-col gap-0.5">
 					{block.options.slice(0, 5).map((option, index) => {
-						if (!('startsAt' in option))
-							return (
-								<li key={index}>
-									<button
-										type="button"
-										className="flex h-10 w-full items-center gap-3 rounded-lg px-2 text-left outline-none hover:bg-hover focus-visible:ring-2 focus-visible:ring-focus-ring"
-										onClick={() => onChoose(block, option.reply)}
-									>
-										<span className="min-w-0 flex-1 truncate text-body text-foreground">{option.label}</span>
-									</button>
-								</li>
-							)
-						const at = new Date(option.startsAt)
-						const second = secondWhen(at, option.timeZone, secondZone)
-						const main = `${formatWhen(at, option.timeZone, year)} ${zoneLabel(option.timeZone, at)}`
+						const chosen = state.kind === 'closed' && state.chosen === index
+						const lesson = 'startsAt' in option
+						const at = lesson ? new Date(option.startsAt) : null
+						const main =
+							lesson && at !== null
+								? `${formatWhen(at, option.timeZone, year)} ${zoneLabel(option.timeZone, at)}`
+								: null
+						const detail =
+							lesson && at !== null
+								? [secondWhen(at, option.timeZone, secondZone), block.studentName]
+										.filter((part) => part !== null && part !== undefined)
+										.join(' · ')
+								: ''
 						return (
-							<li key={option.startsAt}>
+							<li key={index}>
 								<button
 									type="button"
-									className="flex h-10 w-full items-center gap-3 rounded-lg px-2 text-left tabular-nums outline-none hover:bg-hover focus-visible:ring-2 focus-visible:ring-focus-ring"
-									onClick={() => onChoose(block, option.reply)}
+									aria-disabled={off || undefined}
+									data-chosen={chosen || undefined}
+									className={`flex min-h-11 w-full items-center gap-3 rounded-md px-2 py-2 text-left tabular-nums transition-colors duration-[80ms] outline-none focus-visible:ring-2 focus-visible:ring-focus-ring focus-visible:ring-inset md:min-h-10 ${chosen ? 'bg-hover' : off ? 'opacity-50' : 'hover:bg-hover active:bg-active'}`}
+									onClick={() => {
+										if (!off) onChoose(block, option.reply)
+									}}
 								>
-									<span className="min-w-0 flex-1 truncate">
-										<span className="text-body text-foreground">{main}</span>{' '}
-										<span className="text-micro text-muted-foreground">
-											{[second, block.studentName].filter((part) => part !== null && part !== undefined).join(' · ')}
+									{lesson ? (
+										<span className="flex min-w-0 flex-1 flex-col gap-x-2 md:flex-row md:flex-wrap md:items-baseline">
+											<span className="text-body text-foreground">{main}</span>
+											{detail === '' ? null : <span className="text-micro text-muted-foreground">{detail}</span>}
 										</span>
+									) : (
+										<span className="min-w-0 flex-1 text-body break-words text-foreground">{option.label}</span>
+									)}
+									<span className="flex size-4 shrink-0 items-center justify-center">
+										{chosen ? <Check aria-hidden size={16} /> : null}
 									</span>
+									{chosen ? <span className="sr-only">Chosen</span> : null}
 								</button>
 							</li>
 						)
@@ -255,6 +289,7 @@ function Clarify({
 
 function Block({
 	block,
+	choice,
 	onUndo,
 	onChoose,
 	calendar,
@@ -264,6 +299,7 @@ function Block({
 	followUp,
 }: {
 	block: ChatBlock
+	choice: ChoiceState
 	onUndo: (actionId: string) => void
 	onChoose: (block: ChatClarifyBlock, reply: string) => void
 	calendar: CalendarHandlers
@@ -273,7 +309,7 @@ function Block({
 	followUp?: FactsFollowUp
 }) {
 	if (block.type === 'action_result') return <ActionResult block={block} onUndo={onUndo} />
-	if (block.type === 'clarify') return <Clarify block={block} onChoose={onChoose} />
+	if (block.type === 'clarify') return <Clarify block={block} state={choice} busy={replies.busy} onChoose={onChoose} />
 	if (block.type === 'calendar_proposal') return <CalendarProposal block={block} onUndo={onUndo} {...calendar} />
 	if (block.type === 'change_proposal')
 		return isBulkMove(block) ? (
@@ -611,6 +647,15 @@ export function Messages({
 												: `${message.id}-${index}`
 										}
 										block={block}
+										choice={
+											block.type === 'clarify'
+												? choiceState(
+														block,
+														messages.slice(messageIndex + 1).find((item) => item.role === 'teacher') ?? null,
+														messageIndex < messages.length - 1
+													)
+												: { kind: 'waiting' }
+										}
 										onUndo={onUndo}
 										onChoose={onChoose}
 										calendar={calendar}

@@ -30,7 +30,14 @@ import { Composer } from './composer'
 import { DeleteConversationDialog, RenameConversationDialog } from './conversation-dialogs'
 import { ConversationList } from './conversation-list'
 import { ConversationRail, RAIL_MIN_WIDTH } from './conversation-rail'
-import { type ActiveReply, type CalendarHandlers, type ChangeHandlers, Messages, type ReplyHandlers } from './messages'
+import {
+	type ActiveReply,
+	type CalendarHandlers,
+	type ChangeHandlers,
+	Messages,
+	type ReplyHandlers,
+	choiceText,
+} from './messages'
 import { PanelHeader } from './panel-header'
 import { StudentFacts, StudentFactsSkeleton } from './student-facts'
 import { useComposerDraft, useMentionStudents, type Draft, type ThreadState } from './use-chat'
@@ -385,24 +392,19 @@ export function ChatScreen({
 		return true
 	}
 
-	function choose(block: ChatClarifyBlock, reply: string) {
+	async function choose(block: ChatClarifyBlock, reply: string) {
+		if (chat.sending || chat.reply !== null) return
 		const name = block.studentName
 		const studentId = block.studentId
-		composer.setDraft(
-			name === undefined || studentId === undefined
-				? { text: reply, bindings: [], stale: false }
-				: {
-						text: `@${name} ${reply}`,
-						bindings: [{ studentId, text: name, start: 1, end: 1 + name.length }],
-						stale: false,
-					}
-		)
-		later(() => {
-			const field = input.current
-			if (!field) return
-			field.focus()
-			field.setSelectionRange(field.value.length, field.value.length)
+		const sent = await chat.send({
+			text: choiceText(block, reply),
+			bindings:
+				name === undefined || studentId === undefined
+					? []
+					: [{ studentId, text: name, start: 1, end: 1 + name.length }],
+			stale: false,
 		})
+		if (sent) later(() => input.current?.focus())
 	}
 
 	return (
@@ -454,7 +456,7 @@ export function ChatScreen({
 									<Thread
 										state={chat.thread}
 										onUndo={(actionId) => void chat.undo(actionId)}
-										onChoose={choose}
+										onChoose={(block, reply) => void choose(block, reply)}
 										onRefresh={chat.reloadThread}
 										calendar={{
 											onConfirm: (actionId) => void chat.confirmCalendar(actionId),
