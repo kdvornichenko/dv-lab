@@ -37,7 +37,7 @@ import {
 	unresolvedCommands,
 } from './journal.ts'
 import { masterRow, rowByKey, rowEvent, syncFacts, type ProjectionRow, type SyncFacts } from './projection.ts'
-import { eventColor, eventColors } from './read-model.ts'
+import { connectionIssue, eventColor, eventColors } from './read-model.ts'
 import { eventVersion, type CalendarReadContext } from './read-state.ts'
 import { advanceCommandRevision } from './read-store.ts'
 import { masterRepresentation } from './recurring.ts'
@@ -616,7 +616,7 @@ export async function readEventDetails(
 	eventKey: string
 ): Promise<CalendarEventDetails | null> {
 	const connection = await findConnection(executor, accountId)
-	if (!connection?.calendarId || connection.state !== 'connected') return null
+	if (!connection?.calendarId) return null
 	const row = await rowByKey(executor, connection.id, eventKey)
 	if (!row || row.status === 'cancelled' || row.rowKind === 'master') return null
 	const found = row.recurringEventId ? await masterRow(executor, connection.id, row.recurringEventId) : null
@@ -625,10 +625,12 @@ export async function readEventDetails(
 	const sync = await syncFacts(executor, connection.id)
 	let scopes = scopeRules(target)
 	const blocked = (reason: CalendarIssue): Scopes => ({ edit: [], delete: [], reason })
+	const offline = connectionIssue(connection)
 	if (row.eventType !== 'default' || (await isBound(executor, connection, row))) scopes = blocked('read_only_event')
+	else if ((await unresolvedCommands(executor, accountId)).length) scopes = blocked('command_pending')
+	else if (offline) scopes = blocked(offline)
 	else if (sync && row.startsAt && (row.startsAt < sync.windowStart || (row.endsAt ?? row.startsAt) > sync.windowEnd))
 		scopes = blocked('outside_sync_window')
-	else if ((await unresolvedCommands(executor, accountId)).length) scopes = blocked('command_pending')
 	const reading = readDescription(row.description)
 	return calendarEventDetails.parse({
 		eventKey: row.eventKey,
