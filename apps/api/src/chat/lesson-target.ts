@@ -193,6 +193,21 @@ async function seriesTarget(
 	}
 }
 
+export async function findLessonOption(
+	executor: DbExecutor,
+	context: CardReadContext,
+	studentId: string,
+	date: string,
+	time: string
+): Promise<LessonTargetOption | null> {
+	const zone = context.defaultTimeZone
+	const day = await readNamedDate(executor, context, date)
+	const found = day.lessons.find(
+		(block) => block.studentId === studentId && block.outcome !== 'moved' && sameTime(block, time, zone)
+	)
+	return found === undefined ? null : option(found, zone)
+}
+
 export async function resolveLessonTarget(
 	executor: DbExecutor,
 	context: CardReadContext,

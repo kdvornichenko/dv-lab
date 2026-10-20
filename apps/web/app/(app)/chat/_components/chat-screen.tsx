@@ -387,11 +387,16 @@ export function ChatScreen({
 
 	function choose(block: ChatClarifyBlock, reply: string) {
 		const name = block.studentName
-		composer.setDraft({
-			text: `@${name} ${reply}`,
-			bindings: [{ studentId: block.studentId, text: name, start: 1, end: 1 + name.length }],
-			stale: false,
-		})
+		const studentId = block.studentId
+		composer.setDraft(
+			block.question === 'choice' || name === undefined || studentId === undefined
+				? { text: reply, bindings: [], stale: false }
+				: {
+						text: `@${name} ${reply}`,
+						bindings: [{ studentId, text: name, start: 1, end: 1 + name.length }],
+						stale: false,
+					}
+		)
 		later(() => {
 			const field = input.current
 			if (!field) return

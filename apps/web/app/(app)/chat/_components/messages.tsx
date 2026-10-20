@@ -33,11 +33,11 @@ import { BulkMoveProposal, isBulkMove } from './bulk-move-proposal'
 import { CalendarEvents } from './calendar-events'
 import { CalendarProposal } from './calendar-proposal'
 import { ChangeProposal } from './change-proposal'
-import { CommandBlock } from './command-block'
 import { ChatHelp } from './chat-help'
 import { ChatNoteChange } from './chat-note-change'
 import { ChatProgress } from './chat-progress'
 import { ReviewFailed, ReviewOffer, ReviewResult, type ReviewHandlers } from './chat-review'
+import { CommandBlock } from './command-block'
 import { EssayFeedback, type EssayOutcome } from './essay-feedback'
 import { RecordBlockView, isRecordBlock } from './fact-blocks'
 import { ReplyFooter } from './reply-footer'
@@ -195,7 +195,8 @@ function Clarify({
 	block: ChatClarifyBlock
 	onChoose: (block: ChatClarifyBlock, reply: string) => void
 }) {
-	const zone = block.options[0]?.timeZone ?? null
+	const first = block.options.find((option) => 'startsAt' in option)
+	const zone = first !== undefined && 'timeZone' in first ? first.timeZone : null
 	const [secondZone] = useSecondZone(zone)
 	const year = zone === null ? 0 : yearInZone(new Date(), zone)
 	if (block.question === 'date_time') {
@@ -211,9 +212,21 @@ function Clarify({
 	return (
 		<Panel>
 			<div role="status" data-slot="chat-clarify" className="flex flex-col gap-2 px-4 py-3">
-				<p className="text-body font-semibold text-foreground">Which lesson do you mean?</p>
+				<p className="text-body font-semibold text-foreground">{block.prompt ?? 'Which lesson do you mean?'}</p>
 				<ul className="-mx-2 flex flex-col">
 					{block.options.slice(0, 5).map((option) => {
+						if (!('startsAt' in option))
+							return (
+								<li key={option.label}>
+									<button
+										type="button"
+										className="flex h-10 w-full items-center gap-3 rounded-lg px-2 text-left outline-none hover:bg-hover focus-visible:ring-2 focus-visible:ring-focus-ring"
+										onClick={() => onChoose(block, option.reply)}
+									>
+										<span className="min-w-0 flex-1 truncate text-body text-foreground">{option.label}</span>
+									</button>
+								</li>
+							)
 						const at = new Date(option.startsAt)
 						const second = secondWhen(at, option.timeZone, secondZone)
 						const main = `${formatWhen(at, option.timeZone, year)} ${zoneLabel(option.timeZone, at)}`
@@ -227,7 +240,7 @@ function Clarify({
 									<span className="min-w-0 flex-1 truncate">
 										<span className="text-body text-foreground">{main}</span>{' '}
 										<span className="text-micro text-muted-foreground">
-											{second === null ? block.studentName : `${second} · ${block.studentName}`}
+											{[second, block.studentName].filter((part) => part !== null && part !== undefined).join(' · ')}
 										</span>
 									</span>
 								</button>
