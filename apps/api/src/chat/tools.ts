@@ -895,7 +895,7 @@ export const CHAT_TOOL_ENTRIES: readonly ChatToolEntry[] = [
 	chatTool({
 		name: 'student_facts',
 		description:
-			'Read the computed facts of one student: balance, next lesson and whether the student pays soon, the gender of the student (female, male or null when not set) and the card: the rate per lesson and its currency, the lesson length, whether a no-show takes a lesson off the balance, the parent, the level, the goals and the time zone. show true only if the teacher asked about the balance, lessons left, the next lesson or a payment; otherwise false: the facts are read for your answer but no block is shown. The app shows the block to the teacher; never restate its numbers in your text.',
+			'Read the computed facts of one student: balance, next lesson and whether the student pays soon, the gender of the student (female, male or null when not set) and the card: the rate per lesson and its currency, the lesson length, whether a no-show takes a lesson off the balance, the parent, the level, the goals and the time zone. show true only if the teacher asked about the balance, lessons left, the next lesson, a payment or when to pay; otherwise false: the facts are read for your answer but no block is shown. The app shows the block to the teacher; never restate its numbers in your text.',
 		input: inputs.student_facts,
 		properties: { student_id: string, show: boolean },
 		strict: false,
