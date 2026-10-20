@@ -1808,14 +1808,14 @@ async function essay() {
 	if (!periodId) throw new Error('no budget period after the essay turns')
 	const BUMP = '10000000'
 	await saveAssistantSettings(db, accountId, { monthlyCapUsd: '0.01' })
-	sql(`update chat_budget_periods set spent_nano = spent_nano + ${BUMP} where id = ${quote(periodId)}`)
+	await pool.query('update chat_budget_periods set spent_nano = spent_nano + $1 where id = $2', [BUMP, periodId])
 	const poorBefore = fake.calls.length
 	const poorConversation = await conversation()
 	let poor
 	try {
 		poor = await settled(await send(poorConversation, `/essay ${ESSAY_TEXT}`))
 	} finally {
-		sql(`update chat_budget_periods set spent_nano = spent_nano - ${BUMP} where id = ${quote(periodId)}`)
+		await pool.query('update chat_budget_periods set spent_nano = spent_nano - $1 where id = $2', [BUMP, periodId])
 		await saveAssistantSettings(db, accountId, { monthlyCapUsd: '10.00' })
 	}
 	const poorReply = replyRow(poor.id)
