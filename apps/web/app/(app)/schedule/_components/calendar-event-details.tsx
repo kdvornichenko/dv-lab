@@ -45,7 +45,7 @@ import { EventTime } from './event-summary'
 import { EventDescription, EventPlace } from './event-text'
 import type { WriteRunner } from './optimistic-writes'
 import { ignoreEvent, useScheduleMutation } from './schedule-mutations'
-import { detailsKey, dropCache, keepCache, peekCache, readDetails } from './schedule-prefetch'
+import { loadDetails, peekDetails } from './schedule-prefetch'
 import { ScopeDialog } from './scope-dialog'
 import type { MoveSeed } from './use-lesson-drag'
 import type { StudentsState } from './use-lesson-students'
@@ -54,16 +54,11 @@ type DetailsState =
 	{ kind: 'loading' } | { kind: 'ready'; data: EventDetailsData } | { kind: 'removed' } | { kind: 'error' }
 
 function useEventDetails(eventKey: string, version: string, revision: string) {
-	const [state, setState] = useState<DetailsState>(() => {
-		const known = peekCache<EventDetailsData>(detailsKey(eventKey, version))
-		return known === undefined ? { kind: 'loading' } : { kind: 'ready', data: known }
-	})
+	const [state, setState] = useState<DetailsState>(() => peekDetails(eventKey, version) ?? { kind: 'loading' })
 	useEffect(() => {
 		const abort = new AbortController()
-		void readDetails(eventKey, abort.signal).then((result) => {
+		void loadDetails(eventKey, version, abort.signal).then((result) => {
 			if (abort.signal.aborted) return
-			if (result.kind === 'ready') keepCache(detailsKey(eventKey, version), result.data)
-			else if (result.kind === 'removed') dropCache(detailsKey(eventKey, version))
 			setState((previous) => (result.kind === 'error' && previous.kind === 'ready' ? previous : result))
 		})
 		return () => abort.abort()

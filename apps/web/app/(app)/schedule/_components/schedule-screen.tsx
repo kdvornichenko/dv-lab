@@ -47,6 +47,10 @@ export function ScheduleScreen({ arrival }: { arrival: ArrivalParams }) {
 
 const NO_EVENTS: readonly CalendarEventView[] = []
 
+function shownEvents(events: readonly CalendarEventView[]): CalendarEventView[] {
+	return events.filter((event) => event.status !== 'cancelled')
+}
+
 function displayWindow(data: GoogleScheduleWindow | null, query: { monday: string; mainTimeZone: string }, now: Date) {
 	const range = data?.snapshotRange ?? data?.requestedRange
 	const mainTimeZone = range?.timeZone ?? query.mainTimeZone
@@ -60,7 +64,7 @@ function displayWindow(data: GoogleScheduleWindow | null, query: { monday: strin
 		currentMonday: mondayOf(today),
 		read: data?.read ?? ({ state: 'unavailable', reason: 'provider_unavailable' } as const),
 		write: data?.write ?? ({ state: 'blocked', reason: 'provider_unavailable' } as const),
-		events: (data?.events ?? []).filter((event) => event.status !== 'cancelled'),
+		events: shownEvents(data?.events ?? NO_EVENTS),
 	}
 }
 
@@ -107,7 +111,7 @@ function LoadedSchedule({ now, arrival }: { now: Date; arrival: ArrivalParams })
 	}
 	useDropArrivalParams(week.query === null && week.kind === 'error')
 	useSchedulePrefetch(
-		week.data?.events ?? NO_EVENTS,
+		shownEvents(week.data?.events ?? NO_EVENTS),
 		now,
 		week.data?.requestedRange.timeZone ?? week.query?.mainTimeZone ?? null,
 		week.kind === 'ready'
@@ -231,7 +235,7 @@ function LoadedSchedule({ now, arrival }: { now: Date; arrival: ArrivalParams })
 							onTurn: (target) => go(target, target === currentMonday),
 							pageEvents: (target) => {
 								const known = peek(target, mainTimeZone)
-								return known === null ? null : known.events.filter((event) => event.status !== 'cancelled')
+								return known === null ? null : shownEvents(known.events)
 							},
 						}
 					: undefined

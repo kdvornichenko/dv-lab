@@ -34,10 +34,6 @@ export function keepCache(key: string, value: unknown) {
 	}
 }
 
-export function dropCache(key: string) {
-	stored.delete(key)
-}
-
 function loadCache<T>(key: string, read: () => Promise<T | null>): Promise<T | null> {
 	const known = running.get(key)
 	if (known !== undefined) return known as Promise<T | null>
@@ -53,7 +49,7 @@ function loadCache<T>(key: string, read: () => Promise<T | null>): Promise<T | n
 
 export const PALETTE_KEY = 'palette'
 
-export function detailsKey(eventKey: string, version: string): string {
+function detailsKey(eventKey: string, version: string): string {
 	return `details:${eventKey}|${version}`
 }
 
@@ -73,16 +69,32 @@ export async function readPalette(signal?: AbortSignal): Promise<GoogleEventPale
 	return parsed?.success ? parsed.data : null
 }
 
-export async function readDetails(
-	eventKey: string,
-	signal?: AbortSignal
-): Promise<{ kind: 'ready'; data: CalendarEventDetails } | { kind: 'removed' } | { kind: 'error' }> {
+type KnownDetails = { kind: 'ready'; data: CalendarEventDetails } | { kind: 'removed' }
+
+async function readDetails(eventKey: string, signal?: AbortSignal): Promise<KnownDetails | { kind: 'error' }> {
 	const result = await apiRequest<unknown>('GET', `/google/events/${encodeURIComponent(eventKey)}`, undefined, {
 		signal,
 	})
 	if (!result.ok) return result.status === 404 ? { kind: 'removed' } : { kind: 'error' }
 	const parsed = calendarEventDetails.safeParse(result.data)
 	return parsed.success ? { kind: 'ready', data: parsed.data } : { kind: 'error' }
+}
+
+export function peekDetails(eventKey: string, version: string): KnownDetails | undefined {
+	const known = peekCache<CalendarEventDetails | null>(detailsKey(eventKey, version))
+	if (known === undefined) return undefined
+	return known === null ? { kind: 'removed' } : { kind: 'ready', data: known }
+}
+
+export async function loadDetails(
+	eventKey: string,
+	version: string,
+	signal?: AbortSignal
+): Promise<KnownDetails | { kind: 'error' }> {
+	const result = await readDetails(eventKey, signal)
+	if (signal?.aborted || result.kind === 'error') return result
+	keepCache(detailsKey(eventKey, version), result.kind === 'ready' ? result.data : null)
+	return result
 }
 
 export async function readComments(path: string): Promise<LessonComment[] | null> {
@@ -123,7 +135,7 @@ function taskFor(event: CalendarEventView, now: Date): Task | null {
 	return {
 		key: detailsKey(event.eventKey, event.version),
 		read: async () => {
-			const result = await readDetails(event.eventKey)
+			const result = await loadDetails(event.eventKey, event.version)
 			return result.kind === 'ready' ? result.data : null
 		},
 	}
