@@ -329,12 +329,24 @@ export const chatClarifyOption = z.strictObject({
 	reply: z.string().min(1),
 })
 
+export const CHAT_CHOICE_PROMPT_MAX = 200
+export const CHAT_CHOICE_LABEL_MAX = 80
+export const CHAT_CHOICE_REPLY_MAX = 200
+export const CHAT_CHOICE_OPTIONS_MIN = 2
+export const CHAT_CHOICE_OPTIONS_MAX = 5
+
+export const chatClarifyTextOption = z.strictObject({
+	label: z.string().min(1).max(CHAT_CHOICE_LABEL_MAX),
+	reply: z.string().min(1).max(CHAT_CHOICE_REPLY_MAX),
+})
+
 export const chatClarifyBlock = z.strictObject({
 	type: z.literal('clarify'),
-	question: z.enum(['which_lesson', 'date_time']),
-	studentId: z.uuid(),
-	studentName: z.string(),
-	options: z.array(chatClarifyOption).max(6),
+	question: z.enum(['which_lesson', 'date_time', 'choice']),
+	prompt: z.string().min(1).max(CHAT_CHOICE_PROMPT_MAX).optional(),
+	studentId: z.uuid().optional(),
+	studentName: z.string().optional(),
+	options: z.array(z.union([chatClarifyOption, chatClarifyTextOption])).max(6),
 })
 
 export const chatRefusedBlock = z.strictObject({

@@ -142,6 +142,7 @@ const SYSTEM = [
 	'Answer in the language on the Reply in line of the teacher message. Keep answers short. Light markdown is fine: short paragraphs, bullet lists and **bold**; no tables and no headings.',
 	'End the answer when the question is answered. Do not offer next steps or more help unless the teacher asked for them: no closing lines like "I can suggest ideas…", "If you tell me…, I will mark…", "Would you like me to…" or "Let me know…".',
 	'Everything you write in one answer is shown as one reply, with the blocks of the tools under the text. Write nothing before a tool call: no plan, no choice of a tool or a block, no "let me check". Text you already wrote is shown: never repeat it. Never point at a block by its place ("above", "below", "выше", "ниже").',
+	'When the teacher has to pick one of several things (which lesson, which student, one lesson or the whole series), call ask_choice with the options instead of listing them in text or asking an open question.',
 	'A lesson day runs from 02:00 to 02:00 of the next date. "Today", "tonight" and "yesterday" mean the date on the Lesson day line and the day before it, not the calendar date on the Now line; use the Lesson day date for lessons, lesson_dates, mark_lesson and add_comment. Only new_date of propose_lesson_change is the calendar date of the new time.',
 	'Use the tools to read stored records. Never invent students, lessons, dates or records.',
 	'Balances, lessons left, payments and debts come from student_facts, student_payments and lesson_dates: never guess them. When the teacher asks about them, call student_facts.',
@@ -245,7 +246,9 @@ function blockNote(block: Exclude<ChatBlock, { type: 'suggestions' }>): string {
 				? `[Proposed notes change: ${block.change} for ${block.studentName}]`
 				: `[Notes: ${block.change} for ${block.studentName}]`
 		case 'clarify':
-			return `[Asked which lesson of ${block.studentName}]`
+			return block.question === 'choice'
+				? `[Asked${block.studentName === undefined ? '' : ` about ${block.studentName}`}: ${block.prompt ?? ''} Options: ${block.options.map((option) => ('label' in option ? option.label : `${option.date} ${option.time}`)).join('; ')}]`
+				: `[Asked which lesson of ${block.studentName ?? 'the student'}]`
 		case 'refused':
 			return `[Refused: ${block.code}]`
 		case 'withheld':
@@ -998,7 +1001,15 @@ export function createChat({
 				const results: Anthropic.ToolResultBlockParam[] = []
 				for (const use of uses) {
 					if (run.stopping || run.closing) return interruptedOr(run)
-					const outcome = await tool(run, turn, use, issued, shown, zone)
+					const outcome = await tool(
+						run,
+						turn,
+						use,
+						issued,
+						shown,
+						zone,
+						(text) => checkSentence(text, gate) === 'publish'
+					)
 					if (run.essay) gate.scores = true
 					collectIds(outcome.content, gate.knownIds)
 					learnPeople(run.people, outcome.content)
@@ -1030,7 +1041,8 @@ export function createChat({
 		use: Anthropic.ToolUseBlock,
 		issued: Issued,
 		shownFacts: Set<string>,
-		zone: string
+		zone: string,
+		verified: (text: string) => boolean
 	) {
 		if (run.essayTurn && !ESSAY_TOOLS.some((item) => item.name === use.name)) {
 			logger.info({ turnId: turn.id, tool: use.name, isError: true }, 'chat tool finished')
@@ -1057,6 +1069,7 @@ export function createChat({
 					published.push({ seq: await appendBlock(executor, turn, block), block })
 				},
 				issued,
+				verified,
 				shown: shownFacts,
 				essay: run.essay,
 				eventTitles,
