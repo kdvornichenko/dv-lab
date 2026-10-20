@@ -617,7 +617,7 @@ Superseded by Phase 25.1 (owner decisions D5-D10, 2026-10-12). Its research and 
 - `@anthropic-ai/sdk` goes from 0.133.0 to 0.135.0 in this phase.
 - The phase also carries the ChatPanel (design v123, code-sync 157) and the closed-chat signals (design v125, code-sync 158).
 - `25.3-AI-SPEC.md` (from `gsd-ai-integration-phase`) records these limits before planning.
-- Owner decisions 2026-10-20 from the chat AI audit (findings F1–F6 in the audit report): the number gate is removed for answers and for command blocks (F3, D-04 superseded); a tool block is the whole answer and model text after it is not published (F6); history is cut only when `count_tokens` says the request is over `maxInputTokens` (F2); the answer language follows the `Reply in` line of each teacher message (F1). The final acceptance adds `chat-context-eval.mjs` S01–S35 on Haiku and Sonnet, 3 of 3.
+- Owner decisions 2026-10-20 from the chat AI audit (findings F1–F6 in the audit report): the number gate is removed for answers and for command blocks (F3, D-04 superseded); a tool block is the whole answer and model text after it is not published (F6); history is cut only when `count_tokens` says the request is over `maxInputTokens` (F2); the answer language follows the `Reply in` line of each teacher message (F1). The final acceptance adds `chat-context-eval.mjs` S01–S39 on Haiku and Sonnet, 3 of 3.
 - The 1h cache TTL decision (D-06) still waits for real usage from production: the owner orders the export of `chat_usage_attempts` from Server guy.
 
 ### Phase 26: IELTS Section

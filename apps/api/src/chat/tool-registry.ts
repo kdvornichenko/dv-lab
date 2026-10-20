@@ -55,10 +55,23 @@ type ChatToolSpec<Input extends z.ZodObject> = Omit<ChatToolEntry, 'input' | 'op
 
 const READ_ONLY: ReadonlySet<ToolEffect> = new Set(['read', 'show', 'feedback'])
 
-export const SHOWN_NOTE = 'The teacher sees it in a block: write no text.'
+export const SHOWN_NOTE =
+	'The teacher sees it in a block, so this part of the answer is done: end the turn with no text and no other tool call, unless the teacher asked for something else too.'
+
+export const ANSWERED = 'answered'
+
+const NOT_ANSWERS: ReadonlySet<ChatBlock['type']> = new Set([
+	'action_link',
+	'essay',
+	'refused',
+	'withheld',
+	'stopped',
+	'interrupted',
+	'excerpt',
+])
 
 export function answersTurn(block: ChatBlock): boolean {
-	if (block.type === 'action_link' || block.type === 'essay' || block.type === 'refused') return false
+	if (NOT_ANSWERS.has(block.type)) return false
 	return block.type !== 'review_result' || block.issue !== 'changed'
 }
 

@@ -71,6 +71,7 @@ import { REVIEW_ONE_STUDENT, REVIEW_TASK, REVIEW_COMMAND, type ReviewSession, re
 import { nameConversation, titleAnswered } from './title.ts'
 import {
 	type ToolContext,
+	ANSWERED,
 	answersTurn,
 	chatTools,
 	commandSchema,
@@ -154,7 +155,7 @@ const SYSTEM = [
 	'Notes and vocabulary change only when the teacher asks. Before writing call student_notes and read the blocks. To add to the notes call note_write for the block that fits with its whole new text: the current text with the new lines added. Keep every existing line exactly as it is, do not repeat what is already written and never add separate dated entries. Create a block with note_block_create only when no block fits; never rename or move blocks. To delete a block call note_block_delete. To add words call vocabulary_add; to remove words call vocabulary_remove with the term_id values from student_notes. The app decides what is saved at once and what the teacher must confirm: any rewrite, shortening or clearing of a block and deleting a block with text become a question to the teacher. Never say a change was made while it waits for the teacher. Money, lessons and the fields of the card are never written into notes: use the propose tools for them.',
 	'Each teacher message starts with its own [Context]: its Now and Lesson day lines are the time that message was written, so read "today" and "yesterday" in a message by its own lines. Its [Message …] line carries its id, such as m1a2b3c4d.',
 	'You see only this conversation. You cannot read other chats: when the teacher refers to something said in another chat, say so in one short sentence and ask them to write it here. Stored records (the card, notes, vocabulary, payments, lessons) are read with the tools.',
-	'To record a payment call propose_payment. Use the amount the teacher wrote or work it out from what the teacher said: a sum of several amounts, the rate of the student times the lessons (only then read the rate in the card of student_facts with show false), the amount of an earlier payment the teacher points to (student_payments). A student named without @ is found with find_students. When the amount cannot be known, ask for it in one short sentence and do not call the tool. The teacher confirms it in the block. Never say a payment was recorded.',
+	'To record a payment call propose_payment. Use the amount the teacher wrote or work it out from what the teacher said: a sum of several amounts, the rate of the student times the lessons (only then read the rate in the card of student_facts with show false), the amount of an earlier payment the teacher points to (student_payments). A student named without @ is found with find_students. When the amount cannot be known, for example another student also paid and the teacher did not say it is the same amount, ask for it in one short sentence and do not call the tool. The teacher confirms it in the block. Never say a payment was recorded.',
 	'Every proposal of this chat is listed under [Proposals] in the last message with its p… id and its state now. Only a proposal waiting for the teacher can still be confirmed; a declined, replaced, out-of-date or failed one changed nothing and is gone, so when the teacher asks for it again, propose it again with replaces null. The teacher confirms or declines a waiting proposal only with the buttons in the block: when the teacher answers a waiting proposal with "да", "ok" or "yes", do not call the tool again and say in one short sentence to press Confirm in the block. When the teacher corrects a waiting payment or a waiting change of a student card (another date, amount, number of lessons, value or student), call the same propose tool once with the corrected values and the p… id of the waiting proposal in replaces: the app marks the waiting one replaced. A new, separate proposal (a second payment, a payment of another student) has replaces null. A waiting calendar change is not replaced: propose the corrected lesson change and say in one short sentence to decline the earlier one in its block.',
 	"To add a new student call propose_student; to change a student's rate call propose_rate. Copy names, amounts and numbers exactly as the teacher wrote them, with source_message of the message where they are written. When the teacher named no currency, the student's currency or rubles is used. Never say the change is done: the teacher confirms it in the chat.",
 	'To change the details of a student (the lesson length, whether a no-show takes a lesson off the balance, the gender, the parent, the level, the goals, the time zone, or the rate together with other fields), call propose_details once with only the fields to change and copy the values exactly as the teacher wrote them. When the gender or the time zone the teacher named is not clear, ask one short question in text and do not call it. Never say the details were changed: the teacher confirms it in the chat.',
@@ -703,7 +704,6 @@ export function createChat({
 		}
 
 		async function write(sentence: string) {
-			if (run.answered) return
 			const cited = resolveCites(sentence, issued)
 			if (cited === null || checkSentence(cited.text, gate) === 'withhold') {
 				withheld++
@@ -741,7 +741,8 @@ export function createChat({
 				if (length > 0) pendingBreak = true
 			},
 			async release() {
-				for (const item of held.splice(0)) await write(item)
+				const kept = held.splice(0)
+				if (!run.answered) for (const item of kept) await write(item)
 				heldLength = 0
 				streaming = false
 				if (length > 0) pendingBreak = true
@@ -898,6 +899,7 @@ export function createChat({
 				return counted === null || counted > choice.maxInputTokens
 			}
 			while (await tooLarge(messages)) {
+				if (run.stopping || run.closing) return interruptedOr(run)
 				if (dropped >= past.length)
 					return ending('completed', 'budget_insufficient', [{ type: 'refused', code: 'budget_insufficient' }])
 				dropped = (Math.floor(dropped / DROP_STEP) + 1) * DROP_STEP
@@ -992,6 +994,7 @@ export function createChat({
 			if (final.stop_reason === 'tool_use' && uses.length > 0) {
 				await out.boundary()
 				out.discard()
+				const answeredBefore = run.answered
 				const results: Anthropic.ToolResultBlockParam[] = []
 				for (const use of uses) {
 					if (run.stopping || run.closing) return interruptedOr(run)
@@ -1008,6 +1011,7 @@ export function createChat({
 						...(outcome.isError ? { is_error: true } : {}),
 					})
 				}
+				if (answeredBefore && uses.every((use) => use.name === 'open_page')) return complete(null)
 				steps.push({ role: 'assistant', content: final.content }, { role: 'user', content: results })
 				continue
 			}
@@ -1069,7 +1073,10 @@ export function createChat({
 			}
 			if (published.length > 0 && turn.assistantMessageId !== null) {
 				run.wroteBlock = true
-				if (published.some((shown) => answersTurn(shown.block))) run.answered = true
+				if (published.some((shown) => answersTurn(shown.block))) {
+					run.answered = true
+					shownFacts.add(ANSWERED)
+				}
 				for (const shown of published)
 					emit(run, { type: 'block', seq: shown.seq, messageId: turn.assistantMessageId, block: shown.block })
 			}

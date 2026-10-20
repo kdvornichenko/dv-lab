@@ -524,7 +524,6 @@ function scenarios(ctx) {
 			students: ['a', 'b'],
 			turns: [{ text: '@{a} заплатила 8000' }, { text: '@{b} тоже заплатил' }],
 			live: [pay('a', 8000)],
-			allowExtra: (target, people) => target.operation === 'record_payment' && target.studentId === people.b.id,
 		},
 		{
 			id: 'S19',
@@ -671,6 +670,38 @@ function scenarios(ctx) {
 			turns: [{ text: '{b} оплатил 20000' }],
 			live: [pay('b', 20000, { currency: 'RUB' })],
 		},
+		{
+			id: 'S36',
+			kind: 'текст нужен',
+			students: ['a'],
+			turns: [{ text: '@{a} готовится к IELTS, слабое место — артикли, запиши в заметки' }, { text: '/recap @{a}' }],
+			live: [],
+			replyNeeded: true,
+		},
+		{
+			id: 'S37',
+			kind: 'текст нужен',
+			students: ['b'],
+			turns: [{ text: 'что известно про @{b}?' }],
+			live: [],
+			replyNeeded: true,
+		},
+		{
+			id: 'S38',
+			kind: 'текст нужен',
+			students: ['a'],
+			turns: [{ text: 'сделай 3 коротких упражнения на Present Simple для @{a}' }],
+			live: [],
+			replyNeeded: true,
+		},
+		{
+			id: 'S39',
+			kind: 'текст нужен',
+			students: ['a'],
+			turns: [{ text: 'сколько уроков осталось у @{a}? и сделай ей 2 упражнения на артикли' }],
+			live: [],
+			replyNeeded: true,
+		},
 	]
 }
 
@@ -707,7 +738,10 @@ function judge(scenario, result, people, ctx) {
 			.filter((sentence) => asked !== null && ![null, asked].includes(language(sentence)))
 		if (scenario.sameLanguage && other.length > 0) problems.push(`turn ${index + 1} answered in another language`)
 		if (scenario.noWithheld && turn.blocks.includes('withheld')) problems.push(`turn ${index + 1} withheld`)
-		if (turn.answered && turn.reply.trim() !== '') problems.push(`turn ${index + 1} text next to a block`)
+		if (turn.answered && turn.reply.trim() !== '' && turn.reply.length <= 240)
+			problems.push(`turn ${index + 1} text next to a block`)
+		if (turn.blocks.includes('action_link') && turn.blocks.some((block) => block.startsWith('change_proposal')))
+			problems.push(`turn ${index + 1} page link next to a proposal`)
 		for (const code of scenario.noToolErrors ?? [])
 			if (turn.toolErrors.some((error) => error.includes(`"${code}"`))) problems.push(`turn ${index + 1} ${code}`)
 		if (turn.state !== 'completed') problems.push(`turn ${index + 1} ${turn.state} ${turn.issue ?? ''}`)

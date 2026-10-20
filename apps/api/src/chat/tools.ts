@@ -84,6 +84,7 @@ import {
 	chatTools,
 	isReadOnly,
 	toolEntry,
+	ANSWERED,
 	SHOWN_NOTE,
 } from './tool-registry.ts'
 
@@ -708,6 +709,7 @@ async function openPage(context: ToolContext, input: z.infer<(typeof inputs)['op
 		block.studentId = input.student_id
 		block.studentName = row.displayName
 	}
+	if (context.shown.has(ANSWERED)) return result({ status: 'not_shown', note: SHOWN_NOTE })
 	if (context.shown.has('action_link')) return result({ status: 'not_shown', note: 'Only one page link per answer.' })
 	context.shown.add('action_link')
 	return { content: JSON.stringify({ status: 'shown', kind, note: PAGE_NOTE }), isError: false, block }
@@ -1055,7 +1057,7 @@ export const CHAT_TOOL_ENTRIES: readonly ChatToolEntry[] = [
 	chatTool({
 		name: 'propose_payment',
 		description:
-			'Propose recording a payment. amount_text is the amount, the number without the currency: as the teacher wrote it or worked out from what the teacher said (a sum of several amounts, the rate times the lessons, the amount of an earlier payment the teacher points to). currency: the one the teacher named, otherwise null: the currency of the student rate is used, or rubles. paid_on YYYY-MM-DD: set it whenever the teacher named a payment date ("May 10", "on October 16", "10.05", "the 16th"), with the year of the Now line, or the previous year when that date would be in the future, or the year the teacher wrote; null only when the teacher named no date, which means today. lessons_text: the number of lessons the teacher gave, otherwise null and the app works it out from the rate. note: other words of the teacher about this payment worth keeping with it, otherwise null. Nothing is recorded until the teacher confirms in the chat.',
+			'Propose recording a payment. amount_text is the amount, the number without the currency: as the teacher wrote it or worked out from what the teacher said (a sum of several amounts, the rate times the lessons, the amount of an earlier payment the teacher points to). currency: the one the teacher named, otherwise null: the app uses the currency of the student rate or rubles, so do not read the card for it. paid_on YYYY-MM-DD: set it whenever the teacher named a payment date ("May 10", "on October 16", "10.05", "the 16th"), with the year of the Now line, or the previous year when that date would be in the future, or the year the teacher wrote; null only when the teacher named no date, which means today. lessons_text: the number of lessons the teacher gave, otherwise null and the app works it out from the rate. note: other words of the teacher about this payment worth keeping with it, otherwise null. Nothing is recorded until the teacher confirms in the chat.',
 		input: inputs.propose_payment,
 		properties: {
 			student_id: string,
@@ -1284,7 +1286,7 @@ export const CHAT_TOOL_ENTRIES: readonly ChatToolEntry[] = [
 	chatTool({
 		name: 'open_page',
 		description:
-			'Show the teacher a link to the page of the app where they can do what you have no tool for. kind: payments (the payments of a student; dialog payment opens Record payment, when the amount is not written in digits or the teacher asks for the form), notes, vocabulary, overview (the profile of a student; dialog details opens Edit details), schedule_day (date is the lesson day YYYY-MM-DD in the Schedule), settings (tab general, calendar or assistant). student_id is required for payments, notes, vocabulary and overview and omitted otherwise. date is only for schedule_day. Omit dialog unless that dialog is the place of the request; tab is only for settings. The link never carries values: nothing from the request is filled in. One link per answer.',
+			'Show the teacher a link to the page of the app where they can do what you have no tool for. Never call it next to a proposal or another block that already does what the teacher asked. kind: payments (the payments of a student; dialog payment opens Record payment, when the amount is not written in digits or the teacher asks for the form), notes, vocabulary, overview (the profile of a student; dialog details opens Edit details), schedule_day (date is the lesson day YYYY-MM-DD in the Schedule), settings (tab general, calendar or assistant). student_id is required for payments, notes, vocabulary and overview and omitted otherwise. date is only for schedule_day. Omit dialog unless that dialog is the place of the request; tab is only for settings. The link never carries values: nothing from the request is filled in. One link per answer.',
 		input: inputs.open_page,
 		properties: {
 			kind: { type: 'string', enum: [...CHAT_ACTION_LINK_KINDS] },
