@@ -15,6 +15,8 @@ export type ProviderRequest = {
 
 export type CompleteRequest = Omit<ProviderRequest, 'tools'>
 
+export type CountRequest = Pick<ProviderRequest, 'model' | 'system' | 'tools' | 'messages'>
+
 export type ProviderEvent =
 	{ type: 'text'; text: string } | { type: 'text_end' } | { type: 'final'; message: Anthropic.Message }
 
@@ -39,6 +41,7 @@ export type ChatProvider = {
 	stream: (request: ProviderRequest, signal: AbortSignal) => AsyncIterable<ProviderEvent>
 	complete: (request: CompleteRequest, signal: AbortSignal) => Promise<Anthropic.Message>
 	availability: (modelId: string) => Promise<boolean>
+	countTokens: (request: CountRequest, signal: AbortSignal) => Promise<number>
 }
 
 const AVAILABILITY_TTL_MS = 60 * 60 * 1000
@@ -123,6 +126,23 @@ export function createChatProvider({ apiKey }: { apiKey: string }): ChatProvider
 		}
 	}
 
+	async function countTokens(request: CountRequest, signal: AbortSignal): Promise<number> {
+		try {
+			const counted = await client.messages.countTokens(
+				{
+					model: request.model,
+					system: [{ type: 'text', text: request.system }],
+					...(request.tools.length > 0 ? { tools: request.tools } : {}),
+					messages: request.messages,
+				},
+				{ signal, timeout: COMPLETE_TIMEOUT_MS }
+			)
+			return counted.input_tokens
+		} catch (error) {
+			throw toFault(error, false)
+		}
+	}
+
 	async function availability(modelId: string): Promise<boolean> {
 		const cached = known.get(modelId)
 		if (cached && Date.now() - cached.at < AVAILABILITY_TTL_MS) return cached.available
@@ -139,5 +159,5 @@ export function createChatProvider({ apiKey }: { apiKey: string }): ChatProvider
 		}
 	}
 
-	return { stream, complete, availability }
+	return { stream, complete, availability, countTokens }
 }

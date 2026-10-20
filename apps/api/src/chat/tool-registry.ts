@@ -43,7 +43,7 @@ export type ChatToolEntry = {
 	effect: ToolEffect
 	step: ToolStep | null
 	review?: boolean
-	cites?: boolean
+	cites?: boolean | 'replaces'
 	run: (context: ToolContext, input: unknown) => Promise<ToolOutcome>
 }
 
@@ -55,11 +55,18 @@ type ChatToolSpec<Input extends z.ZodObject> = Omit<ChatToolEntry, 'input' | 'op
 
 const READ_ONLY: ReadonlySet<ToolEffect> = new Set(['read', 'show', 'feedback'])
 
+export const SHOWN_NOTE = 'The teacher sees it in a block: write no text.'
+
+export function answersTurn(block: ChatBlock): boolean {
+	if (block.type === 'action_link' || block.type === 'essay' || block.type === 'refused') return false
+	return block.type !== 'review_result' || block.issue !== 'changed'
+}
+
 const CITE_PROPERTIES = {
 	source_message: {
 		type: 'string',
 		description:
-			'The id from the [Message …] line of the teacher message where the teacher wrote the main value of this call (for a payment, the amount), such as m1a2b3c4d. It may be an earlier message in this chat: the current message is always checked too, so when the current message only corrects a waiting proposal ("3 lessons", "the 16th"), keep the id of the message with the amount.',
+			'The id from the [Message …] line of the teacher message where the teacher wrote the main value of this call (a name, a rate, minutes, a zone), such as m1a2b3c4d. It may be an earlier message in this chat: the current message is always checked too, so when the current message only corrects a waiting proposal, keep the id of the message with that value.',
 	},
 	replaces: {
 		type: ['string', 'null'],
@@ -80,7 +87,25 @@ const citeInput = {
 
 const citeSchema = z.object(citeInput)
 
+const replacesSchema = z.object({ replaces: citeInput.replaces })
+
 export function chatTool<Input extends z.ZodObject>(spec: ChatToolSpec<Input>): ChatToolEntry {
+	if (spec.cites === 'replaces') {
+		const input = spec.input.extend({ replaces: citeInput.replaces })
+		return {
+			...spec,
+			input,
+			properties: { ...spec.properties, replaces: CITE_PROPERTIES.replaces },
+			optional: spec.optional ?? [],
+			run: (context, raw) => {
+				const { replaces: _replaces, ...rest } = input.parse(raw)
+				return spec.run(context, spec.input.parse(rest), {
+					sourceMessage: null,
+					replaces: replacesSchema.parse(raw).replaces,
+				})
+			},
+		}
+	}
 	if (spec.cites !== true)
 		return {
 			...spec,

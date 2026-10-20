@@ -298,7 +298,6 @@ function plan(body) {
 		const amount = /amount:\s*(\S+)/.exec(content.slice(messageAt(content)))?.[1] ?? null
 		const input = {
 			student_id: studentId,
-			source_message: sourceOf(content),
 			replaces: null,
 			amount_text: amount,
 			currency: null,

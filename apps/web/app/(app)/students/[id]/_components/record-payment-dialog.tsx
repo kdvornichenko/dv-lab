@@ -29,6 +29,7 @@ import {
 	type PaymentRow,
 	type PaymentsResponse,
 	type StudentDetail,
+	currencyFor,
 } from '@dv-lab/contracts'
 import {
 	balancePhrase,
@@ -108,7 +109,9 @@ export function RecordPaymentDialog({
 	const [amount, setAmount] = useState(() =>
 		initialPayment ? minorToInput(initialPayment.amountMinor, initialPayment.currency) : ''
 	)
-	const [currency, setCurrency] = useState(initialPayment ? (initialPayment.currency ?? '') : (preset?.currency ?? ''))
+	const [currency, setCurrency] = useState(
+		initialPayment ? (initialPayment.currency ?? '') : currencyFor(null, preset?.currency ?? null)
+	)
 	const [paidOn, setPaidOn] = useState(initialPayment?.paidOn ?? today)
 	const [lessonsDraft, setLessonsDraft] = useState<string | null>(() => lessonsText(initialPayment))
 	const [note, setNote] = useState(initialPayment?.note ?? '')
@@ -142,7 +145,7 @@ export function RecordPaymentDialog({
 
 	function chooseStudent(value: StudentDetail | null) {
 		setChosen(value)
-		setCurrency(value?.currency ?? '')
+		setCurrency(currencyFor(null, value?.currency ?? null))
 		setAmount('')
 		setLessonsDraft(null)
 		setTouched({})
