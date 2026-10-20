@@ -21,11 +21,9 @@ export type GateVerdict = 'publish' | 'withhold'
 
 const WINDOW = 5
 
-const MONEY_SIGN = /[₽$₫€]/u
 const DIGIT = /\p{Nd}/u
 const UUID = /[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}/giu
 const LINK = /\bhttps?:\/\/|\bwww\./iu
-const HALF_PREFIX = /(^|[^\p{L}])пол-?(час|урок|минут)/iu
 const WORD = /[\p{L}\p{Nd}]+/gu
 const CITE = /\[\[(note|comment|section):([^\]\s]{1,80})\]\][ \t]*[,;]?/giu
 const BEFORE_MARK = /[ \t]+([.,;:!?])/gu
@@ -120,6 +118,20 @@ export function learnWhen(context: GateContext, text: string, zone: string, year
 		if (month > 0 && value !== undefined) context.dates.add(`${value}-${pad(month)}-${pad(day)}`)
 	})
 	for (const match of spoken.matchAll(CLOCK)) context.times.add(`${match[1]!.padStart(2, '0')}:${match[2]}`)
+}
+
+const DAY_OF_MONTH =
+	/(?<![\p{L}\p{Nd}])(?:the\s+)?(\d{1,2})(?:-?(?:го|ого|е)|st|nd|rd|th|\s+of\s+this\s+month|\s+числа)(?![\p{L}\p{Nd}])/giu
+
+export function learnDays(context: GateContext, text: string, today: string) {
+	const [year = 0, month = 1] = today.split('-').map(Number)
+	const previous = month === 1 ? `${year - 1}-12` : `${year}-${pad(month - 1)}`
+	for (const match of text.matchAll(DAY_OF_MONTH)) {
+		const day = Number(match[1])
+		if (day < 1 || day > 31) continue
+		context.dates.add(`${year}-${pad(month)}-${pad(day)}`)
+		context.dates.add(`${previous}-${pad(day)}`)
+	}
 }
 
 export function learnName(context: GateContext, name: string) {
@@ -255,74 +267,8 @@ const NUMBER_STEMS = [
 	/^(пяти|шести|семи|восьми|девяти)сот$/u,
 ]
 
-const LEDGER_EXACT = new Set([
-	'min',
-	'mins',
-	'hr',
-	'hrs',
-	'left',
-	'owe',
-	'owes',
-	'owed',
-	'owing',
-	'мин',
-	'руб',
-	'rub',
-	'usd',
-	'vnd',
-	'kzt',
-	'eur',
-	'евро',
-	'euro',
-	'euros',
-	'тенге',
-	'tenge',
-])
-
-const LEDGER_PREFIXES = [
-	'lesson',
-	'minute',
-	'hour',
-	'balance',
-	'remain',
-	'pay',
-	'paid',
-	'debt',
-	'dollar',
-	'dong',
-	'ruble',
-	'rouble',
-	'урок',
-	'минут',
-	'остат',
-	'остал',
-	'занят',
-	'баланс',
-	'оплат',
-	'оплач',
-	'сумм',
-	'стоим',
-	'плат',
-	'долг',
-	'долж',
-	'рубл',
-	'доллар',
-	'донг',
-]
-
-const HOUR_RU = /^час(а|ов|у|ом|ам|ами|ах)?$/u
-
 function isNumber(word: string): boolean {
 	return DIGIT.test(word) || NUMBER_WORDS.has(word) || NUMBER_STEMS.some((stem) => stem.test(word))
-}
-
-function isLedger(word: string, scores: boolean): boolean {
-	return (
-		LEDGER_EXACT.has(word) ||
-		HOUR_RU.test(word) ||
-		LEDGER_PREFIXES.some((prefix) => word.startsWith(prefix)) ||
-		(scores && ESSAY_SCORE_WORDS.has(word))
-	)
 }
 
 function unknownRecord(sentence: string, context: GateContext): boolean {
@@ -331,43 +277,17 @@ function unknownRecord(sentence: string, context: GateContext): boolean {
 }
 
 export function checkSentence(sentence: string, context: GateContext): GateVerdict {
-	if (MONEY_SIGN.test(sentence) || LINK.test(sentence) || unknownRecord(sentence, context)) return 'withhold'
-	if (HALF_PREFIX.test(sentence)) return 'withhold'
+	if (LINK.test(sentence) || unknownRecord(sentence, context)) return 'withhold'
 	const rest = withoutKnownWhen(withoutNames(sentence.replace(UUID, ' ').toLowerCase(), context), context)
 	if (rest === null) return 'withhold'
+	if (context.scores !== true) return 'publish'
 	const words = rest.match(WORD) ?? []
-	const ledger = words.map((word) => isLedger(word, context.scores === true))
+	const scored = words.map((word) => ESSAY_SCORE_WORDS.has(word))
 	for (const [index, word] of words.entries()) {
 		if (!isNumber(word)) continue
 		const from = Math.max(0, index - WINDOW)
 		const to = Math.min(words.length, index + WINDOW + 1)
-		if (ledger.slice(from, to).some(Boolean)) return 'withhold'
-	}
-	return 'publish'
-}
-
-const URL_TEXT = /\bhttps?:\/\/\S+|\bwww\.\S+/giu
-const TIME_EXACT = new Set(['min', 'mins', 'hr', 'hrs', 'мин'])
-const TIME_PREFIXES = new Set(['lesson', 'minute', 'hour', 'урок', 'минут', 'занят'])
-
-function isBlockLedger(word: string): boolean {
-	if (HOUR_RU.test(word)) return false
-	return (
-		(LEDGER_EXACT.has(word) && !TIME_EXACT.has(word)) ||
-		LEDGER_PREFIXES.some((prefix) => !TIME_PREFIXES.has(prefix) && word.startsWith(prefix))
-	)
-}
-
-export function checkBlockLine(line: string): GateVerdict {
-	const text = line.replace(URL_TEXT, ' ')
-	if (MONEY_SIGN.test(text)) return 'withhold'
-	const words = text.replace(UUID, ' ').toLowerCase().match(WORD) ?? []
-	const ledger = words.map(isBlockLedger)
-	for (const [index, word] of words.entries()) {
-		if (!isNumber(word)) continue
-		const from = Math.max(0, index - WINDOW)
-		const to = Math.min(words.length, index + WINDOW + 1)
-		if (ledger.slice(from, to).some(Boolean)) return 'withhold'
+		if (scored.slice(from, to).some(Boolean)) return 'withhold'
 	}
 	return 'publish'
 }

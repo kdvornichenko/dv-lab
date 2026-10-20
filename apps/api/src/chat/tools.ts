@@ -25,7 +25,6 @@ import {
 	type ChatLessonIntent,
 	type ChatLessonsBlock,
 	type EventTitlesResponse,
-	type Gender,
 	BLOCK_NAME_MAX_LENGTH,
 	CHAT_NOTE_WORDS_MAX,
 	SECTION_BODY_MAX_LENGTH,
@@ -37,7 +36,16 @@ import {
 	chatLessonIntent,
 	eventTitlesQuery,
 } from '@dv-lab/contracts'
-import { type Weekday, addDays, lessonDay, similarTitle, titleKey, titleText, zonedParts } from '@dv-lab/core'
+import {
+	type Weekday,
+	addDays,
+	lessonDay,
+	nameMatches,
+	similarTitle,
+	titleKey,
+	titleText,
+	zonedParts,
+} from '@dv-lab/core'
 import { type DbExecutor, readSnapshot, students } from '@dv-lab/db'
 
 import { CalendarFault } from '../calendar/gateway.ts'
@@ -59,7 +67,7 @@ import {
 	chatDayLesson,
 	lessonDatesPeriod,
 	readChatDay,
-	readChatFacts,
+	readModelFacts,
 	readChatLessonDates,
 	readChatPaysSoon,
 } from './facts.ts'
@@ -76,6 +84,8 @@ import {
 	chatTools,
 	isReadOnly,
 	toolEntry,
+	ANSWERED,
+	SHOWN_NOTE,
 } from './tool-registry.ts'
 
 const RECORDS_MAX = 30
@@ -251,10 +261,8 @@ const SOURCE_NOTE =
 	'source_message must be the id from the [Message …] line of a teacher message in this chat, such as m1a2b3c4d. Call the tool again with that id.'
 
 const PAYMENT_REFUSAL_NOTES: Record<string, string> = {
-	amount_not_in_message:
-		'The amount and the number of lessons must be written in the teacher message given in source_message or in the current message. Call the tool again only with the id of the message where the teacher wrote them; otherwise ask the teacher in one short sentence to write the amount, without any number of your own.',
 	already_proposed:
-		'The same payment is already shown in the chat and waits for the teacher. Do not call the tool again; tell the teacher in one short sentence to confirm it there, without the amount, the currency or the number of lessons.',
+		'The same payment is already shown in the chat and waits for the teacher. Do not call the tool again; tell the teacher in one short sentence that it waits for confirmation there.',
 }
 
 function refusal(code: string, operation: ChangeRequest['operation']): ToolOutcome {
@@ -271,14 +279,9 @@ function result(value: unknown): ToolOutcome {
 	return { content: JSON.stringify(value), isError: false, block: null }
 }
 
-function searchKey(value: string): string {
-	return value.normalize('NFC').toLocaleLowerCase()
-}
-
 async function findStudents(executor: DbExecutor, query: string): Promise<ToolOutcome> {
-	const key = searchKey(query.trim())
 	const rows = (await listLessonStudents(executor))
-		.filter((row) => searchKey(row.displayName).includes(key))
+		.filter((row) => nameMatches(row.displayName, query.trim()))
 		.slice(0, CANDIDATES_MAX)
 	const genders = await studentGenders(
 		executor,
@@ -299,21 +302,19 @@ async function studentFacts(
 	input: z.infer<(typeof inputs)['student_facts']>
 ): Promise<ToolOutcome> {
 	const studentId = input.student_id
-	let read: { facts: Awaited<ReturnType<typeof readChatFacts>>; gender: Gender | null }
+	let read: Awaited<ReturnType<typeof readModelFacts>>
 	try {
 		read = await readSnapshot(context.db, async (executor) => {
 			const settings = await readTeacherSettings(executor, context.chat.accountId)
-			const facts = await readChatFacts(executor, context.chat, studentId, settings.paysSoonLessons)
-			const genders = await studentGenders(executor, [studentId])
-			return { facts, gender: genders.get(studentId) ?? null }
+			return readModelFacts(executor, context.chat, studentId, settings.paysSoonLessons)
 		})
 	} catch {
 		if (!input.show) return failure('tool_failed')
 		return show(context, { type: 'read_failed', key: { kind: 'student', studentId } }, failure('tool_failed'))
 	}
+	if (read === null) return failure('student_not_found')
 	const facts = read.facts
-	if (facts === null) return failure('student_not_found')
-	const outcome = result({ facts, gender: read.gender })
+	const outcome = result({ facts, gender: read.gender, card: read.card })
 	const key = `facts:${studentId}`
 	if (!input.show || context.shown.has(key)) return outcome
 	context.shown.add(key)
@@ -518,7 +519,7 @@ async function lessonDates(
 		time_zone: block.defaultTimeZone,
 		dates: block.dates,
 		shown,
-		note: shown ? 'The teacher sees these dates in a block. Do not list or count them.' : undefined,
+		note: shown ? SHOWN_NOTE : undefined,
 	})
 	if (!shown) return outcome
 	context.shown.add(shownKey)
@@ -576,12 +577,6 @@ function lessonChangeRequest(input: z.infer<(typeof inputs)['propose_lesson_chan
 	return intent === null ? null : { kind: 'lesson', intent }
 }
 
-const CHANGE_NOTE =
-	'Nothing changes until the teacher confirms in the chat. Do not repeat amounts or numbers: the block shows them.'
-
-const DELETE_NOTE =
-	'Nothing is deleted until the teacher confirms in the chat. Never say it was deleted. Do not repeat amounts or numbers: the block shows them.'
-
 function changeReceipt(change: ChatChange): unknown {
 	switch (change.operation) {
 		case 'record_payment':
@@ -589,60 +584,57 @@ function changeReceipt(change: ChatChange): unknown {
 				status: 'proposed',
 				student: change.studentName,
 				paid_on: change.paidOn,
-				note: 'Nothing is recorded until the teacher confirms in the chat. The block is already shown: do not call propose_payment again for the same payment. If the date in the block is not the one the teacher named, say so in one short sentence. Write one short sentence without the amount, the currency or the number of lessons: the block shows them.',
+				note: `Do not call propose_payment again for the same payment. ${SHOWN_NOTE}`,
 			}
 		case 'create_card':
-			return { status: 'proposed', student: change.displayName, note: CHANGE_NOTE }
+			return { status: 'proposed', student: change.displayName, note: SHOWN_NOTE }
 		case 'archive_card':
 			return {
 				status: 'proposed',
 				student: change.studentName,
 				note: change.requestedDeletion
-					? `Permanent deletion is not available; the block offers to archive the student instead. ${CHANGE_NOTE}`
-					: CHANGE_NOTE,
+					? `Permanent deletion is not available; the block offers to archive the student instead. ${SHOWN_NOTE}`
+					: SHOWN_NOTE,
 			}
 		case 'delete_payment':
-			return { status: 'proposed', student: change.studentName, paid_on: change.paidOn, note: DELETE_NOTE }
+			return { status: 'proposed', student: change.studentName, paid_on: change.paidOn, note: SHOWN_NOTE }
 		case 'remove_note':
 		case 'remove_comment':
 			return {
 				status: 'proposed',
 				student: change.studentName,
-				note: 'Nothing is removed until the teacher confirms in the chat. Never say it was removed. Do not quote the entry: the block shows it.',
+				note: SHOWN_NOTE,
 			}
 		case 'bulk_move':
 			return {
 				status: 'proposed',
 				student: change.studentName,
 				series: change.targets.length,
-				note: 'Nothing moves until the teacher confirms in the chat. Never say the lessons were moved. Do not repeat days, times, dates or counts of lessons: the block shows them.',
+				note: SHOWN_NOTE,
 			}
 		default:
-			return { status: 'proposed', student: change.studentName, note: CHANGE_NOTE }
+			return { status: 'proposed', student: change.studentName, note: SHOWN_NOTE }
 	}
 }
-
-const NOTE_SHOWN =
-	'The teacher sees the change in the chat. Do not quote or retell the notes or the words: the block shows them.'
 
 function noteReceipt(block: ChatNoteChangeBlock): unknown {
 	const place = block.target.kind === 'block' ? { block: block.target.blockName } : { vocabulary: true }
 	if (block.change === 'already')
-		return { status: 'already', student: block.studentName, ...place, note: `Nothing was changed. ${NOTE_SHOWN}` }
+		return { status: 'already', student: block.studentName, ...place, note: `Nothing was changed. ${SHOWN_NOTE}` }
 	if (block.mode === 'proposal')
 		return {
 			status: 'proposed',
 			change: block.change,
 			student: block.studentName,
 			...place,
-			note: `Nothing is written until the teacher saves it in the chat. Never say the notes were changed. ${NOTE_SHOWN}`,
+			note: `Nothing is written until the teacher saves it in the chat. Never say the notes were changed. ${SHOWN_NOTE}`,
 		}
 	return {
 		status: 'saved',
 		change: block.change,
 		student: block.studentName,
 		...place,
-		note: `The teacher can undo it in the chat. ${NOTE_SHOWN}`,
+		note: `The teacher can undo it in the chat. ${SHOWN_NOTE}`,
 	}
 }
 
@@ -668,14 +660,14 @@ function receipt(block: ChatBlock): unknown {
 				status: 'needs_clarification',
 				question: block.question,
 				options: block.options.map((option) => ({ date: option.date, time: option.time })),
-				note: 'The teacher sees these options in the chat. Ask which one they mean.',
+				note: SHOWN_NOTE,
 			}
 		case 'change_proposal':
 			return changeReceipt(block.change)
 		case 'calendar_proposal':
 			return {
 				status: 'proposed',
-				note: 'Nothing has changed yet. The teacher confirms or keeps the change in the chat.',
+				note: SHOWN_NOTE,
 			}
 		case 'refused':
 			return { status: 'refused', code: block.code }
@@ -685,7 +677,7 @@ function receipt(block: ChatBlock): unknown {
 }
 
 const PAGE_NOTE =
-	'The teacher sees a link to this page under your answer. Write one short sentence that says what you cannot do from the chat, unless you already wrote it before this call: then write nothing more. Do not tell the teacher to do it manually or how, and do not repeat any number, amount or count from the request.'
+	'The teacher sees a link to this page under your answer. Write one short sentence that says what you cannot do from the chat. Do not tell the teacher to do it manually or how.'
 
 const DIALOG_KIND = { payment: 'payments', details: 'overview' } as const
 
@@ -717,6 +709,7 @@ async function openPage(context: ToolContext, input: z.infer<(typeof inputs)['op
 		block.studentId = input.student_id
 		block.studentName = row.displayName
 	}
+	if (context.shown.has(ANSWERED)) return result({ status: 'not_shown', note: SHOWN_NOTE })
 	if (context.shown.has('action_link')) return result({ status: 'not_shown', note: 'Only one page link per answer.' })
 	context.shown.add('action_link')
 	return { content: JSON.stringify({ status: 'shown', kind, note: PAGE_NOTE }), isError: false, block }
@@ -749,18 +742,12 @@ async function essayFeedback(
 	return show(context, { type: 'essay', task: input.task }, result({ status: 'shown', note: ESSAY_NOTE }))
 }
 
-const HELP_NOTE =
-	'The teacher sees the help block with the commands and what you can do. It is the whole answer: write no text at all, no sentence and no list.'
-
 async function showHelp(context: ToolContext): Promise<ToolOutcome> {
 	if (context.shown.has('help'))
 		return result({ status: 'not_shown', note: 'The help is already shown in this answer.' })
 	context.shown.add('help')
-	return show(context, { type: 'help' }, result({ status: 'shown', note: HELP_NOTE }))
+	return show(context, { type: 'help' }, result({ status: 'shown', note: SHOWN_NOTE }))
 }
-
-const TODAY_NOTE =
-	'The teacher sees the lessons of the day and the students who pay soon in blocks. They are the whole answer: write no text at all and never repeat a name, a time or a number from them.'
 
 async function todayRecords(context: ToolContext): Promise<ToolOutcome> {
 	if (context.shown.has('today'))
@@ -794,7 +781,7 @@ async function todayRecords(context: ToolContext): Promise<ToolOutcome> {
 		await context.persist(tx, read.lessons)
 		await context.persist(tx, read.paysSoon)
 	})
-	return { content: `${lessons.text}\n${paysSoon.text}\n${TODAY_NOTE}`, isError: false, block: read.lessons }
+	return { content: `${lessons.text}\n${paysSoon.text}\n${SHOWN_NOTE}`, isError: false, block: read.lessons }
 }
 
 const CALENDAR_DISCONNECTED: ReadonlySet<string> = new Set([
@@ -865,7 +852,7 @@ async function calendarEvents(
 		...head,
 		records: fitted,
 		more: records.length - fitted.length,
-		note: shown ? (groups.size > 1 ? `${EVENTS_NOTE} ${GROUPS_NOTE}` : EVENTS_NOTE) : 'No events were found.',
+		note: shown ? (groups.size > 1 ? `${SHOWN_NOTE} ${GROUPS_NOTE}` : SHOWN_NOTE) : 'No events were found.',
 	})
 	const key = `calendar_events:${input.from}:${input.to}:${query ?? ''}:${merged}`
 	if (!shown || context.shown.has(key)) return outcome
@@ -882,9 +869,6 @@ async function calendarEvents(
 	}
 	return show(context, block, outcome)
 }
-
-const EVENTS_NOTE =
-	'The teacher sees these events in a block with a copy button. Answer in one short sentence: do not list, count or retell the events, their dates, times or lengths.'
 
 const GROUPS_NOTE =
 	'The events are grouped by how the title is written. When the teacher asks to combine them, call calendar_events again with merge true.'
@@ -913,7 +897,7 @@ export const CHAT_TOOL_ENTRIES: readonly ChatToolEntry[] = [
 	chatTool({
 		name: 'student_facts',
 		description:
-			'Read the computed facts of one student: balance, next lesson and whether the student pays soon, and the gender of the student (female, male or null when not set). show true only if the teacher asked about the balance, lessons left, the next lesson or a payment; otherwise false: the facts are read for your answer but no block is shown. The app shows the block to the teacher; never restate its numbers in your text.',
+			'Read the computed facts of one student: balance, next lesson and whether the student pays soon, the gender of the student (female, male or null when not set) and the card: the rate per lesson and its currency, the lesson length, whether a no-show takes a lesson off the balance, the parent, the level, the goals and the time zone. show true only if the teacher asked about the balance, lessons left, the next lesson, a payment or when to pay; otherwise false: the facts are read for your answer but no block is shown. The app shows the block to the teacher; never restate its numbers in your text.',
 		input: inputs.student_facts,
 		properties: { student_id: string, show: boolean },
 		strict: false,
@@ -1073,7 +1057,7 @@ export const CHAT_TOOL_ENTRIES: readonly ChatToolEntry[] = [
 	chatTool({
 		name: 'propose_payment',
 		description:
-			'Propose recording a payment. source_message is the message where the teacher wrote the amount; when the teacher says "the same", "столько же" about an amount written earlier, it is the message with that amount. amount_text and lessons_text are copied exactly as the teacher wrote them, the number without the currency; lessons_text null when the teacher gave no number of lessons; currency: the one the teacher named, otherwise null; paid_on YYYY-MM-DD: set it whenever the teacher named a payment date ("May 10", "on October 16", "10.05"), with the year of the Now line, or the previous year when that date would be in the future, or the year the teacher wrote; null only when the teacher named no date, which means today; note only when the teacher gave one, otherwise omit it. Nothing is recorded until the teacher confirms in the chat.',
+			'Propose recording a payment. amount_text is the amount, the number without the currency: as the teacher wrote it or worked out from what the teacher said (a sum of several amounts, the rate times the lessons, the amount of an earlier payment the teacher points to). currency: the one the teacher named, otherwise null: the app uses the currency of the student rate or rubles, so do not read the card for it. paid_on YYYY-MM-DD: set it whenever the teacher named a payment date ("May 10", "on October 16", "10.05", "the 16th"), with the year of the Now line, or the previous year when that date would be in the future, or the year the teacher wrote; null only when the teacher named no date, which means today. lessons_text: the number of lessons the teacher gave, otherwise null and the app works it out from the rate. note: other words of the teacher about this payment worth keeping with it, otherwise null. Nothing is recorded until the teacher confirms in the chat.',
 		input: inputs.propose_payment,
 		properties: {
 			student_id: string,
@@ -1081,10 +1065,9 @@ export const CHAT_TOOL_ENTRIES: readonly ChatToolEntry[] = [
 			currency: { anyOf: [{ type: 'string', enum: [...CURRENCIES] }, { type: 'null' }] },
 			paid_on: nullableString,
 			lessons_text: nullableString,
-			note: string,
+			note: nullableString,
 		},
-		optional: ['note'],
-		cites: true,
+		cites: 'replaces',
 		strict: true,
 		effect: 'propose',
 		step: studentStep,
@@ -1303,7 +1286,7 @@ export const CHAT_TOOL_ENTRIES: readonly ChatToolEntry[] = [
 	chatTool({
 		name: 'open_page',
 		description:
-			'Show the teacher a link to the page of the app where they can do what you have no tool for. kind: payments (the payments of a student; dialog payment opens Record payment, when the amount is not written in digits or the teacher asks for the form), notes, vocabulary, overview (the profile of a student; dialog details opens Edit details), schedule_day (date is the lesson day YYYY-MM-DD in the Schedule), settings (tab general, calendar or assistant). student_id is required for payments, notes, vocabulary and overview and omitted otherwise. date is only for schedule_day. Omit dialog unless that dialog is the place of the request; tab is only for settings. The link never carries values: nothing from the request is filled in. One link per answer.',
+			'Show the teacher a link to the page of the app where they can do what you have no tool for. Never call it next to a proposal or another block that already does what the teacher asked. kind: payments (the payments of a student; dialog payment opens Record payment, when the amount is not written in digits or the teacher asks for the form), notes, vocabulary, overview (the profile of a student; dialog details opens Edit details), schedule_day (date is the lesson day YYYY-MM-DD in the Schedule), settings (tab general, calendar or assistant). student_id is required for payments, notes, vocabulary and overview and omitted otherwise. date is only for schedule_day. Omit dialog unless that dialog is the place of the request; tab is only for settings. The link never carries values: nothing from the request is filled in. One link per answer.',
 		input: inputs.open_page,
 		properties: {
 			kind: { type: 'string', enum: [...CHAT_ACTION_LINK_KINDS] },

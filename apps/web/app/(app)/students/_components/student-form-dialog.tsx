@@ -40,6 +40,7 @@ import {
 	type SettingsResponse,
 	type StudentDetail,
 	type StudentResponse,
+	currencyFor,
 } from '@dv-lab/contracts'
 import { STUDENT_TIME_ZONE_DEFAULT, currencyDigits, currencySymbol, minorToInput, parseMoney } from '@dv-lab/core'
 
@@ -94,7 +95,7 @@ function initialValues(student: StudentDetail | undefined, newZone: string = STU
 			name: '',
 			gender: GENDER_NOT_SET,
 			rate: '',
-			currency: NO_CURRENCY,
+			currency: currencyFor(null, null),
 			lessonMinutes: LESSON_MINUTES_DEFAULT,
 			timeZone: newZone,
 			parent: '',
@@ -106,7 +107,7 @@ function initialValues(student: StudentDetail | undefined, newZone: string = STU
 		name: student.displayName,
 		gender: student.gender ?? GENDER_NOT_SET,
 		rate: student.rateMinor === null ? '' : minorToInput(student.rateMinor, student.currency),
-		currency: student.currency ?? NO_CURRENCY,
+		currency: currencyFor(null, student.currency),
 		lessonMinutes: student.defaultLessonMinutes,
 		timeZone: student.timeZone ?? SAME_TIME_ZONE,
 		parent: student.parent ?? '',
@@ -125,8 +126,8 @@ function parse(values: Values): Parsed {
 	if (name === '') errors.name = "Enter the student's name."
 	else if (!isDisplayNameLength(name)) errors.name = `Use ${DISPLAY_NAME_MAX_LENGTH} characters or fewer.`
 
-	const currency = values.currency === NO_CURRENCY ? null : (values.currency as Currency)
 	const rateText = values.rate.trim()
+	const currency = rateText === '' || values.currency === NO_CURRENCY ? null : (values.currency as Currency)
 	let rateMinor: number | null = null
 	if (rateText !== '') {
 		const digits = currencyDigits(currency)
@@ -137,8 +138,6 @@ function parse(values: Values): Parsed {
 			if (rateMinor === null) errors.rate = 'Enter a rate greater than 0.'
 		}
 		if (currency === null) errors.currency = 'Choose a currency.'
-	} else if (currency !== null) {
-		errors.currency = 'Enter the rate or set the currency to None.'
 	}
 
 	const lessonMinutes = values.lessonMinutes ?? Number.NaN

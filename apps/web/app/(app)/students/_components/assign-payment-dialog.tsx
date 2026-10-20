@@ -25,6 +25,7 @@ import {
 } from '@/components/ui/dialog'
 import { apiRequest } from '@/lib/api-client'
 
+import { currencyFor } from '@dv-lab/contracts'
 import type { PaymentResponse, PaymentRow, StudentDetail, StudentResponse, StudentRow } from '@dv-lab/contracts'
 import { formatMoney, parseLessons } from '@dv-lab/core'
 
@@ -57,7 +58,7 @@ export function AssignPaymentDialog({ payment, students, onClose, onAssigned, on
 	const options = students.map((student) => ({ value: student.id, label: student.displayName }))
 	const selected = students.find((student) => student.id === studentId) ?? null
 	const askCurrency = payment.currency === null
-	const currency = payment.currency ?? currencyChoice ?? selected?.currency ?? ''
+	const currency = payment.currency ?? currencyChoice ?? currencyFor(null, selected?.currency ?? null)
 	const rate = selected === null ? null : rateOf(selected)
 	const suggestion = suggestLessonsText(payment.amountMinor, currency, rate)
 	const lessons = lessonsDraft ?? suggestion

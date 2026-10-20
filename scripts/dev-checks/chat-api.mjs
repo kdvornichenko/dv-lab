@@ -3317,6 +3317,7 @@ async function sectionPrompts(ctx) {
 		calls: [],
 		script: [],
 		availability: async () => true,
+		countTokens: async (request) => Buffer.byteLength(JSON.stringify(request)),
 		async complete() {
 			throw new ProviderFault('model_unavailable', { answered: true })
 		},
@@ -3772,6 +3773,7 @@ async function sectionCommandTurn(ctx) {
 		calls: [],
 		script: [],
 		availability: async () => true,
+		countTokens: async (request) => Buffer.byteLength(JSON.stringify(request)),
 		async complete() {
 			throw new ProviderFault('model_unavailable', { answered: true })
 		},
@@ -3968,11 +3970,11 @@ async function sectionCommandTurn(ctx) {
 		const gated = await turn(await fresh(), `/homework @${name}`, [binding])
 		const gatedRow = gated.done ? replyRow(gated.done) : null
 		check(
-			'the soft gate keeps links and plain numbers and withholds money and lessons-left lines',
+			'command blocks keep every line: links, numbers, money and lessons left',
 			gatedRow !== null &&
-				commandBlocks(gatedRow)[0]?.text === '1. Read Unit 5\n3. Do Exercise 3' &&
-				commandBlocks(gatedRow)[1]?.text === 'Hello!\nSee https://example.com/lesson' &&
-				gatedRow.blocks.some((block) => block.type === 'withheld'),
+				commandBlocks(gatedRow)[0]?.text === '1. Read Unit 5\n2. Pay ₫500 now\n3. Do Exercise 3' &&
+				commandBlocks(gatedRow)[1]?.text === 'Hello!\nYou have 3 lessons left.\nSee https://example.com/lesson' &&
+				!gatedRow.blocks.some((block) => block.type === 'withheld'),
 			JSON.stringify(gatedRow)
 		)
 
