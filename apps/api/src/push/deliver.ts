@@ -36,13 +36,13 @@ export function createWebPushDeliver({
 		TTL: TTL_SECONDS,
 		timeout: SOCKET_TIMEOUT_MS,
 	}
-	return async (subscription, payload) => {
+	return async (subscription, payload, urgency) => {
 		const byId = eq(pushSubscriptions.id, subscription.id)
 		try {
 			const result = await send(
 				{ endpoint: subscription.endpoint, keys: { p256dh: subscription.p256dh, auth: subscription.auth } },
 				JSON.stringify(payload),
-				options
+				urgency === undefined ? options : { ...options, TTL: urgency.ttlSeconds, urgency: urgency.urgency }
 			)
 			await db
 				.update(pushSubscriptions)

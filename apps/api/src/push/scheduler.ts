@@ -21,7 +21,13 @@ import { type ActiveSubscription, activeSubscriptions } from './subscriptions.ts
 
 export type PushPayload = { title: string; body: string; tag: string; url: string }
 
-export type PushDeliver = (subscription: ActiveSubscription, payload: PushPayload) => Promise<void>
+export type PushUrgency = { urgency: 'high' | 'normal'; ttlSeconds: number }
+
+export type PushDeliver = (
+	subscription: ActiveSubscription,
+	payload: PushPayload,
+	urgency?: PushUrgency
+) => Promise<void>
 
 export type PushScheduler = {
 	name: string
@@ -46,6 +52,7 @@ const MOSCOW_ZONES = new Set(['Europe/Moscow', 'Europe/Minsk'])
 type Delivery = {
 	payload: (subscription: ActiveSubscription) => PushPayload
 	skip: (subscription: ActiveSubscription) => boolean
+	urgency?: PushUrgency
 }
 
 function zoneLabel(zone: string, at: Date): string {
@@ -140,7 +147,7 @@ export function createPushScheduler({
 		for (const subscription of subscriptions) {
 			if (delivery.skip(subscription)) continue
 			try {
-				await deliver(subscription, delivery.payload(subscription))
+				await deliver(subscription, delivery.payload(subscription), delivery.urgency)
 				sent += 1
 			} catch {
 				logger.warn({ subscriptionId: subscription.id }, 'push delivery threw')
@@ -166,7 +173,9 @@ export function createPushScheduler({
 		let sent = 0
 		for (const block of dueLessons(blocks, now, settings.notifyLessonMinutes)) {
 			if (!(await claim(db, accountId, 'lesson_soon', `${block.key}@${block.startsAt}`))) continue
+			const untilStart = Math.floor((Date.parse(block.startsAt) - now.getTime()) / 1000)
 			sent += await send(subscriptions, {
+				urgency: { urgency: 'high', ttlSeconds: Math.max(60, untilStart) },
 				payload: (subscription) => lessonPayload(block, now, settings.defaultTimeZone, subscription.secondTimeZone),
 				skip: (subscription) => isPresent(subscription.endpoint, 'schedule', null, now),
 			})
