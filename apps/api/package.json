@@ -13,7 +13,7 @@
 		"db:migrate": "node --env-file-if-exists=../../.env src/migrate.ts"
 	},
 	"dependencies": {
-		"@anthropic-ai/sdk": "0.135.0",
+		"@anthropic-ai/sdk": "1.1.0",
 		"@dv-lab/contracts": "workspace:*",
 		"@dv-lab/core": "workspace:*",
 		"@dv-lab/db": "workspace:*",
