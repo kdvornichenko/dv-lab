@@ -206,20 +206,21 @@ async function sectionAppend(h, ctx) {
 	if (put.status !== 200) throw new Error(`block save returned ${put.status}`)
 	const startRevision = put.json.block.revision
 	const added = 'Works in marketing.'
+	const firstMarked = `${first} [[line:${general.id.replaceAll('-', '').slice(0, 8)}.1]]`
 	const conversation = await ctx.fresh()
 	const done = await ctx.turn(conversation, 'Add to the notes that the student works in marketing.', [
 		h.use('student_notes', { student_id: studentId }),
-		h.use('note_write', { student_id: studentId, block_id: general.id, text: `${first}\n${added}` }),
+		h.use('note_write', { student_id: studentId, block_id: general.id, text: `${firstMarked}\n${added}` }),
 		h.say('Added it to the notes.'),
 	])
 	const read = JSON.parse(notesResultOf(h.fake.calls.at(-2)))
 	check(
-		'student_notes gives every live block with block_id, name, revision and the full text, and the vocabulary',
+		'student_notes gives every live block with block_id, name, revision and the full text with a line marker after each line, and the vocabulary',
 		Array.isArray(read.blocks) &&
 			read.blocks.length === 6 &&
 			read.blocks.some(
 				(block) =>
-					block.block_id === general.id && block.revision === startRevision && block.text === first && block.cite
+					block.block_id === general.id && block.revision === startRevision && block.text === firstMarked && block.cite
 			) &&
 			read.blocks.every((block) => typeof block.name === 'string') &&
 			Array.isArray(read.vocabulary),
@@ -227,7 +228,7 @@ async function sectionAppend(h, ctx) {
 	)
 	const row = blockRow(general.id)
 	check(
-		'an addition is written at once: the block keeps the old line, gets the new one and its revision grows by one',
+		'an addition is written at once without the copied line markers: the block keeps the old line, gets the new one and its revision grows by one',
 		done.state === 'completed' && row.body === `${first}\n${added}` && row.revision === startRevision + 1,
 		JSON.stringify({ state: done.state, revision: row.revision })
 	)
@@ -484,11 +485,11 @@ async function sectionBlocks(h, ctx) {
 	const studentId = await ctx.card(`${PREFIX}2 Blocks`)
 	const created = await blockTurn(h, ctx, studentId, 'note_block_create', {
 		name: 'Exam dates',
-		text: 'First exam in June.',
+		text: 'First exam in June. [[Line:ABCD1234.1]]',
 	})
 	const createdRow = created.block ? blockRow(created.block.target.blockId) : null
 	check(
-		'a new block is created at once with a created receipt and Undo',
+		'a new block is created at once without a copied line marker in any case, with a created receipt and Undo',
 		created.block?.mode === 'receipt' &&
 			created.block.change === 'created' &&
 			created.block.target.blockName === 'Exam dates' &&

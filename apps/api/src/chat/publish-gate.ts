@@ -25,7 +25,11 @@ const DIGIT = /\p{Nd}/u
 const UUID = /[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}/giu
 const LINK = /\bhttps?:\/\/|\bwww\./iu
 const WORD = /[\p{L}\p{Nd}]+/gu
-const CITE = /\[\[(note|comment|section):([^\]\s]{1,80})\]\][ \t]*[,;]?/giu
+const CITE_KINDS = ['note', 'comment', 'section', 'line'] as const
+const citeMark = (kinds: string) => `\\[\\[(${kinds}):([^\\]\\s]{1,80})\\]\\]`
+const CITE = new RegExp(`${citeMark(CITE_KINDS.join('|'))}[ \\t]*[,;]?`, 'giu')
+const ANY_CITE = new RegExp(citeMark(CITE_KINDS.join('|')), 'giu')
+const LINE_CITE = new RegExp(`[ \\t]*${citeMark('line')}`, 'giu')
 const BEFORE_MARK = /[ \t]+([.,;:!?])/gu
 const REPEATED_SPACE = /[ \t]{2,}/gu
 const DANGLING_MARK = /[:;,][ \t]*([.!?])/gu
@@ -292,8 +296,23 @@ export function checkSentence(sentence: string, context: GateContext): GateVerdi
 	return 'publish'
 }
 
-export function citeKey(source: ChatExcerptBlock['source'], id: string): string {
-	return `${source}:${id}`.toLowerCase()
+export type CiteKind = (typeof CITE_KINDS)[number]
+
+export function citeKey(kind: CiteKind, id: string): string {
+	return `${kind}:${id}`.toLowerCase()
+}
+
+export function lineCite(blockId: string, number: number): { key: string; marker: string } {
+	const id = `${blockId.replaceAll('-', '').slice(0, 8)}.${number}`
+	return { key: citeKey('line', id), marker: `[[line:${id}]]` }
+}
+
+export function withoutCites(text: string, by: string): string {
+	return text.replace(ANY_CITE, by)
+}
+
+export function withoutLineCites(text: string): string {
+	return text.replace(LINE_CITE, '')
 }
 
 export type Cited = { text: string; excerpts: ChatExcerptBlock[] }
@@ -302,9 +321,9 @@ export function resolveCites(sentence: string, issued: Issued): Cited | null {
 	const excerpts: ChatExcerptBlock[] = []
 	let unknown = false
 	let marked = false
-	const stripped = sentence.replace(CITE, (_match, source: string, id: string) => {
+	const stripped = sentence.replace(CITE, (_match, kind: CiteKind, id: string) => {
 		marked = true
-		const excerpt = issued.get(citeKey(source as ChatExcerptBlock['source'], id))
+		const excerpt = issued.get(citeKey(kind, id))
 		if (excerpt) excerpts.push(excerpt)
 		else unknown = true
 		return ''

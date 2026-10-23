@@ -16,6 +16,7 @@ import { type DbExecutor, chatConversations, chatTurns } from '@dv-lab/db'
 import { readAssistantSettings } from '../settings/settings.ts'
 import { redactConversationContent, unsettledActionIds } from './messages.ts'
 import { modelCapabilities, resolveModelChoice, selectionAllowed } from './model-config.ts'
+import { withoutCites } from './publish-gate.ts'
 
 export const NEW_CONVERSATION_TITLE = 'New chat'
 const DELETED_CONVERSATION_TITLE = 'Deleted chat'
@@ -77,7 +78,6 @@ export async function createConversation(executor: DbExecutor, accountId: string
 }
 
 const PREVIEW_SOURCE_MAX = 2000
-const PREVIEW_CITE = /\[\[(?:note|comment|section):[^\]\s]{1,80}\]\]/giu
 const PREVIEW_LINK = /!?\[([^\]\n]*)\]\([^)\n]*\)/gu
 const PREVIEW_LINE_MARK = /^[ \t]*(?:(?:#{1,6}|>|[-*+]|\d{1,3}[.)])[ \t]+|>)+/gmu
 const PREVIEW_RULE = /^[ \t]*(?:[-*_][ \t]*){3,}$/gmu
@@ -86,8 +86,7 @@ const PREVIEW_TAIL = /[\s,;:.!?—–-]+$/u
 
 function conversationPreview(body: string | null): string | null {
 	if (body === null) return null
-	const text = body
-		.replace(PREVIEW_CITE, ' ')
+	const text = withoutCites(body, ' ')
 		.replace(PREVIEW_LINK, '$1')
 		.replace(PREVIEW_RULE, ' ')
 		.replace(PREVIEW_LINE_MARK, '')
