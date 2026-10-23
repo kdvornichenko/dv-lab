@@ -96,6 +96,10 @@ jobs:
         run: |
           node -e "const fs = require('node:fs'); const version = require('./package.json').devDependencies.turbo; const bad = ['apps/api/Dockerfile', 'apps/web/Dockerfile'].filter((file) => !fs.readFileSync(file, 'utf8').split('\n').includes('ARG TURBO_VERSION=' + version)); if (bad.length) { console.error('ARG TURBO_VERSION differs from turbo ' + version + ' in package.json: ' + bad.join(', ')); process.exit(1) }"
 
+      - name: Node version in Dockerfiles
+        run: |
+          node -e "const fs = require('node:fs'); const files = require('node:child_process').execFileSync('git', ['ls-files', '*Dockerfile*'], { encoding: 'utf8' }).split('\n').filter(Boolean); const found = files.flatMap((file) => [...fs.readFileSync(file, 'utf8').matchAll(/^FROM node:(\S+)/gm)].map((match) => file + ' ' + match[1])); const versions = new Set(found.map((line) => line.split(' ')[1])); if (found.length === 0 || versions.size !== 1) { console.error('Node base images differ across Dockerfiles:\n' + found.join('\n')); process.exit(1) }"
+
       - uses: ./.github/actions/setup
         with:
           turbo-scope: checks
