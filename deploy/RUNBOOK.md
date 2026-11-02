@@ -387,6 +387,8 @@ TTL — второе поле строки. Если он больше 60 с, TT
 
 Повтор после исправления — по разделу 8 с `FORCE=1`.
 
+Сайты других проектов на этом сервере подключаются к Caddy файлами `*.caddy` в `/opt/dv-lab/sites` (только на сервере, в контейнере `/etc/caddy-sites`, импорт в конце `deploy/caddy/Caddyfile`). После правки файла: `dc exec -T caddy caddy reload --config /etc/caddy/Caddyfile`. Пустой каталог допустим.
+
 Логи контейнеров идут в journald (`deploy/compose.yaml`, `x-logging`) и переживают пересоздание контейнера при выкатке. Хранение задаёт journald на сервере (`SystemMaxUse`, `MaxRetentionSec`). Логи прошлых контейнеров сервиса: `sudo journalctl CONTAINER_NAME=dv-lab-<сервис>-1 --since '2 days ago' -o cat`.
 
 ## 6. Проверка снаружи
