@@ -84,3 +84,5 @@ dv-lab.dev {
 		}
 	}
 }
+
+import /etc/caddy-sites/*.caddy
