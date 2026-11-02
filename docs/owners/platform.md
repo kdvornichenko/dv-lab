@@ -22,6 +22,8 @@
 - образы на push публикуются с временным тегом `ci-<полный sha>`; job `Publish` после зелёных `Checks`, `Test` и обоих образов ставит тег `sha-<полный sha>`, который ждёт `deploy.sh`, поэтому коммит с красной проверкой не выкатывается;
 - job `Base is master` падает на pull request с базой не `master`.
 
+Действия GitHub Actions закреплены lockfile `.github/workflows/actions.lock` (`gh actions-lock`, расширение `github/gh-actions-lock`): в workflow остаются теги версий, Actions запускает коммиты из lockfile. Общий шаг подключается как `$/.github/actions/setup`, чтобы его действия тоже попали в lockfile. После правки любой строки `uses:` — `gh actions-lock`; проверка без записи — `gh actions-lock --verify`. Образ сервиса `postgres:18` в job `Test` lockfile не закрепляет: тег совпадает с сервером.
+
 ## Граница web и api
 
 `apps/web` не импортирует код api и базы: в `apps/web/package.json` нет `@dv-lab/api` и `@dv-lab/db`, в исходниках web нет их импортов, каталога `apps/web/app/api` нет, `transpilePackages` в `apps/web/next.config.ts` нет. `packages/contracts` зависит только от `zod`, не импортирует `pg`, `node:*` и `@dv-lab/*` и не читает `process.env`. У `packages/core` нет зависимостей, он не импортирует `pg`, `node:*` и `@dv-lab/*` и не читает `process.env`. Эти условия проверяет шаг CI `Web and api boundary`.
