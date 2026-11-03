@@ -1396,6 +1396,48 @@ async function main() {
 		JSON.stringify(citedReply.body)
 	)
 
+	const lineText = 'Reads one article a day.'
+	sql(
+		`update student_sections set body = ${quote(`${sectionText}\n\n${lineText}`)} where student_id = ${quote(studentId)} and kind = 'goals'`
+	)
+	const goalsBlock = sql(`select id from student_sections where student_id = ${quote(studentId)} and kind = 'goals'`)
+		.rows[0].id
+	const lineKey = `${goalsBlock.replaceAll('-', '').slice(0, 8)}.3`
+	fake.script.push(
+		use('student_notes', { student_id: studentId }),
+		capture(say(`Daily reading is in the goals. [[line:${lineKey}]]`))
+	)
+	const lineCited = await settled((await ask(first, 'Quote the reading goal.')).json.turn.id)
+	const lineReply = replyOf(lineCited.id)
+	const lineExcerpts = lineReply.blocks.filter((block) => block.type === 'excerpt')
+	const lineView = JSON.parse(seen.at(-1)?.[0]?.content ?? '{}')
+	check(
+		'every non-empty line of a block ends with its own line marker in the tool result, empty lines stay as they are',
+		lineView.blocks?.some(
+			(record) =>
+				record.block_id === goalsBlock &&
+				record.text === `${sectionText} [[line:${lineKey.replace(/\.3$/u, '.1')}]]\n\n${lineText} [[line:${lineKey}]]`
+		),
+		JSON.stringify(lineView.blocks?.find((record) => record.block_id === goalsBlock))
+	)
+	check(
+		'a line marker is replaced by a block with that stored line of the section, linked to the section',
+		lineCited.state === 'completed' &&
+			lineExcerpts.length === 1 &&
+			lineExcerpts[0].source === 'section' &&
+			lineExcerpts[0].id === `${studentId}:goals#3` &&
+			lineExcerpts[0].sectionKind === 'goals' &&
+			lineExcerpts[0].blockId === goalsBlock &&
+			lineExcerpts[0].body === lineText &&
+			lineReply.body.includes('Daily reading is in the goals.') &&
+			!lineReply.body.includes('[[') &&
+			!lineReply.blocks.some((block) => block.type === 'withheld'),
+		JSON.stringify(lineReply)
+	)
+	sql(
+		`update student_sections set body = ${quote(sectionText)} where student_id = ${quote(studentId)} and kind = 'goals'`
+	)
+
 	fake.script.push(
 		use('student_notes', { student_id: studentId }),
 		say(`See [[note:${randomUUID()}]] for details. Fine. Also [[note:${oldestId}]] now. Done. Plain [[ text. End.`)
