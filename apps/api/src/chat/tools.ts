@@ -111,7 +111,11 @@ const nullable = <T extends z.ZodType>(schema: T) => schema.nullish().transform(
 const WEEKDAYS = ['monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday', 'sunday'] as const
 const ZONE_TEXT_MAX = 64
 const CLEAR = 'clear'
-const blockText = z.string().refine((value) => Array.from(value).length <= SECTION_BODY_MAX_LENGTH)
+const blockText = z.preprocess(
+	(value) => (typeof value === 'string' ? withoutLineCites(value) : value),
+	z.string().refine((value) => Array.from(value).length <= SECTION_BODY_MAX_LENGTH)
+)
+const plainText = z.preprocess((value) => (typeof value === 'string' ? withoutLineCites(value) : value), z.string())
 
 const inputs = {
 	find_students: z.strictObject({ query: z.string().min(1).max(200) }),
@@ -154,14 +158,14 @@ const inputs = {
 						.string()
 						.min(1)
 						.max(TERM_MAX_LENGTH * 2),
-					note: nullable(z.string().max(TERM_NOTE_MAX_LENGTH * 2)),
+					note: nullable(plainText.pipe(z.string().max(TERM_NOTE_MAX_LENGTH * 2))),
 				})
 			)
 			.min(1)
 			.max(CHAT_NOTE_WORDS_MAX),
 	}),
 	vocabulary_remove: z.strictObject({ student_id: id, term_ids: z.array(id).min(1).max(CHAT_NOTE_WORDS_MAX) }),
-	add_comment: z.strictObject({ student_id: id, date: nullable(date), time: nullable(time), text: z.string() }),
+	add_comment: z.strictObject({ student_id: id, date: nullable(date), time: nullable(time), text: plainText }),
 	propose_lesson_change: z.strictObject({
 		student_id: id,
 		operation: z.enum(['move', 'cancel']),
@@ -264,11 +268,15 @@ function clip(value: string): string {
 	return value.length > FIELD_MAX ? `${value.slice(0, FIELD_MAX)}…` : value
 }
 
-function fit<T>(records: readonly T[], extra: Record<string, unknown> = {}): { kept: T[]; text: string } {
+function fit<T>(
+	records: readonly T[],
+	extra: Record<string, unknown> = {},
+	limit = TEXT_MAX
+): { kept: T[]; text: string } {
 	let kept = records.slice(0, RECORDS_MAX)
 	let truncated = kept.length < records.length
 	let text = JSON.stringify({ ...extra, records: kept, truncated })
-	while (text.length > TEXT_MAX && kept.length > 0) {
+	while (text.length > limit && kept.length > 0) {
 		kept = kept.slice(0, -1)
 		truncated = true
 		text = JSON.stringify({ ...extra, records: kept, truncated })
@@ -450,6 +458,7 @@ async function studentNotes(executor: DbExecutor, context: ToolContext, studentI
 		return {
 			excerpt,
 			lines: marked.lines,
+			markers: marked.text.length - block.body.length,
 			record: {
 				block_id: block.id,
 				name: block.name,
@@ -472,7 +481,8 @@ async function studentNotes(executor: DbExecutor, context: ToolContext, studentI
 			blocks: filled.map((section) => section.record),
 			vocabulary,
 			...(words.length > vocabulary.length ? { vocabulary_more: words.length - vocabulary.length } : {}),
-		}
+		},
+		TEXT_MAX + filled.reduce((sum, section) => sum + section.markers, 0)
 	)
 	for (const entry of entries.slice(0, kept.length)) {
 		let excerpt = entry.excerpt
@@ -1069,8 +1079,7 @@ export const CHAT_TOOL_ENTRIES: readonly ChatToolEntry[] = [
 		strict: false,
 		effect: 'write',
 		step: studentStep,
-		run: (context, input) =>
-			noteWrite(writeNoteBlock(context, input.student_id, input.block_id, withoutLineCites(input.text))),
+		run: (context, input) => noteWrite(writeNoteBlock(context, input.student_id, input.block_id, input.text)),
 	}),
 	chatTool({
 		name: 'note_block_create',
@@ -1081,8 +1090,7 @@ export const CHAT_TOOL_ENTRIES: readonly ChatToolEntry[] = [
 		strict: false,
 		effect: 'write',
 		step: studentStep,
-		run: (context, input) =>
-			noteWrite(createNoteBlock(context, input.student_id, input.name, withoutLineCites(input.text))),
+		run: (context, input) => noteWrite(createNoteBlock(context, input.student_id, input.name, input.text)),
 	}),
 	chatTool({
 		name: 'note_block_delete',

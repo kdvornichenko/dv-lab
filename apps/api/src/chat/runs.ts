@@ -64,6 +64,7 @@ import {
 	learnNames,
 	learnWhen,
 	resolveCites,
+	withoutCites,
 	sentenceSplitter,
 } from './publish-gate.ts'
 import { messageMarker, proposalRef } from './refs.ts'
@@ -135,6 +136,7 @@ const PREAMBLE_MAX = 240
 const BODY_MAX = 200000
 const ACTIVE: string[] = [...CHAT_ACTIVE_TURN_STATES]
 const UUID = /[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}/giu
+const LINE_QUOTES_MAX = 3
 const ZERO_USAGE = { inputTokens: 0, outputTokens: 0, cacheCreationInputTokens: 0, cacheReadInputTokens: 0 }
 
 const SYSTEM = [
@@ -194,7 +196,7 @@ function commandBlocks(command: StoredCommand, schema: z.ZodType, message: Anthr
 				: typeof raw === 'string'
 					? raw.split('\n')
 					: []
-		const body = kept.join('\n').trim()
+		const body = withoutCites(kept.join('\n'), '').trim()
 		if (body === '') continue
 		blocks.push({
 			type: 'command',
@@ -264,7 +266,7 @@ function blockNote(block: Exclude<ChatBlock, { type: 'suggestions' }>): string {
 		case 'pays_soon':
 			return '[Showed the students who pay soon]'
 		case 'excerpt':
-			return `[Quoted a stored ${block.source}]`
+			return block.id.includes('#') ? '[Quoted one line of a stored section]' : `[Quoted a stored ${block.source}]`
 		case 'read_failed':
 			return '[Records could not be read]'
 		case 'lesson_dates':
@@ -700,6 +702,7 @@ export function createChat({
 			const messageId = turn.assistantMessageId
 			const key = citeKey(excerpt.source, excerpt.id)
 			if (messageId === null || quoted.has(key)) return
+			if (excerpt.id.includes('#') && [...quoted].filter((item) => item.includes('#')).length >= LINE_QUOTES_MAX) return
 			quoted.add(key)
 			const seq = await db.transaction((tx) => appendBlock(tx, turn, excerpt))
 			run.wroteBlock = true
