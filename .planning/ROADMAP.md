@@ -34,7 +34,7 @@ v2.0 replaces the Supabase-era CRM with a new workspace on the own VPS. The orde
 - [~] **Phase 25: Google Calendar Two-Way Sync** - Superseded by 25.1 (documents archived in `.planning/archive/phase-25-superseded`)
 - [x] **Phase 25.1: Google Calendar Core** - Any event created, moved, resized, edited and deleted in the app; push and incremental sync rewritten as one task per connection; calendar choice; Google wins
 - [x] **Phase 25.2: Polish before IELTS** - Dialog kinds, Firefox fade, chat fixes, notes/vocabulary/review from chat, card edits from chat, Students table, student profile tabs, installable PWA with push (completed 2026-10-16)
-- [ ] **Phase 25.3: Chat Command Builder** - Commands stored in the database and edited in Settings; `/edvibe` is a command the owner creates there with their own block formats and templates
+- [x] **Phase 25.3: Chat Command Builder** - Commands stored in the database and edited in Settings; `/edvibe` is a command the owner creates there with their own block formats and templates
 - [ ] **Phase 26: IELTS Section** - ielts ported under `/ielts` with its data moved from Neon and Blob
 
 ## Phase Details
@@ -607,7 +607,7 @@ Superseded by Phase 25.1 (owner decisions D5-D10, 2026-10-12). Its research and 
 
 **Goal**: The owner creates chat commands in Settings with their own prompt, tool set and answer blocks with formats and templates; each block has Copy. `/edvibe` is one such command, created by the owner.
 **Depends on**: Phase 25.2
-**Plans**: not planned; the builder is generic, the owner fills real Edvibe templates in Settings, checks use one made-up command
+**Plans**: 13 plans, executed by a cloud session 2026-10-17 (PR 58, rights fix PR 59); verification in `25.3-VERIFICATION.md`, open items there go to the owner
 **UI hint**: yes
 **Notes**: Owner decisions 2026-10-16 from the Claude API review:
 - A command that only generates its answer returns blocks through a response schema (`output_config.format`); a command that reads records returns blocks through `show` tools, as `calendar_events` does. `tool_choice` stays `auto`: a forced tool call returns 400 on Sonnet 5.5, Opus 5.5 and Fable 5.1. One request holds at most 20 strict tools, 24 optional and 16 union parameters, the response schema included.
@@ -665,5 +665,5 @@ Superseded by Phase 25.1 (owner decisions D5-D10, 2026-10-12). Its research and 
 | 25. Google Calendar Two-Way Sync                 | v2.0      | 0/12           | Superseded  | -          |
 | 25.1. Google Calendar Core                       | v2.0      | 12/12          | Complete    | 2026-10-13 |
 | 25.2. Polish before IELTS                        | v2.0      | 29/29          | Complete    | 2026-10-16 |
-| 25.3. Chat Command Builder                       | v2.0      | 0/0            | Not planned | -          |
+| 25.3. Chat Command Builder                       | v2.0      | 13/13          | Complete    | 2026-10-17 |
 | 26. IELTS Section                                | v2.0      | 0/40           | Planned     | -          |
