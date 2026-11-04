@@ -153,6 +153,13 @@ mv "$DUMP.part" "$DUMP"
 echo "pre-deploy dump: $DUMP"
 
 STAGE=dry-run
+leftovers=$(dc exec -T db psql -X -q -At -U postgres -d postgres -v ON_ERROR_STOP=1 -c "SELECT datname FROM pg_database WHERE datname LIKE 'dvlab\_migcheck\_%'")
+while read -r db; do
+	if [ -n "$db" ]; then
+		dc exec -T db psql -X -q -U postgres -d postgres -v ON_ERROR_STOP=1 -c "DROP DATABASE \"$db\" WITH (FORCE)"
+		note "dropped leftover $db"
+	fi
+done <<< "$leftovers"
 TMP_DB="dvlab_migcheck_$(date +%s)"
 dc exec -T db psql -X -q -U postgres -d postgres -v ON_ERROR_STOP=1 -c "CREATE DATABASE \"$TMP_DB\" OWNER dvlab_migrator"
 dc exec -T db pg_restore -U postgres -d "$TMP_DB" --exit-on-error < "$DUMP"
