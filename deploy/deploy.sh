@@ -154,10 +154,10 @@ echo "pre-deploy dump: $DUMP"
 
 STAGE=dry-run
 leftovers=$(dc exec -T db psql -X -q -At -U postgres -d postgres -v ON_ERROR_STOP=1 -c "SELECT datname FROM pg_database WHERE datname LIKE 'dvlab\_migcheck\_%'")
-while read -r db; do
-	if [ -n "$db" ]; then
-		dc exec -T db psql -X -q -U postgres -d postgres -v ON_ERROR_STOP=1 -c "DROP DATABASE \"$db\" WITH (FORCE)"
-		note "dropped leftover $db"
+while read -r leftover; do
+	if [ -n "$leftover" ]; then
+		dc exec -T db psql -X -q -U postgres -d postgres -v ON_ERROR_STOP=1 -c "DROP DATABASE \"$leftover\" WITH (FORCE)"
+		note "dropped leftover $leftover"
 	fi
 done <<< "$leftovers"
 TMP_DB="dvlab_migcheck_$(date +%s)"
