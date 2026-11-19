@@ -11,7 +11,7 @@ import { staleCalendarWindow } from '@/lib/lesson-actions'
 import { knownMainTimeZone, rememberMainTimeZone } from '@/lib/main-time-zone'
 
 import { googleScheduleWindow, timeZoneIdentity, type GoogleScheduleWindow } from '@dv-lab/contracts'
-import { SCHEDULE_TIME_ZONE, addDays, lessonDay, mondayOf, scheduleDate, scheduleWeekRange } from '@dv-lab/core'
+import { addDays, lessonDay, mondayOf, scheduleDate, scheduleWeekRange } from '@dv-lab/core'
 
 type WeekQuery = { mainTimeZone: string; monday: string; current: boolean }
 type WeekState = { kind: 'loading' | 'error' | 'ready'; query: WeekQuery | null; data: GoogleScheduleWindow | null }
@@ -22,6 +22,7 @@ type Prefetch = { monday: string; promise: Promise<GoogleScheduleWindow | null>;
 const FRESH_MS = 5 * 60_000
 const PREFETCH_DELAY_MS = 150
 const NEIGHBOURS = [7, -7, 14, -14, 21, -21, 28, -28] as const
+const NEAR_NEIGHBOURS = [7, -7] as const
 const WINDOWS_KEPT = 13
 
 function weekKey(timeZone: string, monday: string): string {
@@ -214,8 +215,8 @@ export function useScheduleWeek(initialMonday: string | null = null) {
 	}, [])
 
 	const warm = useCallback(
-		async (around: WeekQuery, id: number) => {
-			for (const offset of NEIGHBOURS) {
+		async (around: WeekQuery, id: number, offsets: readonly number[]) => {
+			for (const offset of offsets) {
 				await pause(PREFETCH_DELAY_MS)
 				if (id !== requests.current || prefetch.current !== null) return
 				const monday = addDays(around.monday, offset)
@@ -235,7 +236,7 @@ export function useScheduleWeek(initialMonday: string | null = null) {
 	)
 
 	const load = useCallback(
-		async (requested: WeekQuery | null): Promise<GoogleScheduleWindow | null> => {
+		async (requested: WeekQuery | null, near = false): Promise<GoogleScheduleWindow | null> => {
 			const id = ++requests.current
 			const since = epoch.current
 			loading.current = true
@@ -259,7 +260,7 @@ export function useScheduleWeek(initialMonday: string | null = null) {
 			latest.current = result.data
 			remember(result.data, since)
 			setState({ kind: 'ready', ...result })
-			void warm(result.query, id)
+			void warm(result.query, id, near ? NEAR_NEIGHBOURS : NEIGHBOURS)
 			return result.data
 		},
 		[readWindow, remember, warm]
@@ -288,7 +289,7 @@ export function useScheduleWeek(initialMonday: string | null = null) {
 	}, [load, stopPrefetch])
 
 	const start = useCallback(
-		(requested: WeekQuery | null) => {
+		(requested: WeekQuery | null, near = false) => {
 			stopPrefetch(requested?.monday)
 			const hit = requested === null ? undefined : cache.current.get(weekKey(requested.mainTimeZone, requested.monday))
 			const cached = hit !== undefined && !older(hit.data, latest.current) ? hit : null
@@ -309,14 +310,14 @@ export function useScheduleWeek(initialMonday: string | null = null) {
 							: null,
 				}
 			})
-			return load(requested)
+			return load(requested, near)
 		},
 		[load, stopPrefetch]
 	)
 
 	const reload = useCallback(() => {
 		forget()
-		return start(query.current)
+		return start(query.current, true)
 	}, [forget, start])
 	const refresh = useCallback(async () => {
 		await reload()
@@ -333,7 +334,7 @@ export function useScheduleWeek(initialMonday: string | null = null) {
 		}
 		handledRevision.current = sync.revision
 		forget()
-		void load(query.current).then((data) => {
+		void load(query.current, true).then((data) => {
 			if (data === null) handledRevision.current = null
 		})
 	}, [sync, state, forget, load])
