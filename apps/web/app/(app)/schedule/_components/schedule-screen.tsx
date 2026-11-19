@@ -131,7 +131,7 @@ function LoadedSchedule({ now, arrival }: { now: Date; arrival: ArrivalParams })
 	const requestedMonday = week.query.monday
 	const shown = displayWindow(data, week.query, now)
 	const { mainTimeZone, monday, today, currentYear, currentMonday, read, write } = shown
-	const events = writes.apply(shown.events)
+	const events = writes.apply(shown.events, read.state === 'unavailable' ? null : read.revision)
 	const selected = events.find((event) => event.eventKey === selection?.eventKey) ?? selection
 	const secondZone = zone ? { id: zone, caption: zoneLabel(zone, zonedInstant(monday, '12:00', mainTimeZone)) } : null
 

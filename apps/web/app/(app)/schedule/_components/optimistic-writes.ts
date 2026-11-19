@@ -82,6 +82,14 @@ export function useOptimisticWrites(onRefused: () => void) {
 	const unconfirmed =
 		command?.state === 'outcome_unknown' || (command?.nextAction === 'resume_recovery' && entry?.settling !== true)
 	const commandId = entry?.commandId ?? null
+	const [applied, setApplied] = useState<{ requestId: string; revision: string } | null>(null)
+	if (
+		requestId !== null &&
+		command?.state === 'applied' &&
+		command.confirmedRevision !== null &&
+		applied?.requestId !== requestId
+	)
+		setApplied({ requestId, revision: command.confirmedRevision })
 
 	useEffect(() => {
 		alive.current = true
@@ -139,8 +147,10 @@ export function useOptimisticWrites(onRefused: () => void) {
 		[toast, onRefused]
 	)
 
-	function apply(events: readonly CalendarEventView[]): readonly CalendarEventView[] {
+	function apply(events: readonly CalendarEventView[], revision: string | null): readonly CalendarEventView[] {
 		if (active === null) return events
+		const confirmed = applied !== null && applied.requestId === requestId ? applied.revision : null
+		if (confirmed !== null && revision !== null && BigInt(revision) >= BigInt(confirmed)) return events
 		const hidden = new Set([...active.hidden, ...active.shown.map((event) => event.eventKey)])
 		const kept = events.filter(
 			(event) =>
