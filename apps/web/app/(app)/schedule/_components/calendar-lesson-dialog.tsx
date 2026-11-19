@@ -285,9 +285,15 @@ function LessonContent({
 		setMarkStale(false)
 		setMarkFailed(false)
 		const result = await markLesson({ ref: initial.binding.ref, startsAt: event.when.startsAt }, kind)
-		if (result.kind === 'ok' || result.kind === 'stale') await onMarked()
-		if (result.kind === 'stale') setMarkStale(true)
-		else if (result.kind !== 'ok') setMarkFailed(true)
+		if (result.kind === 'ok') {
+			onClose()
+			void onMarked()
+			return
+		}
+		if (result.kind === 'stale') {
+			await onMarked()
+			setMarkStale(true)
+		} else setMarkFailed(true)
 		setChoosing(null)
 	}
 	function askCancel() {

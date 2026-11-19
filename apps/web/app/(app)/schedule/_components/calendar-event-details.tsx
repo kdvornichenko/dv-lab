@@ -216,13 +216,15 @@ export function CalendarEventDialog({
 	const pending = command.pending
 	const tentative = (latest === null ? event.status : event.status) === 'tentative'
 	const repeats = latest === null ? null : repeatLine(latest.repeat)
+	const assigning = busy?.kind === 'assign'
 	const assignable =
-		canWrite &&
-		latest !== null &&
-		!allDay &&
-		!unsupported &&
-		event.binding.kind === 'external' &&
-		event.status !== 'cancelled'
+		assigning ||
+		(canWrite &&
+			latest !== null &&
+			!allDay &&
+			!unsupported &&
+			event.binding.kind === 'external' &&
+			event.status !== 'cancelled')
 	const suggestedName =
 		event.suggestion === null || students.kind !== 'ready'
 			? null
@@ -247,11 +249,9 @@ export function CalendarEventDialog({
 			studentId,
 		})
 		setBusy(null)
-		if (result.kind === 'detached') return onClose()
 		if (result.kind === 'stale') return setAssignChanged(true)
-		if (result.kind !== 'ok') return setAssignFailure('assign')
+		if (result.kind !== 'ok' && result.kind !== 'detached') return setAssignFailure('assign')
 		toast.show({ title: 'Event assigned', description: whenText(name) })
-		onClose()
 	}
 
 	async function ignore() {
@@ -419,7 +419,7 @@ export function CalendarEventDialog({
 									</Link>
 								</p>
 							) : null}
-							{!transition && !canEdit && !(allDay && canDelete) && reason !== null ? (
+							{!transition && !assigning && !canEdit && !(allDay && canDelete) && reason !== null ? (
 								<p data-slot="event-read-only" className="flex items-start gap-2 text-body text-muted-foreground">
 									<Info size={16} aria-hidden className="mt-0.5 shrink-0" />
 									<span>{READ_ISSUES[reason]}</span>

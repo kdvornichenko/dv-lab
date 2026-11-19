@@ -79,19 +79,41 @@ export function LessonStudentField({
 			</span>
 		)
 	return (
-		<span className="flex flex-col gap-2">
-			<SearchSelect
-				id="lesson-student-change"
-				options={rows}
-				value={choice}
-				onChange={setChoice}
-				placeholder={students.kind === 'loading' ? 'Loading students…' : 'Choose a student'}
-				emptyTitle="No students found"
-				emptyHint="Try a part of the name."
-				disabled={pending || students.kind !== 'ready'}
-				error={students.kind === 'error' ? 'Could not load students.' : undefined}
-				autoFocus
-			/>
+		<span className="flex flex-col gap-1">
+			<span className="flex flex-wrap items-center justify-end gap-2">
+				<span className="min-w-0 flex-1 basis-48">
+					<SearchSelect
+						id="lesson-student-change"
+						options={rows}
+						value={choice}
+						onChange={setChoice}
+						placeholder={students.kind === 'loading' ? 'Loading students…' : 'Choose a student'}
+						emptyTitle="No students found"
+						emptyHint="Try a part of the name."
+						disabled={pending || students.kind !== 'ready'}
+						error={students.kind === 'error' ? 'Could not load students.' : undefined}
+						autoFocus
+					/>
+				</span>
+				<span className="flex shrink-0 gap-2">
+					<Button
+						type="button"
+						variant="secondary"
+						size="compact"
+						disabled={pending}
+						onClick={() => {
+							setEditing(false)
+							setChoice('')
+							setFailure(null)
+						}}
+					>
+						Close
+					</Button>
+					<Button type="button" size="compact" loading={pending} disabled={choice === ''} onClick={() => void save()}>
+						Save
+					</Button>
+				</span>
+			</span>
 			<span className="text-caption text-muted-foreground">
 				{series
 					? 'The whole series moves to this card, with its marks and comments. The event title in Google stays the same.'
@@ -102,24 +124,6 @@ export function LessonStudentField({
 					{failure}
 				</span>
 			)}
-			<span className="flex justify-end gap-2">
-				<Button
-					type="button"
-					variant="secondary"
-					size="compact"
-					disabled={pending}
-					onClick={() => {
-						setEditing(false)
-						setChoice('')
-						setFailure(null)
-					}}
-				>
-					Close
-				</Button>
-				<Button type="button" size="compact" loading={pending} disabled={choice === ''} onClick={() => void save()}>
-					Save
-				</Button>
-			</span>
 		</span>
 	)
 }

@@ -173,6 +173,7 @@ export function LessonDialog({
 		setNotice(null)
 		setMarkFailed(false)
 		const outcome = await onMark(kind)
+		if (outcome === 'ok') return onClose()
 		setChoosing(null)
 		if (outcome === 'stale') setNotice('stale')
 		if (outcome === 'failed') setMarkFailed(true)
