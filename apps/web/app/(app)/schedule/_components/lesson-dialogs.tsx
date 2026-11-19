@@ -120,9 +120,13 @@ export function LessonDialogs(props: Props) {
 	const history = { ...shown, actions: { ...shown.actions, move: false, cancel: false, restore: false, series: false } }
 	async function mark(kind: LessonMarkKind): Promise<ActionOutcome> {
 		const result = await markLesson(shown, kind)
-		if (result.kind !== 'ok' && result.kind !== 'stale') return 'failed'
+		if (result.kind === 'ok') {
+			void reload()
+			return 'ok'
+		}
+		if (result.kind !== 'stale') return 'failed'
 		await reload()
-		return result.kind
+		return 'stale'
 	}
 	return (
 		<LessonDialog

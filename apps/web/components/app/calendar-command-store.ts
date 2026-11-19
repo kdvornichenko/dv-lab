@@ -47,6 +47,8 @@ type RecoveryId = { requestId: string; commandId: string | null }
 type ConfirmedWindow = (date: string | undefined, current: () => boolean) => Promise<GoogleScheduleWindow | null>
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
 const DISPATCH_WINDOW_MS = 32_000
+const LIVE_POLL_MS = 400
+const IDLE_POLL_MS = 2000
 
 function between(command: CalendarCommandSnapshot | null) {
 	return command?.state === 'partial_recovery' && command.nextAction === 'resume_recovery'
@@ -291,12 +293,12 @@ export class CalendarCommandStore {
 		this.checking.add(requestId)
 		const epoch = this.epoch
 		try {
-			if (!(await this.authorized(epoch)) || !this.isCurrent(epoch)) return
 			const path =
 				entry.commandId === null
 					? `/google/commands/by-request/${encodeURIComponent(requestId)}`
 					: `/google/commands/${encodeURIComponent(entry.commandId)}`
-			const result = await readCommand(path)
+			const [before, result] = await Promise.all([this.authorized(epoch), readCommand(path)])
+			if (!before || !this.isCurrent(epoch)) return
 			if (!(await this.authorized(epoch)) || !this.isCurrent(epoch)) return
 			if (result.kind !== 'ready') {
 				this.set({ ...entry, status: result.kind })
@@ -405,9 +407,13 @@ export class CalendarCommandStore {
 					['wait', 'refresh'].includes(entry.command.nextAction))
 		)
 		if (waiting.length === 0) return
-		this.timer = setTimeout(() => {
-			if (this.isCurrent(epoch) && document.visibilityState === 'visible')
-				void Promise.all(waiting.map((entry) => this.check(entry.requestId)))
-		}, 2000)
+		const live = waiting.some((entry) => this.live.has(entry.requestId))
+		this.timer = setTimeout(
+			() => {
+				if (this.isCurrent(epoch) && document.visibilityState === 'visible')
+					void Promise.all(waiting.map((entry) => this.check(entry.requestId)))
+			},
+			live ? LIVE_POLL_MS : IDLE_POLL_MS
+		)
 	}
 }

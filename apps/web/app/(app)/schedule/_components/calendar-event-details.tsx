@@ -251,7 +251,6 @@ export function CalendarEventDialog({
 		if (result.kind === 'stale') return setAssignChanged(true)
 		if (result.kind !== 'ok') return setAssignFailure('assign')
 		toast.show({ title: 'Event assigned', description: whenText(name) })
-		onClose()
 	}
 
 	async function ignore() {

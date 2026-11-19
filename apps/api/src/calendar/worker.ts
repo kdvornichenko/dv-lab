@@ -38,6 +38,7 @@ export function createCalendarWorker(deps: {
 	let timer: ReturnType<typeof setInterval> | undefined
 	let sweep: Promise<void> | undefined
 	let started = false
+	let workerId: string | undefined
 	boss.on('error', () => deps.logger.warn('Calendar queue unavailable'))
 	const accepting = () => started && !stopped.signal.aborted && !deps.isStopping()
 
@@ -173,7 +174,7 @@ export function createCalendarWorker(deps: {
 				const queue = await boss.getQueue(calendarCommandQueue)
 				if (queue?.policy !== 'singleton') throw new Error('Calendar command queue is not ready')
 				started = true
-				await boss.work<{ commandId: string }, void>(
+				workerId = await boss.work<{ commandId: string }, void>(
 					calendarCommandQueue,
 					{ batchSize: 1, pollingIntervalSeconds: 1 },
 					async (jobs) => {
@@ -202,6 +203,7 @@ export function createCalendarWorker(deps: {
 				{ commandId },
 				{ singletonKey: command.connectionId, retryLimit: 0, expireInSeconds: 30 }
 			)
+			if (workerId !== undefined) boss.notifyWorker(workerId)
 		},
 		async resume(accountId: string, commandId: string) {
 			if (!accepting()) throw new CalendarFault('provider_unavailable')

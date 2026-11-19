@@ -196,9 +196,11 @@ async function prepareCommand(
 	checkedWindow: CheckedWindow | null | undefined,
 	current: () => boolean
 ): Promise<{ ok: true; intent: CommandIntent } | { ok: false; result: CalendarMutationResult }> {
-	await controller.store.refresh()
 	const date = selectedDate(target, selection, body)
-	const found = checkedWindow === undefined ? await controller.readWindow(date) : (checkedWindow?.window ?? null)
+	const [, found] = await Promise.all([
+		controller.store.refresh(),
+		checkedWindow === undefined ? controller.readWindow(date) : Promise.resolve(checkedWindow?.window ?? null),
+	])
 	if (!current()) return { ok: false, result: { kind: 'detached' } }
 	const connection = controller.store.getSnapshot().connection
 	const validated = validateWindow(found, selection, target, date, checkedWindow, connection)
