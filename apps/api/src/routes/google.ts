@@ -163,8 +163,8 @@ export function googleRoutes({ db, connection, control, commands, wake, isStoppi
 		const row = await findConnection(db, accountId)
 		if (!row || row.state !== 'connected') return refusal(c, new CalendarFault('connection_required'))
 		const { defaultTimeZone } = await readTeacherSettings(db, accountId)
-		const from = startOfZonedDay(mondayOf(input.from), defaultTimeZone)
-		if (await requestHistory(db, row.id, from)) wake?.(row.id)
+		const monday = mondayOf(input.from)
+		if (await requestHistory(db, row.id, monday, startOfZonedDay(monday, defaultTimeZone))) wake?.(row.id)
 		return c.json(await readSnapshot(db, (executor) => syncSnapshot(executor, accountId)), 202)
 	})
 	routes.get('/colors', async (c) =>

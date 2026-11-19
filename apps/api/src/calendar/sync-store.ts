@@ -54,20 +54,31 @@ const currentConnection = and(
 )
 const due = sql`(${s.nextPollAt} <= now() or (${s.failureCount} = 0 and (${s.requestedSeq} > ${s.processedSeq} or ${s.nextFullAt} <= now())))`
 
+export function historyDay(monday: string): Date {
+	return new Date(`${monday}T00:00:00Z`)
+}
+
 export function syncWindow(now: Date, zone: string, historyFrom: Date | null = null): SyncWindow {
 	const monday = mondayOf(scheduleToday(now, zone))
 	const start = startOfZonedDay(addDays(monday, -SYNC_WINDOW_WEEKS.back * 7), zone)
+	const history = historyFrom === null ? null : startOfZonedDay(historyFrom.toISOString().slice(0, 10), zone)
 	return {
-		start: historyFrom !== null && historyFrom < start ? historyFrom : start,
+		start: history !== null && history < start ? history : start,
 		end: startOfZonedDay(addDays(monday, SYNC_WINDOW_WEEKS.ahead * 7), zone),
 	}
 }
 
-export async function requestHistory(executor: DbExecutor, connectionId: string, from: Date): Promise<boolean> {
+export async function requestHistory(
+	executor: DbExecutor,
+	connectionId: string,
+	monday: string,
+	from: Date
+): Promise<boolean> {
+	const day = historyDay(monday)
 	const rows = await executor
 		.update(s)
 		.set({
-			historyFrom: sql`least(coalesce(${s.historyFrom}, ${from}), ${from})`,
+			historyFrom: sql`least(coalesce(${s.historyFrom}, ${day}), ${day})`,
 			nextFullAt: sql`now()`,
 			updatedAt: sql`now()`,
 		})
@@ -370,6 +381,10 @@ function cleanup(executor: DbExecutor, connectionId: string, epoch: number, wind
 		.returning({ eventId: e.eventId })
 }
 
+function historyGrew(latest: Date | null, started: Date | null): boolean {
+	return latest !== null && (started === null || latest < started)
+}
+
 export function applyPass(db: Database, current: SyncClaim, pass: SyncPass): Promise<PassResult> {
 	return db.transaction(async (tx) => {
 		const row = await lockedClaim(tx, current)
@@ -432,7 +447,9 @@ export function applyPass(db: Database, current: SyncClaim, pass: SyncPass): Pro
 				...(raise ? { revision: sql`${s.revision} + 1` } : {}),
 				...(full && pass.window ? { windowStart: pass.window.start, windowEnd: pass.window.end } : {}),
 				...(full ? { lastFullAt: sql`now()` } : { lastIncrementalAt: sql`now()` }),
-				...(full && pass.nextFullAt ? { nextFullAt: pass.nextFullAt } : {}),
+				...(full && pass.nextFullAt
+					? { nextFullAt: historyGrew(row.historyFrom, current.historyFrom) ? sql`now()` : pass.nextFullAt }
+					: {}),
 				...(pass.palette !== undefined ? { palette: pass.palette, paletteFetchedAt: sql`now()` } : {}),
 				...(pass.calendarColor !== undefined ? { calendarColor: pass.calendarColor } : {}),
 				nextPollAt: sql`now() + case when ${s.channelId} is not null and ${s.channelExpiresAt} > now() then make_interval(mins => ${pass.pollMinutes.channel}) else make_interval(mins => ${pass.pollMinutes.none}) end`,
