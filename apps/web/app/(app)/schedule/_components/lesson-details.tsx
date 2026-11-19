@@ -4,6 +4,7 @@ import { StatusDot } from '@/components/app/status-dot'
 import { statusTone, statusWord } from '@/lib/lesson-mark-text'
 import { formatTime, mainDayTime, weekdayName } from '@/lib/schedule-format'
 import { sameTimeZone, zoneLabel, zoneName } from '@/lib/time-zones'
+import { cn } from '@/lib/utils'
 
 import type { ScheduleBlock, ScheduleOccurrenceRef, ScheduleSeries } from '@dv-lab/contracts'
 import { zonedParts } from '@dv-lab/core'
@@ -13,11 +14,16 @@ import type { PairTarget } from './lesson-dialog'
 import { LessonStudentField, type LessonStudent } from './lesson-student-field'
 import { commentsPath } from './schedule-prefetch'
 
-function Detail({ label, wide, children }: { label: string; wide?: boolean; children: ReactNode }) {
+function Detail({ label, centered, children }: { label: string; centered?: boolean; children: ReactNode }) {
 	return (
-		<div className={wide ? 'flex flex-col gap-1 sm:col-span-2' : 'flex flex-col gap-1'}>
-			<dt className="text-caption text-muted-foreground">{label}</dt>
-			<dd className="text-body text-foreground">{children}</dd>
+		<div
+			className={cn(
+				'grid grid-cols-[88px_minmax(0,1fr)] gap-x-3',
+				centered ? 'min-h-8 items-start py-0.5' : 'items-start py-1.5'
+			)}
+		>
+			<dt className={cn('text-caption text-muted-foreground', centered ? 'leading-7' : 'leading-5')}>{label}</dt>
+			<dd className="min-w-0 text-body text-foreground">{children}</dd>
 		</div>
 	)
 }
@@ -104,20 +110,20 @@ export function LessonDetails({
 	const second = secondZone !== null && !sameTimeZone(secondZone, mainTimeZone) ? secondZone : null
 	return (
 		<>
-			<dl className="grid gap-4 rounded-xl bg-hover p-4 sm:grid-cols-2">
+			<dl className="flex flex-col rounded-xl bg-hover px-3 py-1">
 				{student !== undefined && commentRef !== undefined ? (
-					<Detail label="Student" wide>
+					<Detail label="Student" centered>
 						<LessonStudentField lessonRef={commentRef} student={student} disabled={studentLocked} />
 					</Detail>
 				) : null}
 				<Detail label="Length">{block.durationMinutes} min</Detail>
 				<Detail label="Repeats">
 					{series === null ? (
-						'Once'
+						'Does not repeat'
 					) : ruleStart === null ? (
 						'Weekly'
 					) : (
-						<span data-slot="lesson-repeats" className="flex flex-col gap-1 tabular-nums">
+						<span data-slot="lesson-repeats" className="flex flex-wrap items-baseline gap-x-2 tabular-nums">
 							<span>{everyAt(ruleStart, mainTimeZone)}</span>
 							{second === null ? null : (
 								<span className="text-micro text-muted-foreground">{everyAt(ruleStart, second)}</span>
