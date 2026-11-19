@@ -48,7 +48,7 @@ export const READ_ISSUES: Record<CalendarIssue, string> = {
 
 const FULL_CHECK_RUNNING = 'A full check is running.'
 const HISTORY_LOADING = 'Loading these weeks from Google…'
-const HISTORY_FAILED = 'Could not load these weeks from Google. Calendar changes are unavailable.'
+export const HISTORY_FAILED = 'Could not load these weeks from Google. Calendar changes are unavailable.'
 
 type HistoryMode = 'loading' | 'failed' | null
 

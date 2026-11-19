@@ -5,6 +5,7 @@ import { useEffect, useRef, useState, type ReactNode } from 'react'
 import { ArrowRight, Check, ChevronDown, ChevronUp, Info, Minus, RefreshCw, Repeat, TriangleAlert } from 'lucide-react'
 import Link from 'next/link'
 
+import { HISTORY_FAILED } from '@/components/app/google-calendar-state'
 import { Panel } from '@/components/app/layout-parts'
 import { useSecondZone } from '@/components/app/time-zone-picker'
 import { Banner, BannerDescription, BannerTitle } from '@/components/ui/banner'
@@ -39,6 +40,7 @@ const ASK_AGAIN = 'Ask again to move the remaining lessons.'
 function issueLine(issue: ChatChangeIssue | undefined): string | null {
 	if (issue === undefined) return null
 	if (issue === 'calendar_changed') return 'The remaining lessons changed after you asked. The confirmed changes stay.'
+	if (issue === 'range_load_failed') return HISTORY_FAILED
 	return ISSUE_LINES[issue as ChatCalendarIssue] ?? null
 }
 

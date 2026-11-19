@@ -68,6 +68,19 @@ export function syncWindow(now: Date, zone: string, historyFrom: Date | null = n
 	}
 }
 
+const HISTORY_POLL_MS = 500
+
+export async function awaitHistory(db: DbExecutor, connectionId: string, from: Date, timeoutMs: number) {
+	const until = Date.now() + timeoutMs
+	for (;;) {
+		const [row] = await db.select({ windowStart: s.windowStart }).from(s).where(eq(s.connectionId, connectionId))
+		if (!row) return false
+		if (row.windowStart <= from) return true
+		if (Date.now() >= until) return false
+		await new Promise((resolve) => setTimeout(resolve, HISTORY_POLL_MS))
+	}
+}
+
 export async function requestHistory(
 	executor: DbExecutor,
 	connectionId: string,

@@ -2,8 +2,8 @@
 
 import { useState } from 'react'
 
-import { m, useReducedMotion } from 'motion/react'
 import { Check, ChevronDown, CircleAlert, LoaderCircle, Square } from 'lucide-react'
+import { m, useReducedMotion } from 'motion/react'
 
 import { Button } from '@/components/ui/button'
 import { periodText } from '@/lib/lesson-count-text'
@@ -67,6 +67,8 @@ export function stepWords(step: ChatStep): string {
 			return 'Preparing to remove a comment'
 		case 'propose_bulk_move':
 			return `Checking ${possessive} lessons to move`
+		case 'calendar_history':
+			return 'Loading earlier weeks from Google'
 		case 'calendar_events':
 			return 'Searching the calendar'
 		case 'review_read':

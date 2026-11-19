@@ -181,7 +181,7 @@ async function refuseProposal(
 	executor: DbExecutor,
 	context: ChatContext,
 	source: ActionSource,
-	code: 'connection_required' | 'outside_sync_window' | 'not_found'
+	code: 'connection_required' | 'outside_sync_window' | 'range_load_failed' | 'not_found'
 ): Promise<ChatBlock> {
 	await insertAction(executor, {
 		accountId: context.accountId,
@@ -191,6 +191,21 @@ async function refuseProposal(
 		result: { kind: 'refused', code },
 	})
 	return { type: 'refused', code, kind: 'calendar' }
+}
+
+export async function placeInWindow(
+	executor: DbExecutor,
+	context: ChatContext,
+	connectionId: string,
+	start: Date,
+	end: Date
+): Promise<'inside' | 'outside_sync_window' | 'range_load_failed'> {
+	const sync = await syncFacts(executor, connectionId)
+	if (insideSyncWindow(sync, start, end)) return 'inside'
+	if (!sync || start >= sync.windowStart || end > sync.windowEnd || !context.loadHistory) return 'outside_sync_window'
+	const monday = mondayOf(scheduleDate(start, context.defaultTimeZone))
+	if (!(await context.loadHistory(monday))) return 'range_load_failed'
+	return insideSyncWindow(await syncFacts(executor, connectionId), start, end) ? 'inside' : 'range_load_failed'
 }
 
 async function seriesPlace(executor: DbExecutor, seriesId: string, from: string) {
@@ -224,11 +239,10 @@ export async function proposeCalendarChange(
 	const lesson = target.lesson
 	const connection = await findConnection(executor, context.accountId)
 	if (!connection) return refuseProposal(executor, context, source, 'connection_required')
-	const sync = await syncFacts(executor, connection.id)
 	const lessonStart = new Date(lesson.startsAt)
 	const lessonEnd = new Date(lessonStart.getTime() + lesson.durationMinutes * 60000)
-	if (!insideSyncWindow(sync, lessonStart, lessonEnd))
-		return refuseProposal(executor, context, source, 'outside_sync_window')
+	const placed = await placeInWindow(executor, context, connection.id, lessonStart, lessonEnd)
+	if (placed !== 'inside') return refuseProposal(executor, context, source, placed)
 	const move = target.move
 	let operation: StoredTarget['operation'] = target.intent === 'move' ? 'move' : 'cancel'
 	const lessonDate = lessonDay(lessonStart, zone)
@@ -256,8 +270,8 @@ export async function proposeCalendarChange(
 		const first = await seriesEndPlace(executor, target.seriesId, lastOn)
 		if (first === null) return refuseProposal(executor, context, source, 'not_found')
 		const firstEnd = new Date(first.was.getTime() + first.durationMinutes * 60000)
-		if (!insideSyncWindow(sync, first.was, firstEnd))
-			return refuseProposal(executor, context, source, 'outside_sync_window')
+		const firstPlaced = await placeInWindow(executor, context, connection.id, first.was, firstEnd)
+		if (firstPlaced !== 'inside') return refuseProposal(executor, context, source, firstPlaced)
 		operation = 'end_series'
 		series = { lastOn }
 		shownLesson = { key: lesson.key, startsAt: first.was.toISOString(), durationMinutes: first.durationMinutes }
@@ -270,8 +284,8 @@ export async function proposeCalendarChange(
 		const was = await seriesPlace(executor, target.seriesId, target.from)
 		if (!first || was === null) return refuseProposal(executor, context, source, 'not_found')
 		const firstEnd = new Date(first.getTime() + move.durationMinutes * 60000)
-		if (!insideSyncWindow(sync, first, firstEnd))
-			return refuseProposal(executor, context, source, 'outside_sync_window')
+		const firstPlaced = await placeInWindow(executor, context, connection.id, first, firstEnd)
+		if (firstPlaced !== 'inside') return refuseProposal(executor, context, source, firstPlaced)
 		operation = 'move_series'
 		series = { from: target.from, weekday, startTime: parts.time }
 		shownLesson = { key: lesson.key, startsAt: was.was.toISOString(), durationMinutes: was.durationMinutes }

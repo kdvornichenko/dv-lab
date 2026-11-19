@@ -6,7 +6,7 @@ import { Check, LoaderCircle } from 'lucide-react'
 import { m, useReducedMotion } from 'motion/react'
 import Link from 'next/link'
 
-import { LESSON_DONE_LINE, READ_ISSUES } from '@/components/app/google-calendar-state'
+import { HISTORY_FAILED, LESSON_DONE_LINE, READ_ISSUES } from '@/components/app/google-calendar-state'
 import { Panel } from '@/components/app/layout-parts'
 import { MarkdownView } from '@/components/app/markdown-view'
 import { useSecondZone } from '@/components/app/time-zone-picker'
@@ -108,6 +108,8 @@ function notice(block: ChatRefusedBlock, secondZone: string | null): Notice {
 				title: READ_ISSUES.outside_sync_window,
 				line: CALENDAR_STILL,
 			}
+		case 'range_load_failed':
+			return { tone: 'warning', title: HISTORY_FAILED, line: 'Ask again in a moment.' }
 		case 'connection_required':
 			return {
 				tone: 'info',

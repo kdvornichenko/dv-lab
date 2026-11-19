@@ -50,7 +50,9 @@ import { type NoteUndo, appendNoteLine, isNoteWrite, undoNoteWrite } from './not
 import { parseNoteCommand, parseQuickCommand } from './quick-command.ts'
 import { type NewTurn, type TurnRow, activeTurn, toTurn, turnOfMessage } from './turns.ts'
 
-export type ChatContext = CardReadContext & { calendarEnabled?: boolean }
+export type HistoryLoader = (monday: string) => Promise<boolean>
+
+export type ChatContext = CardReadContext & { calendarEnabled?: boolean; loadHistory?: HistoryLoader }
 
 export type LocalRequest =
 	{ kind: 'lesson'; intent: ChatLessonIntent; body?: string } | { kind: 'note'; studentId: string; body: string }

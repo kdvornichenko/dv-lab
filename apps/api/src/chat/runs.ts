@@ -25,7 +25,7 @@ import {
 	type StoredCommand,
 	chatEffort,
 } from '@dv-lab/contracts'
-import { formatHundredths, lessonDay, minorToInput, zonedParts } from '@dv-lab/core'
+import { formatHundredths, lessonDay, minorToInput, startOfZonedDay, zonedParts } from '@dv-lab/core'
 import {
 	type Database,
 	type DbExecutor,
@@ -39,6 +39,8 @@ import {
 
 import type { CalendarCommands } from '../calendar/commands.ts'
 import type { EventTitles } from '../calendar/event-titles.ts'
+import { findConnection } from '../calendar/google-access.ts'
+import { awaitHistory, requestHistory } from '../calendar/sync-store.ts'
 import { studentGenders } from '../cards/cards.ts'
 import { clearReviewRunning, markReviewRunning, recordOffer, shouldOffer } from '../cards/note-reviews.ts'
 import type { AssistantEvent } from '../push/assistant.ts'
@@ -125,12 +127,14 @@ type ChatDeps = {
 	logger: Logger
 	provider: ChatProvider
 	calendarCommands?: CalendarCommands
+	calendarWake?: (connectionId: string) => void
 	eventTitles?: EventTitles
 	cacheDiagnostics?: boolean
 	onTurnEnded?: (event: AssistantEvent) => Promise<void>
 }
 
 const MAX_REQUESTS = 6
+const HISTORY_WAIT_MS = 30_000
 const DROP_STEP = 20
 const PREAMBLE_MAX = 240
 const BODY_MAX = 200000
@@ -472,6 +476,7 @@ export function createChat({
 	logger,
 	provider,
 	calendarCommands,
+	calendarWake,
 	eventTitles,
 	cacheDiagnostics = false,
 	onTurnEnded,
@@ -642,6 +647,22 @@ export function createChat({
 			}
 		}
 		return step
+	}
+
+	function historyLoader(run: Run, turn: TurnRow, useId: string) {
+		return async (monday: string): Promise<boolean> => {
+			if (calendarWake === undefined) return false
+			const connection = await findConnection(db, turn.accountId)
+			if (!connection || connection.state !== 'connected') return false
+			const { defaultTimeZone } = await readTeacherSettings(db, turn.accountId)
+			const from = startOfZonedDay(monday, defaultTimeZone)
+			const step: ChatStep = { id: `history-${useId}`.slice(0, 120), tool: 'calendar_history', state: 'running' }
+			await saveStep(run, turn, step)
+			if (await requestHistory(db, connection.id, monday, from)) calendarWake(connection.id)
+			const loaded = await awaitHistory(db, connection.id, from, HISTORY_WAIT_MS)
+			await saveStep(run, turn, { ...step, state: loaded ? 'done' : 'failed' })
+			return loaded
+		}
 	}
 
 	function foundStep(step: ChatStep, content: string): ChatStep {
@@ -1059,7 +1080,7 @@ export function createChat({
 			logger.info({ turnId: turn.id, tool: use.name, isError: true }, 'chat tool finished')
 			return { content: JSON.stringify({ error: 'read_only_command' }), isError: true, block: null }
 		}
-		const chat = await context(turn.accountId)
+		const chat = { ...(await context(turn.accountId)), loadHistory: historyLoader(run, turn, use.id) }
 		const published: { seq: number; block: ChatBlock }[] = []
 		const step = await stepOf(run, use, zone, chat.now)
 		if (step !== null) await saveStep(run, turn, step)
