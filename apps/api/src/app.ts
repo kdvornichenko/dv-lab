@@ -96,6 +96,7 @@ export function createApp(deps: AppDeps) {
 			connection: deps.calendar,
 			control: deps.calendarControl,
 			commands: deps.calendarCommands,
+			wake: deps.calendarWake,
 			isStopping: deps.isStopping,
 		})
 	)

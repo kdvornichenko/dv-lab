@@ -151,7 +151,7 @@ export function createCalendarSync(deps: {
 		if (!started) return null
 		const at = now()
 		const { defaultTimeZone } = await readTeacherSettings(deps.db, current.accountId)
-		const window = syncWindow(at, defaultTimeZone)
+		const window = syncWindow(at, defaultTimeZone, started.historyFrom)
 		const pages = await collect(read, { timeMin: window.start, timeMax: window.end }, trace)
 		trace.stage = 'palette'
 		const palette = await optional(() => deps.source.palette(read.token, read.signal))

@@ -31,6 +31,25 @@ async function poll() {
 	}
 }
 
+const FOLLOW_MS = 1500
+const FOLLOW_LIMIT_MS = 60_000
+
+export async function requestSyncHistory(from: string) {
+	const result = await apiRequest<unknown>('POST', '/google/sync/history', { from })
+	if (!result.ok) return
+	const parsed = googleSyncSnapshot.safeParse(result.data)
+	if (parsed.success && listeners.size > 0) publish(parsed.data)
+	const until = Date.now() + FOLLOW_LIMIT_MS
+	const follow = async () => {
+		await poll()
+		const current = snapshot
+		if (current === null || Date.now() > until) return
+		if (current.windowStart !== null && current.windowStart <= from && current.state !== 'running') return
+		setTimeout(() => void follow(), FOLLOW_MS)
+	}
+	setTimeout(() => void follow(), FOLLOW_MS)
+}
+
 function becameVisible() {
 	if (document.visibilityState === 'visible') void poll()
 }

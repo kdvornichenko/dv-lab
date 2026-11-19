@@ -47,6 +47,9 @@ export const googleSyncSnapshot = z.strictObject({
 })
 export type GoogleSyncSnapshot = z.infer<typeof googleSyncSnapshot>
 
+export const googleSyncHistoryRequest = z.strictObject({ from: calendarDate })
+export type GoogleSyncHistoryRequest = z.infer<typeof googleSyncHistoryRequest>
+
 export const googlePaletteColor = z.strictObject({ id: colorId, background: hexColor, foreground: hexColor })
 export type GooglePaletteColor = z.infer<typeof googlePaletteColor>
 

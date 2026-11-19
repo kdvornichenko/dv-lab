@@ -18,12 +18,13 @@ import {
 	googleEventKeyParams,
 	googleCalendarList,
 	googleEventPalette,
+	googleSyncHistoryRequest,
 	googleSyncSnapshot,
 	updateCalendarEventRequest,
 	type GoogleEventPalette,
 	type GoogleSyncSnapshot,
 } from '@dv-lab/contracts'
-import { scheduleDate } from '@dv-lab/core'
+import { mondayOf, scheduleDate, startOfZonedDay } from '@dv-lab/core'
 import { readSnapshot, type Database, type DbExecutor } from '@dv-lab/db'
 
 import { type AppEnv, noStore, readJson, requireRole, requireSession } from '../auth/middleware.ts'
@@ -46,6 +47,7 @@ import type { ConsentActor } from '../calendar/oauth-session.ts'
 import { syncFacts, type SyncFacts } from '../calendar/projection.ts'
 import { eventColors, lastChecked } from '../calendar/read-model.ts'
 import { opaqueVersion } from '../calendar/read-state.ts'
+import { requestHistory } from '../calendar/sync-store.ts'
 import { errorBody } from '../request-context.ts'
 import { readTeacherSettings } from '../settings/settings.ts'
 
@@ -54,6 +56,7 @@ type GoogleRouteDeps = {
 	connection?: CalendarConnection
 	control?: ConnectionControl
 	commands?: CalendarCommands
+	wake?: (connectionId: string) => void
 	isStopping: () => boolean
 }
 
@@ -103,7 +106,7 @@ async function eventPalette(executor: DbExecutor, accountId: string): Promise<Go
 	return googleEventPalette.parse({ calendarColor: colors.calendarColor, colors: colors.palette ?? [] })
 }
 
-export function googleRoutes({ db, connection, control, commands, isStopping }: GoogleRouteDeps) {
+export function googleRoutes({ db, connection, control, commands, wake, isStopping }: GoogleRouteDeps) {
 	const routes = new Hono<AppEnv>()
 	routes.use(
 		'*',
@@ -153,6 +156,17 @@ export function googleRoutes({ db, connection, control, commands, isStopping }: 
 	routes.get('/sync', async (c) =>
 		c.json(await readSnapshot(db, (executor) => syncSnapshot(executor, actor(c).accountId)))
 	)
+	routes.post('/sync/history', async (c) => {
+		const input = await readJson(c, googleSyncHistoryRequest)
+		if (!input) return c.json(errorBody('invalid_request', 'Invalid request'), 400)
+		const accountId = actor(c).accountId
+		const row = await findConnection(db, accountId)
+		if (!row || row.state !== 'connected') return refusal(c, new CalendarFault('connection_required'))
+		const { defaultTimeZone } = await readTeacherSettings(db, accountId)
+		const from = startOfZonedDay(mondayOf(input.from), defaultTimeZone)
+		if (await requestHistory(db, row.id, from)) wake?.(row.id)
+		return c.json(await readSnapshot(db, (executor) => syncSnapshot(executor, accountId)), 202)
+	})
 	routes.get('/colors', async (c) =>
 		c.json(await readSnapshot(db, (executor) => eventPalette(executor, actor(c).accountId)))
 	)

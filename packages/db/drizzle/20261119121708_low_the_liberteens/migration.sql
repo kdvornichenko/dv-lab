@@ -1,0 +1,1 @@
+ALTER TABLE "google_sync_state" ADD COLUMN "history_from" timestamp with time zone;

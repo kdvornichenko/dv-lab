@@ -54,12 +54,26 @@ const currentConnection = and(
 )
 const due = sql`(${s.nextPollAt} <= now() or (${s.failureCount} = 0 and (${s.requestedSeq} > ${s.processedSeq} or ${s.nextFullAt} <= now())))`
 
-export function syncWindow(now: Date, zone: string): SyncWindow {
+export function syncWindow(now: Date, zone: string, historyFrom: Date | null = null): SyncWindow {
 	const monday = mondayOf(scheduleToday(now, zone))
+	const start = startOfZonedDay(addDays(monday, -SYNC_WINDOW_WEEKS.back * 7), zone)
 	return {
-		start: startOfZonedDay(addDays(monday, -SYNC_WINDOW_WEEKS.back * 7), zone),
+		start: historyFrom !== null && historyFrom < start ? historyFrom : start,
 		end: startOfZonedDay(addDays(monday, SYNC_WINDOW_WEEKS.ahead * 7), zone),
 	}
+}
+
+export async function requestHistory(executor: DbExecutor, connectionId: string, from: Date): Promise<boolean> {
+	const rows = await executor
+		.update(s)
+		.set({
+			historyFrom: sql`least(coalesce(${s.historyFrom}, ${from}), ${from})`,
+			nextFullAt: sql`now()`,
+			updatedAt: sql`now()`,
+		})
+		.where(and(eq(s.connectionId, connectionId), sql`${s.windowStart} > ${from}`))
+		.returning({ connectionId: s.connectionId })
+	return rows.length > 0
 }
 
 export async function ensureSyncRow(
