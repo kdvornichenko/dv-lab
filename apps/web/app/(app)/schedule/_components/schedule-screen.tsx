@@ -299,6 +299,7 @@ function LoadedSchedule({ now, arrival }: { now: Date; arrival: ArrivalParams })
 					read={read}
 					write={write}
 					timeZone={mainTimeZone}
+					weekStart={monday}
 					onRefresh={refreshWeek}
 					pendingRecovery={pendingRecovery}
 					recovery={<CalendarRecovery showEmpty={false} />}

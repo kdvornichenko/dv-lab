@@ -137,6 +137,7 @@ export function useScheduleWeek(initialMonday: string | null = null) {
 	const prefetch = useRef<Prefetch | null>(null)
 	const loading = useRef(false)
 	const handledRevision = useRef<string | null>(null)
+	const historyAsked = useRef(new Set<string>())
 	const sync = useGoogleSync()
 
 	const store = useCallback((data: GoogleScheduleWindow) => {
@@ -316,6 +317,7 @@ export function useScheduleWeek(initialMonday: string | null = null) {
 	)
 
 	const reload = useCallback(() => {
+		historyAsked.current.clear()
 		forget()
 		return start(query.current, true)
 	}, [forget, start])
@@ -339,7 +341,6 @@ export function useScheduleWeek(initialMonday: string | null = null) {
 		})
 	}, [sync, state, forget, load])
 
-	const historyAsked = useRef(new Set<string>())
 	const historyLoaded = useRef<string | null>(null)
 	useEffect(() => {
 		const shown = state.data

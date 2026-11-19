@@ -7,7 +7,7 @@ import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 
 import { TimePair } from '@/components/app/time-pair'
-import { useGoogleSync } from '@/components/app/use-google-sync'
+import { useGoogleSync, useSyncHistory } from '@/components/app/use-google-sync'
 import { Button } from '@/components/ui/button'
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover'
 import { Tooltip } from '@/components/ui/tooltip'
@@ -41,12 +41,24 @@ export const READ_ISSUES: Record<CalendarIssue, string> = {
 	disconnect_failed: 'Calendar changes are stopped. Google access removal is not confirmed.',
 	invalid_provider_data: 'Could not read a complete calendar view from Google.',
 	history_only: 'This record is local history. Calendar changes are unavailable.',
-	outside_sync_window: `This week is outside the synced range, from ${SYNC_WINDOW_WEEKS.back} weeks back to ${SYNC_WINDOW_WEEKS.ahead} weeks ahead. Calendar changes are unavailable.`,
+	outside_sync_window: `This week is more than ${SYNC_WINDOW_WEEKS.ahead} weeks ahead. Calendar changes are unavailable.`,
 	unsupported_recurrence: "This repeat rule can't be edited here. Change it in Google Calendar.",
 	read_only_event: "This event can't be edited here. Change it in Google Calendar.",
 }
 
 const FULL_CHECK_RUNNING = 'A full check is running.'
+const HISTORY_LOADING = 'Loading these weeks from Google…'
+const HISTORY_FAILED = 'Could not load these weeks from Google. Calendar changes are unavailable.'
+
+type HistoryMode = 'loading' | 'failed' | null
+
+function useHistoryMode(issue: CalendarIssue | null, weekStart: string | undefined): HistoryMode {
+	const sync = useGoogleSync()
+	const history = useSyncHistory()
+	if (issue !== 'outside_sync_window' || weekStart === undefined) return null
+	if (sync?.windowStart == null || weekStart >= sync.windowStart) return null
+	return history?.status === 'failed' ? 'failed' : 'loading'
+}
 const NO_CHECKED_VIEW = 'No checked calendar view is available for these dates.'
 
 function checkedAt(read: Exclude<CalendarReadStatus, { state: 'unavailable' }>, timeZone: string) {
@@ -58,16 +70,19 @@ export function CalendarReadNotice({
 	read,
 	write,
 	timeZone,
+	weekStart,
 	onRefresh,
 }: {
 	read: CalendarReadStatus
 	write: GoogleScheduleWindow['write']
 	timeZone: string
+	weekStart?: string
 	onRefresh: () => Promise<void>
 }) {
 	const [refreshing, setRefreshing] = useState(false)
 	const running = useGoogleSync()?.state === 'running'
 	const issue = write.state === 'blocked' ? write.reason : read.state === 'fresh' ? null : read.reason
+	const history = useHistoryMode(issue, weekStart)
 	const connection =
 		issue === 'connection_required' || issue === 'reconnect_required' || issue === 'permission_required'
 	async function refresh() {
@@ -86,8 +101,10 @@ export function CalendarReadNotice({
 				) : (
 					<p className="text-muted-foreground">{checkedAt(read, timeZone)}</p>
 				)}
-				{running ? <p className="text-muted-foreground">{FULL_CHECK_RUNNING}</p> : null}
-				{issue !== null && !(read.state === 'unavailable' && issue === 'provider_unavailable') ? (
+				{running && history === null ? <p className="text-muted-foreground">{FULL_CHECK_RUNNING}</p> : null}
+				{history === 'loading' ? <p className="text-muted-foreground">{HISTORY_LOADING}</p> : null}
+				{history === 'failed' ? <p className="text-muted-foreground">{HISTORY_FAILED}</p> : null}
+				{history === null && issue !== null && !(read.state === 'unavailable' && issue === 'provider_unavailable') ? (
 					<p className="text-muted-foreground">{READ_ISSUES[issue]}</p>
 				) : null}
 				{write.state === 'blocked' || read.state !== 'fresh' ? (
@@ -105,7 +122,12 @@ export function CalendarReadNotice({
 						{issue === 'connection_required' ? 'Connect Google Calendar' : 'Reconnect'}
 					</Button>
 				) : null}
-				<Button variant="secondary" size="compact" loading={refreshing || running} onClick={() => void refresh()}>
+				<Button
+					variant="secondary"
+					size="compact"
+					loading={refreshing || running || history === 'loading'}
+					onClick={() => void refresh()}
+				>
 					Refresh
 				</Button>
 			</div>
@@ -141,7 +163,7 @@ const TONE_STYLE: Record<NoticeTone, { icon: typeof Info; button: string; dot: s
 }
 
 function readOnlyLabel(issue: CalendarIssue | null): string {
-	if (issue === 'outside_sync_window') return 'Read-only. Outside the synced weeks'
+	if (issue === 'outside_sync_window') return `Read-only. More than ${SYNC_WINDOW_WEEKS.ahead} weeks ahead`
 	if (issue === 'connection_required') return 'Read-only. Connect Google Calendar'
 	if (issue === 'reconnect_required' || issue === 'permission_required') return 'Read-only. Reconnect Google Calendar'
 	return 'Read-only'
@@ -151,6 +173,7 @@ export function CalendarReadStatusButton({
 	read,
 	write,
 	timeZone,
+	weekStart,
 	onRefresh,
 	pendingRecovery,
 	recovery,
@@ -158,6 +181,7 @@ export function CalendarReadStatusButton({
 	read: CalendarReadStatus
 	write: GoogleScheduleWindow['write']
 	timeZone: string
+	weekStart?: string
 	onRefresh: () => Promise<void>
 	pendingRecovery: boolean
 	recovery: ReactNode
@@ -173,6 +197,7 @@ export function CalendarReadStatusButton({
 				: pendingRecovery
 					? 'command_pending'
 					: null
+	const history = useHistoryMode(issue, weekStart)
 	async function refresh() {
 		setRefreshing(true)
 		try {
@@ -181,7 +206,37 @@ export function CalendarReadStatusButton({
 			setRefreshing(false)
 		}
 	}
-	if (running) {
+	if (history === 'loading') {
+		return (
+			<span className="relative inline-flex" data-slot="calendar-read-status-button" data-tone="running">
+				<span role="status" className="sr-only">
+					{HISTORY_LOADING}
+				</span>
+				<Popover>
+					<Tooltip side="bottom" content={HISTORY_LOADING}>
+						<PopoverTrigger
+							render={
+								<Button variant="tertiary" size="icon-compact" aria-label={HISTORY_LOADING}>
+									<LoaderCircle className="animate-spin" />
+								</Button>
+							}
+						/>
+					</Tooltip>
+					<PopoverContent align="end" className="w-90 max-w-[calc(100vw-2rem)] gap-3 p-4">
+						<div className="flex min-w-0 flex-col gap-1 text-body" data-slot="calendar-read-status">
+							<p>{HISTORY_LOADING}</p>
+							<p className="text-muted-foreground">
+								{read.state === 'unavailable' ? NO_CHECKED_VIEW : checkedAt(read, timeZone)}
+							</p>
+							<p className="text-muted-foreground">Read-only</p>
+						</div>
+						{recovery}
+					</PopoverContent>
+				</Popover>
+			</span>
+		)
+	}
+	if (running && history === null) {
 		const label = 'Checking Google Calendar…'
 		return (
 			<span className="relative inline-flex" data-slot="calendar-read-status-button" data-tone="running">
@@ -232,15 +287,12 @@ export function CalendarReadStatusButton({
 			</span>
 		)
 	}
-	const tone = TONE_STYLE[issue === null ? 'warning' : ISSUE_TONES[issue]]
+	const toneName = history === 'failed' || issue === null ? 'warning' : ISSUE_TONES[issue]
+	const tone = TONE_STYLE[toneName]
 	const Icon = tone.icon
-	const label = blocked ? readOnlyLabel(issue) : 'Calendar requests need recovery'
+	const label = history === 'failed' ? 'Read-only' : blocked ? readOnlyLabel(issue) : 'Calendar requests need recovery'
 	return (
-		<span
-			className="relative inline-flex"
-			data-slot="calendar-read-status-button"
-			data-tone={issue === null ? 'warning' : ISSUE_TONES[issue]}
-		>
+		<span className="relative inline-flex" data-slot="calendar-read-status-button" data-tone={toneName}>
 			<span role="status" className="sr-only">
 				{label}
 			</span>
@@ -255,7 +307,13 @@ export function CalendarReadStatusButton({
 					/>
 				</Tooltip>
 				<PopoverContent align="end" className="w-90 max-w-[calc(100vw-2rem)] gap-3 p-4">
-					<CalendarReadNotice read={read} write={write} timeZone={timeZone} onRefresh={onRefresh} />
+					<CalendarReadNotice
+						read={read}
+						write={write}
+						timeZone={timeZone}
+						weekStart={weekStart}
+						onRefresh={onRefresh}
+					/>
 					{recovery}
 				</PopoverContent>
 			</Popover>
