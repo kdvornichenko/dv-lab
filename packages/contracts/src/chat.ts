@@ -178,6 +178,7 @@ export type ChatLessonIntent = z.infer<typeof chatLessonIntent>
 export const LESSON_TARGET_REFUSALS = [
 	'lesson_done',
 	'outside_sync_window',
+	'range_load_failed',
 	'connection_required',
 	'command_pending',
 	'calendar_unavailable',
@@ -456,6 +457,7 @@ export const CHAT_CHANGE_ISSUES = [
 	'connection_required',
 	'command_pending',
 	'outside_sync_window',
+	'range_load_failed',
 	'provider_unavailable',
 	'replaced',
 ] as const
@@ -1045,6 +1047,7 @@ export const CHAT_STEP_TOOLS = [
 	'propose_bulk_move',
 	'essay_feedback',
 	'calendar_events',
+	'calendar_history',
 	'review_read',
 	'apply_review',
 	'answer',

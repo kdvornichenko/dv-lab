@@ -58,13 +58,14 @@ const chat = config.chat.enabled
 			provider: createChatProvider({ apiKey: config.chat.apiKey }),
 			cacheDiagnostics: config.chat.cacheDiagnostics,
 			calendarCommands: calendar?.commands,
+			calendarWake: calendar ? (connectionId) => void calendar.sync.wake(connectionId) : undefined,
 			eventTitles: calendar?.eventTitles,
-			onTurnEnded: pushDeliver === undefined ? undefined : createAssistantNotifier({ db, logger, deliver: pushDeliver }),
+			onTurnEnded:
+				pushDeliver === undefined ? undefined : createAssistantNotifier({ db, logger, deliver: pushDeliver }),
 		})
 	: undefined
 await chat?.sweepInterrupted()
-const pushScheduler =
-	pushDeliver === undefined ? undefined : createPushScheduler({ db, logger, deliver: pushDeliver })
+const pushScheduler = pushDeliver === undefined ? undefined : createPushScheduler({ db, logger, deliver: pushDeliver })
 
 function createCalendar(calendarConfig: Extract<CalendarConfig, { enabled: true }>) {
 	const lease = createConnectionLease(pool)

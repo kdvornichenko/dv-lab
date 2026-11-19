@@ -13,6 +13,14 @@ let snapshot: GoogleSyncSnapshot | null = null
 let timer: ReturnType<typeof setInterval> | null = null
 let pending = false
 
+export type SyncHistory = { from: string; status: 'loading' | 'failed' }
+let history: SyncHistory | null = null
+
+function publishHistory(next: SyncHistory | null) {
+	history = next
+	for (const listener of listeners) listener()
+}
+
 function publish(next: GoogleSyncSnapshot) {
 	snapshot = next
 	for (const listener of listeners) listener()
@@ -29,6 +37,45 @@ async function poll() {
 	} finally {
 		pending = false
 	}
+}
+
+const FOLLOW_MS = 1500
+const FOLLOW_LIMIT_MS = 60_000
+
+export async function requestSyncHistory(from: string) {
+	publishHistory({ from, status: 'loading' })
+	const result = await apiRequest<unknown>('POST', '/google/sync/history', { from })
+	if (!result.ok) {
+		publishHistory({ from, status: 'failed' })
+		return
+	}
+	const parsed = googleSyncSnapshot.safeParse(result.data)
+	if (parsed.success && listeners.size > 0) publish(parsed.data)
+	const until = Date.now() + FOLLOW_LIMIT_MS
+	const follow = async () => {
+		if (history?.from !== from) return
+		await poll()
+		const current = snapshot
+		if (current === null) return
+		if (current.windowStart !== null && current.windowStart <= from) {
+			publishHistory(null)
+			return
+		}
+		if (Date.now() > until || current.state === 'failed') {
+			publishHistory({ from, status: 'failed' })
+			return
+		}
+		setTimeout(() => void follow(), FOLLOW_MS)
+	}
+	setTimeout(() => void follow(), FOLLOW_MS)
+}
+
+export function useSyncHistory(): SyncHistory | null {
+	return useSyncExternalStore(
+		subscribe,
+		() => history,
+		() => null
+	)
 }
 
 function becameVisible() {

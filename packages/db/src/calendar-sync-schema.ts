@@ -104,6 +104,7 @@ export const googleSyncState = pgTable(
 		epoch: bigint('epoch', { mode: 'number' }).notNull().default(0),
 		windowStart: timestamp('window_start', { withTimezone: true }).notNull(),
 		windowEnd: timestamp('window_end', { withTimezone: true }).notNull(),
+		historyFrom: timestamp('history_from', { withTimezone: true }),
 		revision: bigint('revision', { mode: 'bigint' }).notNull().default(0n),
 		requestedSeq: bigint('requested_seq', { mode: 'number' }).notNull().default(0),
 		processedSeq: bigint('processed_seq', { mode: 'number' }).notNull().default(0),

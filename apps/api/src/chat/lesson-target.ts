@@ -18,6 +18,7 @@ import {
 	lessonActions,
 	lessonDay,
 	localTimeCandidates,
+	mondayOf,
 	namedDateRange,
 	zonedParts,
 } from '@dv-lab/core'
@@ -29,6 +30,7 @@ import type { CardReadContext } from '../cards/card-facts.ts'
 import { seriesColumns, toSeriesRule } from '../schedule/rows.ts'
 import { seriesAnchor } from '../schedule/series.ts'
 import { readLessonDay } from '../today/today.ts'
+import type { HistoryLoader } from './actions.ts'
 
 const OPTIONS_MAX = 6
 const CONNECTION_ISSUES: readonly CalendarIssue[] = [
@@ -213,19 +215,30 @@ export async function findLessonOptions(
 
 export async function resolveLessonTarget(
 	executor: DbExecutor,
-	context: CardReadContext,
+	context: CardReadContext & { loadHistory?: HistoryLoader },
 	intent: ChatLessonIntent
 ): Promise<LessonTargetResult> {
 	if (intent.kind === 'note') return { kind: 'student', studentId: intent.studentId }
 	const { now, defaultTimeZone: zone } = context
 	const calendar = intent.kind === 'move' || intent.kind === 'cancel'
 	const source = intent.date ?? (intent.scope === 'series' ? intent.from : undefined)
-	const day =
+	let day =
 		source === undefined
 			? await readLessonDay(executor, context, lessonDay(now, zone))
 			: await readNamedDate(executor, context, source)
 	if (calendar) {
-		const blocked = writeRefusal(day.calendarWrite)
+		let blocked = writeRefusal(day.calendarWrite)
+		if (
+			blocked?.kind === 'refused' &&
+			blocked.code === 'outside_sync_window' &&
+			source !== undefined &&
+			source < lessonDay(now, zone) &&
+			context.loadHistory
+		) {
+			if (!(await context.loadHistory(mondayOf(source)))) return refused('range_load_failed')
+			day = await readNamedDate(executor, context, source)
+			blocked = writeRefusal(day.calendarWrite)
+		}
 		if (blocked) return blocked
 	}
 	const found = candidates(intent, day.lessons, day.earlier, source !== undefined, now).filter(

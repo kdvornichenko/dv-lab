@@ -4,7 +4,7 @@ import { useCallback, useEffect, useRef, useState } from 'react'
 
 import { useCalendarController, useCalendarRefresh } from '@/components/app/calendar-command-provider'
 import { readCalendarWeek } from '@/components/app/calendar-command-transport'
-import { useGoogleSync } from '@/components/app/use-google-sync'
+import { requestSyncHistory, useGoogleSync } from '@/components/app/use-google-sync'
 import { API_CACHE_INVALIDATED, DEVICE_CACHE_PREFIX, sessionEpoch } from '@/lib/api-client'
 import { deviceGet, deviceSet } from '@/lib/device-store'
 import { staleCalendarWindow } from '@/lib/lesson-actions'
@@ -137,6 +137,7 @@ export function useScheduleWeek(initialMonday: string | null = null) {
 	const prefetch = useRef<Prefetch | null>(null)
 	const loading = useRef(false)
 	const handledRevision = useRef<string | null>(null)
+	const historyAsked = useRef(new Set<string>())
 	const sync = useGoogleSync()
 
 	const store = useCallback((data: GoogleScheduleWindow) => {
@@ -316,6 +317,7 @@ export function useScheduleWeek(initialMonday: string | null = null) {
 	)
 
 	const reload = useCallback(() => {
+		historyAsked.current.clear()
 		forget()
 		return start(query.current, true)
 	}, [forget, start])
@@ -337,6 +339,26 @@ export function useScheduleWeek(initialMonday: string | null = null) {
 		void load(query.current, true).then((data) => {
 			if (data === null) handledRevision.current = null
 		})
+	}, [sync, state, forget, load])
+
+	const historyLoaded = useRef<string | null>(null)
+	useEffect(() => {
+		const shown = state.data
+		const monday = state.query?.monday
+		if (sync === null || state.kind !== 'ready' || shown === null || monday === undefined) return
+		if (shown.read.state !== 'last_known' || shown.read.reason !== 'outside_sync_window') return
+		if (sync.windowStart === null || sync.windowEnd === null) return
+		if (monday < sync.windowStart) {
+			if (historyAsked.current.has(monday)) return
+			historyAsked.current.add(monday)
+			void requestSyncHistory(monday)
+			return
+		}
+		const key = `${monday}|${sync.windowStart}`
+		if (monday >= sync.windowEnd || loading.current || historyLoaded.current === key) return
+		historyLoaded.current = key
+		forget()
+		void load(query.current, true)
 	}, [sync, state, forget, load])
 
 	useEffect(() => {

@@ -26,12 +26,11 @@ import { type Database, type DbExecutor, chatActions, lessonSeries, lessons, stu
 import type { CalendarCommands } from '../calendar/commands.ts'
 import { findConnection } from '../calendar/google-access.ts'
 import { findRequest } from '../calendar/journal.ts'
-import { insideSyncWindow, syncFacts } from '../calendar/projection.ts'
 import { seriesColumns, toSeriesRule } from '../schedule/rows.ts'
 import { seriesAnchor } from '../schedule/series.ts'
 import { readTeacherSettings } from '../settings/settings.ts'
 import type { ChatContext } from './actions.ts'
-import { faultIssue, forwardState, weekWindow, writeIssue } from './calendar.ts'
+import { faultIssue, forwardState, placeInWindow, weekWindow, writeIssue } from './calendar.ts'
 import { type CommandZone, resolveCommandZone } from './command-zone.ts'
 import { type BulkProgress, bulkProgress } from './messages.ts'
 
@@ -51,6 +50,7 @@ export type BulkRefusal =
 	| 'student_not_found'
 	| 'connection_required'
 	| 'outside_sync_window'
+	| 'range_load_failed'
 	| 'no_matching_lessons'
 	| 'series_marked'
 	| 'nonexistent_local_time'
@@ -170,7 +170,6 @@ export async function proposeBulkMove(
 	if (!context.calendarEnabled) return refused('connection_required')
 	const connection = await findConnection(executor, context.accountId)
 	if (!connection) return refused('connection_required')
-	const sync = await syncFacts(executor, connection.id)
 	const targets: ChatBulkMoveChange['targets'] = []
 	const children: BulkChild[] = []
 	for (const rule of await liveSeries(executor, card.id, context.now)) {
@@ -183,11 +182,10 @@ export async function proposeBulkMove(
 		const now = localTimeCandidates(firstOnOrAfter(from, request.toWeekday), request.toTime, zone.zone)[0]
 		if (now === undefined) return refused('nonexistent_local_time')
 		const length = rule.durationMinutes * 60000
-		if (
-			!insideSyncWindow(sync, was, new Date(was.getTime() + length)) ||
-			!insideSyncWindow(sync, now, new Date(now.getTime() + length))
-		)
-			return refused('outside_sync_window')
+		const wasPlaced = await placeInWindow(executor, context, connection.id, was, new Date(was.getTime() + length))
+		if (wasPlaced !== 'inside') return refused(wasPlaced)
+		const nowPlaced = await placeInWindow(executor, context, connection.id, now, new Date(now.getTime() + length))
+		if (nowPlaced !== 'inside') return refused(nowPlaced)
 		targets.push({
 			seriesId: rule.id,
 			seriesTimeZone: rule.timeZone,
